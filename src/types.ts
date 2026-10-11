@@ -1,0 +1,101 @@
+export type Meal = 'breakfast' | 'lunch' | 'dinner';
+export type MealRelation = 'before' | 'with' | 'after';
+
+export type DoseTiming =
+  | { kind: 'meal'; meal: Meal; relation: MealRelation }
+  | { kind: 'custom'; time: string }; // "HH:MM" 24h
+
+export interface Dose {
+  id: string;
+  timing: DoseTiming;
+  qty: number; // units per dose, e.g. 1 tablet, 0.5 tablet
+  days: number[]; // 0=Sun..6=Sat; empty = every day
+  since: string; // ISO time this dose (or its timing) took effect; no "missed" before this
+}
+
+export interface Medication {
+  id: string;
+  memberId: string;
+  name: string; // brand name as printed on the strip, e.g. "Dolo"
+  strength: string; // e.g. "650" or "40 mg"
+  aliases: string[]; // other printed names, e.g. generic "Paracetamol 650"
+  barcodes: string[]; // linked barcode / QR values
+  unit: string; // tablet, capsule, ml, puff...
+  doses: Dose[];
+  stock: number;
+  lowStockAt: number;
+  endDate?: string; // YYYY-MM-DD, last day of a course
+  notes?: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface MealTimes {
+  breakfast: string;
+  lunch: string;
+  dinner: string;
+}
+
+export interface Member {
+  id: string;
+  name: string;
+  color: string;
+  mealTimes: MealTimes;
+}
+
+export interface Settings {
+  mealOffsetMin: number; // "before"/"after" meal = meal time -/+ this
+  dueWindowMin: number; // a dose becomes scannable this many minutes before its time
+  missedAfterMin: number; // a dose is logged "missed" this many minutes after its time
+  followUpMin: number; // "still not taken" reminder after this many minutes (0 = off)
+  snoozeMin: number;
+}
+
+export type LogStatus = 'taken' | 'missed' | 'skipped';
+export type LogMethod = 'barcode' | 'text' | 'manual' | 'auto';
+
+export interface DoseLog {
+  id: string;
+  key: string; // occurrence key: date|medId|doseId
+  memberId: string;
+  medId: string;
+  medName: string;
+  date: string; // YYYY-MM-DD scheduled day
+  time: string; // HH:MM scheduled time
+  status: LogStatus;
+  method: LogMethod;
+  qty: number;
+  at: string; // ISO time recorded
+}
+
+export interface StockEvent {
+  id: string;
+  medId: string;
+  memberId: string;
+  medName: string;
+  delta: number;
+  reason: 'dose' | 'refill' | 'adjust' | 'undo';
+  at: string;
+}
+
+export interface AppState {
+  version: 1;
+  members: Member[];
+  meds: Medication[];
+  logs: DoseLog[];
+  stock: StockEvent[];
+  settings: Settings;
+}
+
+export type OccurrenceStatus = 'upcoming' | 'due' | LogStatus;
+
+export interface Occurrence {
+  key: string;
+  date: string;
+  time: string;
+  memberId: string;
+  med: Medication;
+  dose: Dose;
+  status: OccurrenceStatus;
+  log?: DoseLog;
+}

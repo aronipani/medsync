@@ -1,0 +1,50 @@
+{
+  "expo": {
+    "name": "MedSync",
+    "slug": "medsync",
+    "scheme": "medsync",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "automatic",
+    "ios": {
+      "bundleIdentifier": "com.medsync.family",
+      "supportsTablet": false,
+      "infoPlist": {
+        "NSCameraUsageDescription": "MedSync uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
+      }
+    },
+    "android": {
+      "package": "com.medsync.family",
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.POST_NOTIFICATIONS",
+        "android.permission.SCHEDULE_EXACT_ALARM",
+        "android.permission.VIBRATE"
+      ]
+    },
+    "plugins": [
+      "expo-router",
+      "expo-dev-client",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "MedSync uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "color": "#0F766E"
+        }
+      ],
+      "@react-native-community/datetimepicker"
+    ],
+    "experiments": {
+      "typedRoutes": false
+    },
+    "platforms": [
+      "ios",
+      "android"
+    ]
+  }
+}

@@ -1,0 +1,22 @@
+name: iPhone (TestFlight)
+
+# Run manually once the Expo account and Apple credentials are set up (see README → iPhone).
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - name: Build on EAS and submit to TestFlight
+        run: eas build --platform ios --profile production --non-interactive --auto-submit
