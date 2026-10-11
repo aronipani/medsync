@@ -324,6 +324,11 @@ export const LANGS: Record<LangCode, Lang> = {
 
 export const LANG_ORDER: LangCode[] = ['en', 'hi', 'bn', 'pa', 'te', 'gu', 'ta', 'kn', 'as', 'zh', 'es', 'fil', 'ja'];
 
+/** Shown by default. */
+export const MAIN_LANGS: LangCode[] = ['en', 'bn', 'hi'];
+/** Written but not yet checked by a native speaker — offered under "More languages". */
+export const MORE_LANGS: LangCode[] = LANG_ORDER.filter((c) => !MAIN_LANGS.includes(c));
+
 const UNIT_KEYS: UnitKey[] = ['tablet', 'capsule', 'ml', 'drops', 'puff', 'sachet', 'injection'];
 const asUnit = (u: string): UnitKey => (UNIT_KEYS.includes(u as UnitKey) ? (u as UnitKey) : 'tablet');
 

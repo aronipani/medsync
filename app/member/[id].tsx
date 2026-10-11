@@ -1,7 +1,7 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Switch, Text, View } from 'react-native';
-import { LANG_ORDER, LANGS, matchAnnouncement, type LangCode } from '../../src/phrases.ts';
+import { LANGS, MAIN_LANGS, MORE_LANGS, matchAnnouncement, type LangCode } from '../../src/phrases.ts';
 import { hasVoice, say } from '../../src/speech.ts';
 import { MEMBER_COLORS, newMember, useStore } from '../../src/store.tsx';
 import type { Meal, Member } from '../../src/types.ts';
@@ -19,6 +19,7 @@ export default function EditMember() {
   const medCount = state.meds.filter((x) => x.memberId === m.id).length;
   const lang: LangCode = m.language ?? 'en';
   const [voiceOk, setVoiceOk] = useState(true);
+  const [showMore, setShowMore] = useState(MORE_LANGS.includes(lang));
   useEffect(() => {
     hasVoice(lang).then(setVoiceOk).catch(() => setVoiceOk(true));
   }, [lang]);
@@ -48,11 +49,29 @@ export default function EditMember() {
 
       <Label>Language for spoken messages</Label>
       <View style={s.wrap}>
-        {LANG_ORDER.map((code) => (
+        {MAIN_LANGS.map((code) => (
           <Chip key={code} label={LANGS[code].label} active={lang === code} onPress={() => setM({ ...m, language: code })} />
         ))}
       </View>
-      <Text style={{ color: t.sub, fontSize: 13 }}>{LANGS[lang].english}</Text>
+      <Pressable onPress={() => setShowMore((v) => !v)} style={{ paddingVertical: 6 }}>
+        <Text style={{ color: t.brand, fontWeight: '700' }}>{showMore ? '▾' : '▸'} More languages (not yet checked)</Text>
+      </Pressable>
+      {showMore && (
+        <>
+          <Text style={{ color: t.warn, fontSize: 13, lineHeight: 18, marginBottom: 8 }}>
+            These translations haven't been checked by a native speaker yet. Before relying on one, ask someone who speaks it to listen to the example below.
+          </Text>
+          <View style={s.wrap}>
+            {MORE_LANGS.map((code) => (
+              <Chip key={code} label={LANGS[code].label} active={lang === code} onPress={() => setM({ ...m, language: code })} />
+            ))}
+          </View>
+        </>
+      )}
+      <Text style={{ color: t.sub, fontSize: 13 }}>
+        {LANGS[lang].english}
+        {MORE_LANGS.includes(lang) ? ' — not yet checked' : ''}
+      </Text>
       {!voiceOk && (
         <Text style={{ color: t.warn, marginTop: 6, lineHeight: 19 }}>
           This phone has no {LANGS[lang].english} voice yet — it will speak English until one is added. Android: Settings → Text-to-speech → install voice data. iPhone:
