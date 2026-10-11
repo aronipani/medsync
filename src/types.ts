@@ -41,6 +41,8 @@ export interface Member {
   name: string;
   color: string;
   mealTimes: MealTimes;
+  language?: import('./phrases.ts').LangCode; // spoken announcements (default English)
+  voice?: boolean; // speak scan results and reminders aloud (default on)
 }
 
 export interface Settings {

@@ -1,9 +1,11 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
-import React, { useState } from 'react';
-import { Alert, ScrollView, Text, View } from 'react-native';
+import React, { useEffect, useState } from 'react';
+import { Alert, ScrollView, Switch, Text, View } from 'react-native';
+import { LANG_ORDER, LANGS, matchAnnouncement, type LangCode } from '../../src/phrases.ts';
+import { hasVoice, say } from '../../src/speech.ts';
 import { MEMBER_COLORS, newMember, useStore } from '../../src/store.tsx';
 import type { Meal, Member } from '../../src/types.ts';
-import { Button, Field, Label, s, TimeField, useTheme } from '../../src/ui.tsx';
+import { Button, Chip, Field, Label, s, TimeField, useTheme } from '../../src/ui.tsx';
 import { Pressable } from 'react-native';
 
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner'];
@@ -15,6 +17,11 @@ export default function EditMember() {
   const existing = state.members.find((m) => m.id === id);
   const [m, setM] = useState<Member>(() => existing ?? { ...newMember('', state.members.length) });
   const medCount = state.meds.filter((x) => x.memberId === m.id).length;
+  const lang: LangCode = m.language ?? 'en';
+  const [voiceOk, setVoiceOk] = useState(true);
+  useEffect(() => {
+    hasVoice(lang).then(setVoiceOk).catch(() => setVoiceOk(true));
+  }, [lang]);
 
   const save = () => {
     if (!m.name.trim()) return Alert.alert('Name needed');
@@ -38,6 +45,30 @@ export default function EditMember() {
           />
         ))}
       </View>
+
+      <Label>Language for spoken messages</Label>
+      <View style={s.wrap}>
+        {LANG_ORDER.map((code) => (
+          <Chip key={code} label={LANGS[code].label} active={lang === code} onPress={() => setM({ ...m, language: code })} />
+        ))}
+      </View>
+      <Text style={{ color: t.sub, fontSize: 13 }}>{LANGS[lang].english}</Text>
+      {!voiceOk && (
+        <Text style={{ color: t.warn, marginTop: 6, lineHeight: 19 }}>
+          This phone has no {LANGS[lang].english} voice yet — it will speak English until one is added. Android: Settings → Text-to-speech → install voice data. iPhone:
+          Settings → Accessibility → Spoken Content → Voices.
+        </Text>
+      )}
+      <View style={[s.between, { marginTop: 12 }]}>
+        <Text style={{ color: t.text, fontSize: 16 }}>Speak scan results aloud</Text>
+        <Switch value={m.voice !== false} onValueChange={(voice) => setM({ ...m, voice })} />
+      </View>
+      <Button
+        title="Hear an example"
+        kind="secondary"
+        style={{ marginTop: 8 }}
+        onPress={() => say(lang, matchAnnouncement(lang, [{ name: 'Clopilet 75', qty: 0.5, unit: 'tablet' }]))}
+      />
 
       <Label>Usual meal times</Label>
       <Text style={{ color: t.sub, marginBottom: 8 }}>Doses set to "before / with / after" a meal follow these times.</Text>

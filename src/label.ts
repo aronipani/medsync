@@ -1,6 +1,8 @@
 // Turns OCR text from a strip, bottle or box into a medicine draft (name, strength, form, generic).
 // Pure — no React Native imports — so it can be unit tested.
 
+import { lookupBrand, lookupIngredients } from './drugdb.ts';
+
 export interface OcrLine {
   text: string;
   height?: number; // text height in pixels, when known; bigger = more prominent (usually the brand)
@@ -223,9 +225,18 @@ export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
   for (const b of scored) if (!brands.some((x) => x.name.toLowerCase() === b.name.toLowerCase())) brands.push(b);
   const brand = brands[0];
 
+  // The built-in list fills gaps: contents of a known brand, or known brands of the contents read.
+  const known = brand ? lookupBrand(brand.name) : undefined;
+  if (known && !ingredients.length) {
+    const parts = (brand?.strength ?? '').split('/');
+    known.ingredients.forEach((n, i) => ingredients.push({ name: n, strength: parts.length === known.ingredients.length ? parts[i] : undefined }));
+  }
+  const knownBrands = ingredients.length ? lookupIngredients(ingredients.map((i) => i.name)).flatMap((e) => e.brands) : [];
+
   const genericName = ingredients.map((i) => i.name).join(' + ');
   const genericStrength = ingredients.map((i) => i.strength).filter(Boolean).join('/');
   const contents = describeIngredients(ingredients);
+  const unitFinal = known?.unit && !detectForm(allText) ? known.unit : unit;
 
   let strength = brand?.strength ?? (ingredients.length && ingredients.every((i) => i.strength) ? genericStrength : '');
   if (!strength && !ingredients.length && unit !== 'ml') {
@@ -237,12 +248,16 @@ export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
   const genericAlias = ingredients.length ? ingredients.map((i) => `${i.name} ${i.strength ?? ''}`.trim()).join(' + ') : '';
   const aliases = brand && genericAlias ? [genericAlias] : [];
 
-  const nameOptions = [...brands.slice(0, 4).map((b) => b.name), ...(genericName && brand ? [genericName] : [])];
+  const nameOptions = [
+    ...brands.slice(0, 3).map((b) => b.name),
+    ...(genericName && brand ? [genericName] : []),
+    ...knownBrands.slice(0, 4), // e.g. torn Clopilet strip -> offers Clopilet, Plavix
+  ];
 
   return {
     name,
     strength,
-    unit,
+    unit: unitFinal,
     aliases,
     barcodes: barcode ? [barcode] : [],
     ingredients,

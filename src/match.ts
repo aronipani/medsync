@@ -1,6 +1,7 @@
 // Pure matching logic: does scanned text / barcode belong to a medication?
 // Built for Indian strips where the brand + strength is printed on foil, e.g. "DOLO-650", "Telma 40".
 
+import { relatedNames } from './drugdb.ts';
 import type { Medication } from './types.ts';
 
 const NOISE = new Set([
@@ -110,4 +111,39 @@ export function matchBarcode(raw: string, med: Pick<Medication, 'barcodes' | 'na
   if (med.barcodes.some((b) => normalizeCode(b) === code)) return true;
   // Many Indian QR codes carry the product name as text.
   return /[A-Za-z]{3,}/.test(raw) && matchText(raw, med).matched;
+}
+
+// ---------- Detailed result for dose checking ----------
+
+export type MatchLevel = 'match' | 'substitute' | 'nameOnly' | 'otherStrength' | 'none';
+
+export interface MatchDetail {
+  level: MatchLevel;
+  via?: string; // the name that matched, e.g. "Clopidogrel 75" or "Plavix 75"
+  foundStrengths?: string[]; // strengths printed on the strip when they differ from the prescription
+}
+
+const STRENGTH_IN_TEXT = /(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug|iu|k)\b/gi;
+
+/**
+ * How well a strip matches a scheduled medicine:
+ *  - match: name (or its contents) and strength both found
+ *  - substitute: another brand of the same medicine and strength (from the built-in list)
+ *  - nameOnly: the name is there but no strength could be read (torn / glare) — a person should check
+ *  - otherStrength: the name is there with a different strength printed — don't take
+ *  - none: not this medicine
+ */
+export function matchDetail(text: string, med: Pick<Medication, 'name' | 'strength' | 'aliases'>): MatchDetail {
+  const own = matchText(text, med);
+  if (own.matched) return { level: 'match', via: own.candidate };
+
+  const rel = relatedNames(med);
+  const extra = [rel.generic, ...rel.otherBrands].filter((x): x is string => !!x);
+  const relMatch = extra.length ? matchText(text, { name: '', strength: '', aliases: extra }) : { matched: false, nameFound: false };
+  if (relMatch.matched) return { level: relMatch.candidate === rel.generic ? 'match' : 'substitute', via: relMatch.candidate };
+
+  if (!own.nameFound && !relMatch.nameFound) return { level: 'none' };
+  const expected = new Set(med.strength.split('/').map((x) => x.replace(/[^\d.]/g, '')));
+  const found = [...new Set([...text.matchAll(STRENGTH_IN_TEXT)].map((m) => m[1]))].filter((x) => !expected.has(x));
+  return found.length ? { level: 'otherStrength', foundStrengths: found } : { level: 'nameOnly' };
 }

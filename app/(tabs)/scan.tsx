@@ -4,7 +4,9 @@ import { useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
-import { matchBarcode, matchText } from '../../src/match.ts';
+import { matchBarcode, matchDetail, matchText } from '../../src/match.ts';
+import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
+import { say, stopSpeaking } from '../../src/speech.ts';
 import { readBurst, readLinesAnyOrientation } from '../../src/ocr.ts';
 import { Ionicons } from '@expo/vector-icons';
 import { dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
@@ -16,8 +18,10 @@ import { Button, Card, Empty, Field, s, useTheme } from '../../src/ui.tsx';
 const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'pdf417', 'itf14'];
 
 type Result =
-  | { kind: 'match'; occs: Occurrence[]; method: LogMethod }
-  | { kind: 'nomatch'; reason: string; detail?: string; code?: string };
+  | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string } // green
+  | { kind: 'check'; occ: Occurrence; method: LogMethod } // amber: name matches, strength unreadable
+  | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
+  | { kind: 'nomatch'; reason: string; detail?: string; code?: string; say: PhraseKey }; // red
 
 export default function Scan() {
   const t = useTheme();
@@ -47,20 +51,45 @@ export default function Scan() {
     Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error).catch(() => {});
 
   /** Explain why something that isn't due right now didn't match. */
-  const explainMiss = (isThis: (o: Occurrence) => boolean): string | undefined => {
+  const explainMiss = (isThis: (o: Occurrence) => boolean): { text: string; say: PhraseKey } | undefined => {
     const other = notDueToday(state, now, memberId).find(isThis);
     if (other) {
-      if (other.status === 'taken') return `${medLabel(other.med)} (${fmt12(other.time)}) is already taken.`;
-      if (other.status === 'upcoming') return `${medLabel(other.med)} is scheduled for ${fmt12(other.time)}, not now.`;
-      return `${medLabel(other.med)} was due at ${fmt12(other.time)} (${other.status}).`;
+      if (other.status === 'taken') return { text: `${medLabel(other.med)} (${fmt12(other.time)}) is already taken.`, say: 'taken' };
+      if (other.status === 'upcoming') return { text: `${medLabel(other.med)} is scheduled for ${fmt12(other.time)}, not now.`, say: 'notNow' };
+      return { text: `${medLabel(other.med)} was due at ${fmt12(other.time)} (${other.status}).`, say: 'notNow' };
     }
     const elsewhere = state.meds.find((m) => m.active && m.memberId !== memberId && isThis({ med: m } as Occurrence));
     if (elsewhere) {
       const who = state.members.find((m) => m.id === elsewhere.memberId)?.name;
-      return `This looks like ${medLabel(elsewhere)}, which is ${who}'s medicine.`;
+      return { text: `This looks like ${medLabel(elsewhere)}, which is ${who}'s medicine.`, say: 'wrong' };
     }
     return undefined;
   };
+
+  // ---- Spoken announcements in the person's language ----
+  const member = state.members.find((m) => m.id === memberId);
+  const lang: LangCode = member?.language ?? 'en';
+  const voiceOn = member?.voice !== false;
+  const announcement = (r: Result): string => {
+    switch (r.kind) {
+      case 'match':
+        return (
+          matchAnnouncement(lang, r.occs.map((o) => ({ name: medLabel(o.med), qty: o.dose.qty, unit: o.med.unit }))) +
+          (r.substitute ? ` ${phrase(lang, 'substitute')}` : '')
+        );
+      case 'check':
+        return phrase(lang, 'checkStrength', { strength: spokenStrength(r.occ.med.strength) });
+      case 'strength':
+        return phrase(lang, 'otherStrength');
+      case 'nomatch':
+        return phrase(lang, r.say);
+    }
+  };
+  useEffect(() => {
+    if (result && voiceOn) say(lang, announcement(result));
+    if (!result) stopSpeaking();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [result]);
 
   const show = (r: Result) => {
     setResult(r);
@@ -74,29 +103,26 @@ export default function Scan() {
     lastCode.current = { code: data, at: t0 };
     const hits = due.filter((o) => matchBarcode(data, o.med));
     if (hits.length) return show({ kind: 'match', occs: hits, method: 'barcode' });
-    show({
-      kind: 'nomatch',
-      reason: explainMiss((o) => matchBarcode(data, o.med)) ?? 'This code is not linked to any medicine due now.',
-      code: data,
-    });
+    const why = explainMiss((o) => matchBarcode(data, o.med));
+    show({ kind: 'nomatch', reason: why?.text ?? 'This code is not linked to any medicine due now.', code: data, say: why?.say ?? 'wrong' });
   };
 
   const checkText = (text: string, method: LogMethod) => {
-    const hits = due.filter((o) => matchText(text, o.med).matched);
-    if (hits.length) return show({ kind: 'match', occs: hits, method });
-    const strength = due.find((o) => matchText(text, o.med).nameFound);
-    if (strength) {
-      return show({
-        kind: 'nomatch',
-        reason: `Name matches ${strength.med.name}, but the strength is different. Expected ${medLabel(strength.med)}.`,
-        detail: text,
-      });
-    }
-    const why = explainMiss((o) => matchText(text, o.med).matched);
+    const checked = due.map((o) => ({ o, d: matchDetail(text, o.med) }));
+    const hits = checked.filter((x) => x.d.level === 'match');
+    if (hits.length) return show({ kind: 'match', occs: hits.map((x) => x.o), method });
+    const subs = checked.filter((x) => x.d.level === 'substitute');
+    if (subs.length) return show({ kind: 'match', occs: subs.map((x) => x.o), method, substitute: subs[0].d.via });
+    const other = checked.find((x) => x.d.level === 'otherStrength');
+    if (other) return show({ kind: 'strength', occ: other.o, found: other.d.foundStrengths ?? [], detail: text });
+    const nameOnly = checked.find((x) => x.d.level === 'nameOnly');
+    if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method });
+    const why = explainMiss((o) => ['match', 'substitute'].includes(matchDetail(text, o.med).level));
     show({
       kind: 'nomatch',
-      reason: why ?? 'No medicine due now matches this strip.',
+      reason: why?.text ?? 'No medicine due now matches this strip.',
       detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || 'No readable text found — move closer, and tilt the strip away from lights to cut the shine.',
+      say: why?.say ?? 'wrong',
     });
   };
 
@@ -109,7 +135,7 @@ export default function Scan() {
       setProgress('Reading the strip…');
       let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
       // Nothing matched? Glare may be hiding letters — take two more photos at slightly different angles.
-      if (!due.some((o) => matchText(text, o.med).matched)) {
+      if (!due.some((o) => ['match', 'substitute'].includes(matchDetail(text, o.med).level))) {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }
@@ -118,15 +144,16 @@ export default function Scan() {
       show({
         kind: 'nomatch',
         reason: 'Could not read text.',
-        detail: String(e).includes('linked') ? 'Text reading needs the development build (not Expo Go). Barcode scanning still works.' : String(e),
+        detail: String(e).includes('linked') ? 'Text reading needs the installed app build (not Expo Go). Barcode scanning still works.' : 'Try again, closer and with less shine.',
+        say: 'wrong',
       });
     } finally {
       setBusy(false);
     }
   };
 
-  const confirm = (r: Extract<Result, { kind: 'match' }>) => {
-    record(r.occs, 'taken', r.method);
+  const confirm = (occs: Occurrence[], method: LogMethod) => {
+    record(occs, 'taken', method);
     setResult(null);
     setTyped('');
   };
@@ -215,23 +242,77 @@ export default function Scan() {
           {!result && <Button big title="Read strip name" onPress={readStrip} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />}
 
           {/* Result */}
+          {result && (
+            <Pressable onPress={() => voiceOn && say(lang, announcement(result))} style={{ alignSelf: 'flex-end', marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="volume-high-outline" size={20} color={t.brand} />
+              <Text style={{ color: t.brand, fontWeight: '700', marginLeft: 6 }}>{voiceOn ? 'Say it again' : 'Voice is off for this person'}</Text>
+            </Pressable>
+          )}
+
           {result?.kind === 'match' && (
-            <View style={{ backgroundColor: t.ok, borderRadius: 18, padding: 18, marginTop: 12 }}>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✓ Match</Text>
+            <View style={{ backgroundColor: t.ok, borderRadius: 18, padding: 18, marginTop: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✓ Correct medicine</Text>
               {result.occs.map((o) => (
-                <Text key={o.key} style={{ color: '#fff', fontSize: 18, fontWeight: '600', marginTop: 6 }}>
-                  {medLabel(o.med)} — take {qtyLabel(o.dose.qty, o.med.unit)}
-                </Text>
+                <View key={o.key} style={{ marginTop: 10 }}>
+                  <Text style={{ color: '#fff', fontSize: 30, fontWeight: '900' }}>Take {qtyLabel(o.dose.qty, o.med.unit)}</Text>
+                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '600' }}>
+                    {medLabel(o.med)}
+                    {lang !== 'en' ? `  ·  ${amountText(lang, o.dose.qty, o.med.unit)}` : ''}
+                  </Text>
+                  {o.dose.qty !== 1 && o.med.unit === 'tablet' && (
+                    <Text style={{ color: '#fff', marginTop: 2 }}>
+                      {o.dose.qty < 1 ? 'Break the tablet along the line.' : 'More than one tablet — count carefully.'}
+                    </Text>
+                  )}
+                  {o.med.notes ? <Text style={{ color: '#fffd', marginTop: 4 }}>{o.med.notes}</Text> : null}
+                </View>
               ))}
+              {result.substitute && (
+                <View style={{ backgroundColor: '#0003', borderRadius: 10, padding: 10, marginTop: 12 }}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Same medicine, different brand: {result.substitute}</Text>
+                  <Text style={{ color: '#fff' }}>Check it's the one you bought for this before taking.</Text>
+                </View>
+              )}
               <View style={[s.row, { gap: 10, marginTop: 14 }]}>
-                <Button title="Mark taken" kind="secondary" onPress={() => confirm(result)} style={{ flex: 1 }} />
+                <Button title="Mark taken" kind="secondary" onPress={() => confirm(result.occs, result.method)} style={{ flex: 1 }} />
                 <Button title="Cancel" kind="ghost" onPress={() => setResult(null)} />
               </View>
             </View>
           )}
 
+          {result?.kind === 'check' && (
+            <View style={{ backgroundColor: t.warn, borderRadius: 18, padding: 18, marginTop: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>⚠ Check the strength</Text>
+              <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
+                The name matches {result.occ.med.name}, but the strength couldn't be read (torn or shiny).
+              </Text>
+              <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 10 }}>Strip must say {spokenStrength(result.occ.med.strength)}</Text>
+              <Text style={{ color: '#fff', fontSize: 17, marginTop: 4 }}>Then take {qtyLabel(result.occ.dose.qty, result.occ.med.unit)}.</Text>
+              <Button
+                big
+                title={`It says ${spokenStrength(result.occ.med.strength)} — mark taken`}
+                kind="secondary"
+                onPress={() => confirm([result.occ], 'manual')}
+                style={{ marginTop: 14 }}
+              />
+              <Button title="Scan again" kind="ghost" onPress={() => setResult(null)} />
+            </View>
+          )}
+
+          {result?.kind === 'strength' && (
+            <View style={{ backgroundColor: '#B91C1C', borderRadius: 18, padding: 18, marginTop: 8 }}>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✋ Different strength — don't take</Text>
+              <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
+                This is {result.occ.med.name} {result.found.map((f) => `${f} mg`).join(' / ')}. The prescription is {medLabel(result.occ.med)}
+                {spokenStrength(result.occ.med.strength) && !/[a-z]/i.test(result.occ.med.strength) ? ' mg' : ''}, {qtyLabel(result.occ.dose.qty, result.occ.med.unit)}.
+              </Text>
+              <Text style={{ color: '#fff', marginTop: 6 }}>Ask the doctor or pharmacist before using a different strength. If the reading is wrong, scan again.</Text>
+              <Button title="Scan next" kind="secondary" big onPress={() => setResult(null)} style={{ marginTop: 14 }} />
+            </View>
+          )}
+
           {result?.kind === 'nomatch' && (
-            <View style={{ backgroundColor: t.bad, borderRadius: 18, padding: 18, marginTop: 12 }}>
+            <View style={{ backgroundColor: t.bad, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✗ No match</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.detail ? <Text style={{ color: '#fffc', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}

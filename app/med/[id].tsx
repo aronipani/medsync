@@ -3,6 +3,7 @@ import React, { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
 import { doseTime } from '../../src/schedule.ts';
+import { genericLabel, lookupBrand } from '../../src/drugdb.ts';
 import { uid, useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import type { Dose, Meal, MealRelation, Medication } from '../../src/types.ts';
@@ -55,6 +56,8 @@ export default function EditMed() {
   );
   const [aliases, setAliases] = useState(med.aliases.join(', '));
   const set = (patch: Partial<Medication>) => setMed((m) => ({ ...m, ...patch }));
+  const known = lookupBrand(med.name);
+  const knownAlias = known && med.strength.trim() ? genericLabel(known.ingredients, med.strength.replace(/\s*mg\b/i, '').trim()) : undefined;
   const setDose = (doseId: string, patch: Partial<Dose>) => set({ doses: med.doses.map((d) => (d.id === doseId ? { ...d, ...patch } : d)) });
   const member = state.members.find((m) => m.id === med.memberId);
 
@@ -107,6 +110,32 @@ export default function EditMed() {
 
         <Label>Name on strip</Label>
         <Field value={med.name} onChangeText={(name) => set({ name })} placeholder="e.g. Dolo" autoCapitalize="words" />
+        {known && (
+          <Card style={{ marginTop: 10, backgroundColor: t.brandSoft, borderColor: t.brandSoft }}>
+            <Text style={{ color: t.text, fontWeight: '700' }}>
+              {med.name.trim()} usually contains {known.ingredients.join(' + ')}
+            </Text>
+            <Text style={{ color: t.sub, marginTop: 2, fontSize: 13 }}>From the app's built-in medicine list — check it against the strip.</Text>
+            {known.strengths.length > 0 && (
+              <>
+                <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6 }}>Common strengths (tap to use):</Text>
+                <View style={s.wrap}>
+                  {known.strengths.map((x) => (
+                    <Chip key={x} label={/[a-z]/i.test(x) ? x : `${x} mg`} active={med.strength === x} onPress={() => set({ strength: x })} />
+                  ))}
+                </View>
+              </>
+            )}
+            {knownAlias && !aliases.toLowerCase().includes(knownAlias.toLowerCase()) && (
+              <Button
+                title={`Also accept strips that say "${knownAlias}"`}
+                kind="secondary"
+                style={{ marginTop: 6 }}
+                onPress={() => setAliases((a) => [a.trim(), knownAlias].filter(Boolean).join(', '))}
+              />
+            )}
+          </Card>
+        )}
         <Label>Strength</Label>
         <Field value={med.strength} onChangeText={(strength) => set({ strength })} placeholder="e.g. 650 (as printed)" />
         <Label>Other names on the strip (optional)</Label>

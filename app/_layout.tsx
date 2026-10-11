@@ -5,6 +5,9 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { ACTION_SNOOZE, rescheduleAll, setupNotifications, snooze } from '../src/notifications.ts';
 import { StoreProvider, useStore } from '../src/store.tsx';
+import { phrase } from '../src/phrases.ts';
+import { dueNow } from '../src/schedule.ts';
+import { say } from '../src/speech.ts';
 import { dateKey } from '../src/time.ts';
 import { PeriodProvider, useTheme } from '../src/ui.tsx';
 
@@ -13,6 +16,8 @@ function ReminderSync() {
   const today = dateKey(now);
   const snoozeMin = useRef(state.settings.snoozeMin);
   snoozeMin.current = state.settings.snoozeMin;
+  const latest = useRef(state);
+  latest.current = state;
   // Reschedule when the schedule, today's logs or the day changes.
   const signature = useMemo(
     () =>
@@ -41,7 +46,16 @@ function ReminderSync() {
       }
       router.navigate('/scan');
     });
-    return () => sub.remove();
+    // Reminder arrives while the app is open: say it in the language of whoever has a dose due.
+    const received = Notifications.addNotificationReceivedListener(() => {
+      const st = latest.current;
+      const who = st.members.find((m) => m.voice !== false && dueNow(st, new Date(), m.id).length);
+      if (who) say(who.language ?? 'en', `${who.name}. ${phrase(who.language ?? 'en', 'time')}`);
+    });
+    return () => {
+      sub.remove();
+      received.remove();
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return null;
