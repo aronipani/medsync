@@ -55,7 +55,7 @@ export default function AddMedicine() {
           stock: 0,
           lowStockAt: 5,
           endDate: d.durationDays ? dateKey(addDays(now, d.durationDays - 1)) : undefined,
-          notes: d.asNeeded ? 'Take only when needed (SOS).' : undefined,
+          notes: [d.asNeeded ? 'Take only when needed (SOS).' : '', d.notes ?? ''].filter(Boolean).join(' ') || undefined,
           active: true,
           createdAt: now.toISOString(),
         };

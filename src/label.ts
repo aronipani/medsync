@@ -20,7 +20,7 @@ export function mergeRows(lines: OcrLine[]): string[] {
     const mid = l.top! + l.height! / 2;
     const row = rows.find((r) => {
       const ref = r[0];
-      return Math.abs(ref.top! + ref.height! / 2 - mid) < Math.min(ref.height!, l.height!) * 0.6;
+      return Math.abs(ref.top! + ref.height! / 2 - mid) < Math.min(ref.height!, l.height!) * 0.75; // a little slack for curled or tilted paper
     });
     if (row) row.push(l);
     else rows.push([l]);

@@ -79,6 +79,13 @@ export default function PrescriptionReview() {
             <Text style={{ color: t.sub, marginTop: 10, fontSize: 12, fontWeight: '700' }}>READ FROM PRESCRIPTION</Text>
             <Text style={{ color: t.text, marginTop: 2, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 13 }}>{i.source}</Text>
 
+            {i.med.notes ? (
+              <Text style={{ color: t.text, marginTop: 8 }}>
+                <Text style={{ fontWeight: '700' }}>Instructions: </Text>
+                {i.med.notes}
+              </Text>
+            ) : null}
+
             {i.warnings.map((w) => (
               <Text key={w} style={{ color: t.warn, marginTop: 6 }}>
                 ⚠ {w}

@@ -117,3 +117,74 @@ test('row merge joins table columns back into one line', async () => {
   assert.equal(items[0].doses.length, 2);
   assert.equal(items[1].doses.length, 1);
 });
+
+// Rows as the phone reads Bijan's "My daily medicines" chart (time column merged with the medicine column).
+const CHART = `MY DAILY MEDICINES
+Bijan Kumar Pani - from 9 October 2026
+Date: ___/___/____
+MORNING
+TIME   WHAT TO TAKE   DONE
+7:00 AM   Thyroxin 50 mcg
+Take with water only. Nothing else with it - no tea, no food, no
+other tablet.
+7:45 AM   Tide 20 mg
+Ismo / Monotrate 10 mg
+Before breakfast.
+8:00 AM   BREAKFAST
+Tea only after food, and keep it weak and small.
+8:30 AM   Vonasec 20
+Cordarone 200 mg
+Check your pulse first. If it is below 60, do not take the
+Cordarone - take the Vonasec and check again at 9:00 PM.
+9:15 AM   Sucrafil syrup - 10 ml (2 tsp)
+1st of 4 doses today. Use the cap measure.
+AFTERNOON
+TIME   WHAT TO TAKE   DONE
+12:00 - 2:00 PM   LUNCH
+Eat in 2 or 3 small portions, about 40 minutes apart. Stay sitting up -
+do not lie down.
+2:00 PM   Ismo / Monotrate 10 mg
+Clopilet / Plavix 75 mg
+At the end of lunch, with food.
+2:15 PM   Sucrafil syrup - 10 ml (2 tsp)
+2nd of 4 doses today.`;
+
+test('daily medicine chart: times column + what-to-take column', () => {
+  const items = parsePrescription(CHART.split('\n'), id);
+  const by = Object.fromEntries(items.map((i) => [i.name, i]));
+  assert.deepEqual(Object.keys(by).sort(), ['Clopilet', 'Cordarone', 'Ismo', 'Sucrafil', 'Thyroxin', 'Tide', 'Vonasec']);
+  const times = (n: string) => by[n].doses.map((d) => (d.timing.kind === 'custom' ? d.timing.time : '?'));
+
+  assert.equal(by.Thyroxin.strength, '50 mcg');
+  assert.deepEqual(times('Thyroxin'), ['07:00']);
+  assert.match(by.Thyroxin.notes ?? '', /water only/);
+
+  assert.deepEqual(times('Tide'), ['07:45']);
+  assert.equal(by.Tide.strength, '20');
+
+  assert.deepEqual(times('Ismo'), ['07:45', '14:00']); // same medicine twice a day → one entry, two times
+  assert.deepEqual(by.Ismo.aliases, ['Monotrate 10']);
+
+  assert.deepEqual(times('Vonasec'), ['08:30']);
+  assert.equal(by.Vonasec.strength, '20');
+  assert.match(by.Cordarone.notes ?? '', /pulse/);
+  assert.ok(by.Cordarone.warnings.some((w) => w.includes('special instruction')));
+
+  assert.equal(by.Sucrafil.unit, 'ml');
+  assert.equal(by.Sucrafil.doses[0].qty, 10);
+  assert.deepEqual(times('Sucrafil'), ['09:15', '14:15']);
+
+  assert.deepEqual(times('Clopilet'), ['14:00']);
+  assert.deepEqual(by.Clopilet.aliases, ['Plavix 75']);
+  assert.equal(by.Clopilet.strength, '75');
+});
+
+test('clock parsing', async () => {
+  const { parseClock } = await import('../src/rx.ts');
+  assert.deepEqual(parseClock('7:45 AM Tide 20 mg'), { time: '07:45', rest: 'Tide 20 mg' });
+  assert.equal(parseClock('2:15 PM')?.time, '14:15');
+  assert.equal(parseClock('12:00 - 2:00 PM LUNCH')?.time, '12:00');
+  assert.equal(parseClock('12:30 AM')?.time, '00:30');
+  assert.equal(parseClock('9 PM')?.time, '21:00');
+  assert.equal(parseClock('20 mg'), undefined);
+});

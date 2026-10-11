@@ -19,6 +19,7 @@ export interface RxItem extends MedDraft {
   durationDays?: number;
   asNeeded: boolean;
   warnings: string[];
+  notes?: string; // instructions printed next to the medicine
 }
 
 const FORM_PREFIX: [RegExp, string][] = [
@@ -185,6 +186,145 @@ function parseNameLine(line: string, form: string): { name: string; strength: st
 
 /** Parse prescription text (one OCR line per entry) into draft items. */
 export function parsePrescription(lines: string[], makeId: () => string): RxItem[] {
+  // Daily-timetable layout ("7:00 AM | Thyroxin 50 mcg"): times in one column, medicines in another.
+  if (lines.filter((l) => parseClock(l)).length >= 2) {
+    const fromTable = parseTimetable(lines, makeId);
+    if (fromTable.length) return fromTable;
+  }
+  return parseRxLines(lines, makeId);
+}
+
+// ---------- Daily timetable / medicine chart ----------
+
+const CLOCK =
+  /^\s*(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?(?:\s*(?:-|–|—|to)\s*(\d{1,2})(?:[:.](\d{2}))?\s*(a\.?\s?m\.?|p\.?\s?m\.?)?)?(?=\s|$)/i;
+
+/** "7:45 AM Tide 20 mg" -> { time: "07:45", rest: "Tide 20 mg" }. Needs minutes or AM/PM to count as a time. */
+export function parseClock(line: string): { time: string; rest: string } | undefined {
+  const m = CLOCK.exec(line);
+  if (!m || (!m[2] && !m[3])) return undefined;
+  let h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  if (h > 23 || min > 59) return undefined;
+  const ap = (m[3] ?? m[6] ?? '').toLowerCase().replace(/[^ap]/g, '');
+  if (ap === 'p' && h < 12) h += 12;
+  if (ap === 'a' && h === 12) h = 0;
+  return { time: `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`, rest: line.slice(m[0].length).trim() };
+}
+
+const HEADER = /^(morning|afternoon|evening|night|bed\s*time|time|what to take|done|date\b|my daily medicines|medicines?)\b/i;
+const MEAL_ROW = /^(breakfast|lunch|dinner|supper|meal)\b/i;
+const INSTRUCTION = /^(take|check|eat|tea|use|stay|nothing|before|after|at|with|do|don'?t|if|keep|avoid|only|then|and|or|note|\d+(st|nd|rd|th))\b/i;
+
+const MED_LINE =
+  /^([A-Z][A-Za-z]+(?:[ -][A-Za-z]+){0,2}?)(?:\s*\/\s*([A-Z][A-Za-z]+(?:[ -][A-Za-z]+){0,2}?))?\s*(syrup|syp|suspension|susp|tablets?|tab|capsules?|cap|drops|inhaler)?\s*[-–]?\s*(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ml|iu|k|g)?\b(.*)$/i;
+
+interface TableMed {
+  name: string;
+  alt?: string;
+  unit: string;
+  strength: string;
+  qty: number;
+}
+
+function parseTableMed(line: string): TableMed | undefined {
+  if (INSTRUCTION.test(line) || HEADER.test(line) || MEAL_ROW.test(line)) return undefined;
+  const m = MED_LINE.exec(line.trim());
+  if (!m) return undefined;
+  const rest = m[6].replace(/\([^)]*\)/g, '').trim();
+  if (rest.length > 12) return undefined; // a sentence with a number in it, not a medicine
+  const formWord = (m[3] ?? '').toLowerCase();
+  const unitWord = (m[5] ?? '').toLowerCase();
+  const liquid = /syr|syp|susp/.test(formWord) || unitWord === 'ml';
+  const unit = liquid ? 'ml' : /cap/.test(formWord) ? 'capsule' : /drop/.test(formWord) ? 'drops' : /inhal/.test(formWord) ? 'puff' : 'tablet';
+  const tidy = (s: string) => s.replace(/\s+/g, ' ').trim().replace(/\b\w+/g, (w) => (w.length <= 2 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()));
+  return {
+    name: tidy(m[1]),
+    alt: m[2] ? tidy(m[2]) : undefined,
+    unit,
+    strength: liquid ? '' : formatStrength(m[4], m[5]),
+    qty: liquid && unitWord === 'ml' ? parseFloat(m[4]) : 1,
+  };
+}
+
+export function parseTimetable(lines: string[], makeId: () => string): RxItem[] {
+  type Acc = { med: TableMed; doses: DraftDose[]; source: string[]; notes: string[] };
+  const byKey = new Map<string, Acc>();
+  let time: string | undefined;
+  let rowMeds: Acc[] = [];
+  let rowNotes: string[] = [];
+
+  const flushNotes = () => {
+    if (!rowNotes.length) return;
+    const note = rowNotes.join(' ').replace(/\s+/g, ' ').trim();
+    for (const a of rowMeds) if (!a.notes.includes(note)) a.notes.push(`${note}`);
+    rowNotes = [];
+  };
+
+  for (const raw of lines) {
+    let line = raw.trim();
+    if (!line) continue;
+    const clock = parseClock(line);
+    if (clock) {
+      flushNotes();
+      time = clock.time;
+      rowMeds = [];
+      line = clock.rest;
+      if (!line) continue;
+    }
+    if (!time) continue; // title area above the first time
+    if (HEADER.test(line)) {
+      flushNotes();
+      continue;
+    }
+    if (MEAL_ROW.test(line)) {
+      flushNotes();
+      rowMeds = [];
+      continue;
+    }
+    const med = parseTableMed(line);
+    if (med) {
+      const key = `${med.name.toLowerCase()}|${med.strength}|${med.unit}`;
+      let acc = byKey.get(key);
+      if (!acc) {
+        acc = { med, doses: [], source: [], notes: [] };
+        byKey.set(key, acc);
+      }
+      if (!acc.doses.some((d) => d.timing.kind === 'custom' && d.timing.time === time)) {
+        acc.doses.push({ timing: { kind: 'custom', time }, qty: med.qty, days: [] });
+      }
+      acc.source.push(`${time}  ${line}`);
+      if (!rowMeds.includes(acc)) rowMeds.push(acc);
+      continue;
+    }
+    if (rowMeds.length) rowNotes.push(line);
+  }
+  flushNotes();
+
+  return [...byKey.values()].map(({ med, doses, source, notes }) => {
+    const warnings: string[] = [];
+    const note = notes.join(' ');
+    if (/\b(if|do not|don'?t|skip|check|below|above|hold)\b/i.test(note)) warnings.push('Has a special instruction — read it in Notes and keep it.');
+    if (!med.strength && med.unit !== 'ml') warnings.push('Strength not found — check the chart.');
+    return {
+      id: makeId(),
+      name: med.name,
+      strength: med.strength,
+      unit: med.unit,
+      aliases: med.alt ? [`${med.alt} ${med.strength}`.trim()] : [],
+      barcodes: [],
+      source: source.join('\n'),
+      doses: doses.sort((a, b) => (a.timing.kind === 'custom' && b.timing.kind === 'custom' ? a.timing.time.localeCompare(b.timing.time) : 0)),
+      asNeeded: false,
+      warnings,
+      notes: note || undefined,
+    };
+  });
+}
+
+// ---------- Doctor's prescription lines ("Tab. Dolo 650 1-0-1") ----------
+
+function parseRxLines(lines: string[], makeId: () => string): RxItem[] {
   const items: { form: string; lines: string[] }[] = [];
   let cur: { form: string; lines: string[] } | null = null;
   for (const raw of lines) {
