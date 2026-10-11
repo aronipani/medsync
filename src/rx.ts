@@ -1,0 +1,224 @@
+// Turns OCR text from a printed prescription into draft schedule items.
+// Every item is a *draft*: the app requires a person to check each one before it is added.
+// Handles common Indian prescription notation: Tab./Cap./Syp., 1-0-1, OD/BD/TDS/QID/HS/SOS,
+// before/after food (AC/PC), and durations like "x 5 days".
+
+import { formatStrength, type MedDraft } from './label.ts';
+import type { DoseTiming } from './types.ts';
+
+export interface DraftDose {
+  timing: DoseTiming;
+  qty: number;
+  days: number[];
+}
+
+export interface RxItem extends MedDraft {
+  id: string;
+  source: string; // the prescription text this item was read from
+  doses: DraftDose[];
+  durationDays?: number;
+  asNeeded: boolean;
+  warnings: string[];
+}
+
+const FORM_PREFIX: [RegExp, string][] = [
+  [/^(tab|tabs|tablet|tablets)\.?$/i, 'tablet'],
+  [/^t\.$/i, 'tablet'],
+  [/^(cap|caps|capsule|capsules)\.?$/i, 'capsule'],
+  [/^c\.$/i, 'capsule'],
+  [/^(syp|syr|syrup|susp|liq)\.?$/i, 'ml'],
+  [/^(drop|drops|gtt|gtts)\.?$/i, 'drops'],
+  [/^(inh|inhaler|rotacap|rotacaps|respule|respules)\.?$/i, 'puff'],
+  [/^(inj|injection)\.?$/i, 'injection'],
+  [/^(sachet|sach|pwd|powder|granules)\.?$/i, 'sachet'],
+];
+
+const STOP_LINE = /^\s*(advice|adv|review|follow\s*-?up|f\/u|next visit|diagnosis|dx|c\/o|complaints?|investigations?|signature|sign|dr\.?\s|reg\.?\s*no)/i;
+
+function formOf(word: string): string | undefined {
+  for (const [re, unit] of FORM_PREFIX) if (re.test(word)) return unit;
+  return undefined;
+}
+
+const stripNumbering = (s: string) => s.replace(/^\s*(?:\d{1,2}\s*[.)]|[-•*➤>])\s*/, '');
+
+/** Is this line the start of a medicine entry? Returns its form if so. */
+function medStart(line: string): string | undefined {
+  const words = stripNumbering(line).trim().split(/\s+/);
+  if (!words[0]) return undefined;
+  const f = formOf(words[0]);
+  if (f) return f;
+  // Numbered line with a name followed by a strength, e.g. "1) Dolo 650mg 1-0-1"
+  if (/^\s*\d{1,2}\s*[.)]/.test(line) && /[A-Za-z]{3,}\s*-?\s*\d+(\.\d+)?\s*(mg|mcg|ml|iu|k)?\b/i.test(line)) return 'tablet';
+  return undefined;
+}
+
+const FRACTION: Record<string, number> = { '½': 0.5, '1/2': 0.5, '¼': 0.25, '1/4': 0.25, '1½': 1.5 };
+const num = (s: string) => FRACTION[s] ?? parseFloat(s);
+
+const DAY_NAMES = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
+
+/** Converts morning/afternoon/(evening)/night counts into meal-linked doses. */
+function countsToDoses(counts: number[], relation: 'before' | 'with' | 'after', days: number[]): DraftDose[] {
+  const doses: DraftDose[] = [];
+  const meal = (m: 'breakfast' | 'lunch' | 'dinner', qty: number) =>
+    qty > 0 && doses.push({ timing: { kind: 'meal', meal: m, relation }, qty, days });
+  if (counts.length === 4) {
+    meal('breakfast', counts[0]);
+    meal('lunch', counts[1]);
+    if (counts[2] > 0) doses.push({ timing: { kind: 'custom', time: '18:00' }, qty: counts[2], days });
+    meal('dinner', counts[3]);
+  } else {
+    meal('breakfast', counts[0]);
+    meal('lunch', counts[1]);
+    meal('dinner', counts[2]);
+  }
+  return doses;
+}
+
+function parseInstructions(text: string, unit: string): Pick<RxItem, 'doses' | 'durationDays' | 'asNeeded' | 'warnings'> {
+  const t = ` ${text.toLowerCase().replace(/[–—]/g, '-')} `;
+  const warnings: string[] = [];
+
+  // Before / with / after food
+  let relation: 'before' | 'with' | 'after' = 'after';
+  if (/before\s*(food|meals?|breakfast|lunch|dinner|eating)|\bac\b|\ba\/c\b|empty stomach|khali pet/.test(t)) relation = 'before';
+  else if (/with\s*(food|meals?|milk)/.test(t)) relation = 'with';
+  else if (/after\s*(food|meals?|breakfast|lunch|dinner|eating)|\bpc\b|\bp\/c\b/.test(t)) relation = 'after';
+  else warnings.push('Before or after food is not written — set to after food.');
+
+  // Days of the week / weekly
+  let days: number[] = [];
+  const named = DAY_NAMES.map((d, i) => (new RegExp(`\\b${d}(day)?\\b`).test(t) ? i : -1)).filter((i) => i >= 0);
+  if (named.length) days = named;
+  else if (/once\s*(a|per|every)\s*week|\bweekly\b|every\s*week/.test(t)) {
+    days = [0];
+    warnings.push('Weekly dose — check which day (set to Sunday).');
+  }
+
+  // Duration
+  let durationDays: number | undefined;
+  const dur = /(?:x|×|for)\s*(\d{1,3})\s*(days?|d|weeks?|wks?|w|months?|m)\b/.exec(t) ?? /\b(\d{1,3})\s*(days?|weeks?|months?)\b/.exec(t);
+  if (dur) {
+    const n = parseInt(dur[1], 10);
+    const u = dur[2][0];
+    durationDays = u === 'w' ? n * 7 : u === 'm' ? n * 30 : n;
+  }
+
+  // As needed
+  const asNeeded = /\b(sos|prn|as needed|when needed|if needed|when required|if required)\b/.test(t);
+
+  // Quantity for liquids: "5 ml", "1 tsp" (= 5 ml)
+  let liquidQty: number | undefined;
+  if (unit === 'ml') {
+    const ml = /(\d+(?:\.\d+)?)\s*ml\b/.exec(t);
+    const tsp = /(\d+(?:\.\d+)?|½)?\s*(tsp|tsf|teaspoons?)\b/.exec(t);
+    if (ml) liquidQty = parseFloat(ml[1]);
+    else if (tsp) liquidQty = (tsp[1] ? num(tsp[1]) : 1) * 5;
+  }
+
+  // How often
+  let counts: number[] | undefined;
+  const pat = /(?:^|[^\d/])(1½|½|¼|1\/2|1\/4|\d)\s*-\s*(1½|½|¼|1\/2|1\/4|\d)\s*-\s*(1½|½|¼|1\/2|1\/4|\d)(?:\s*-\s*(1½|½|¼|1\/2|1\/4|\d))?(?![\d/])/.exec(t);
+  let doses: DraftDose[] = [];
+  if (pat) counts = [pat[1], pat[2], pat[3], pat[4]].filter((x) => x !== undefined).map(num);
+  else if (/\b(qid|q\.i\.d|four times)\b/.test(t)) counts = [1, 1, 1, 1];
+  else if (/\b(tds|tid|t\.d\.s|t\.i\.d|thrice|three times)\b/.test(t)) counts = [1, 1, 1];
+  else if (/\b(bd|bid|b\.d|b\.i\.d|twice)\b/.test(t)) counts = [1, 0, 1];
+  else if (/\b(hs|h\.s|at bed\s*time|bedtime)\b/.test(t)) {
+    doses = [{ timing: { kind: 'custom', time: '22:00' }, qty: 1, days }];
+  } else if (/\b(od|o\.d|qd|once (a )?daily|once a day|daily|once)\b/.test(t) || days.length) {
+    counts = /\b(night|evening|dinner)\b/.test(t) ? [0, 0, 1] : /\b(afternoon|lunch)\b/.test(t) ? [0, 1, 0] : [1, 0, 0];
+    if (!/\b(morning|breakfast|night|evening|dinner|afternoon|lunch)\b/.test(t)) warnings.push('Once a day — time of day not written (set to morning).');
+  }
+  if (counts) doses = countsToDoses(counts, relation, days);
+
+  if (liquidQty) doses = doses.map((d) => ({ ...d, qty: liquidQty! }));
+
+  if (asNeeded && !doses.length) warnings.push('Taken only when needed (SOS) — no reminders will be set.');
+  else if (!doses.length) warnings.push("Couldn't read how often to take it — set the times.");
+  return { doses, durationDays, asNeeded, warnings };
+}
+
+function parseNameLine(line: string, form: string): { name: string; strength: string; rest: string } {
+  const words = stripNumbering(line).trim().split(/\s+/);
+  if (formOf(words[0])) words.shift();
+  const nameWords: string[] = [];
+  let i = 0;
+  for (; i < words.length; i++) {
+    const w = words[i];
+    if (/^[A-Za-z]{1,3}\d{1,2}$/.test(w) && nameWords.length) {
+      nameWords.push(w); // D3, B12, Q10 are part of the name
+      continue;
+    }
+    if (/\d/.test(w) || /^(od|bd|tds|tid|qid|hs|sos|x|for|after|before|with|morning|night|daily|ac|pc)$/i.test(w)) break;
+    nameWords.push(w.replace(/[^A-Za-z\-+]/g, ''));
+  }
+  // "Dolo-650" style: name with attached strength
+  let strength = '';
+  const glued = /^([A-Za-z][A-Za-z\-]*?)-?(\d+(?:\.\d+)?)(mg|mcg|ml|iu|k)?$/i.exec(words[i] ?? '');
+  if (glued && /[A-Za-z]/.test(words[i])) {
+    nameWords.push(glued[1].replace(/-$/, ''));
+    strength = formatStrength(glued[2], glued[3]);
+    i++;
+  } else if (words[i] && !/^\d\s*-/.test(words.slice(i).join(' '))) {
+    const s = /^(\d+(?:\.\d+)?)(mg|mcg|µg|ml|gm|g|iu|k)?$/i.exec(words[i]);
+    if (s) {
+      let unit = s[2];
+      let next = i + 1;
+      if (!unit && /^(mg|mcg|µg|ml|gm|g|iu)$/i.test(words[next] ?? '')) unit = words[next++];
+      // For syrups, "5 ml" is the dose, not a strength.
+      if (!(form === 'ml' && /^ml$/i.test(unit ?? ''))) {
+        strength = formatStrength(s[1], unit);
+        i = next;
+      }
+    }
+  }
+  const name = nameWords
+    .filter(Boolean)
+    .join(' ')
+    .replace(/-+/g, ' ')
+    .trim()
+    .replace(/\b\w+/g, (w) => (w.length <= 2 ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1).toLowerCase()));
+  return { name, strength, rest: words.slice(i).join(' ') };
+}
+
+/** Parse prescription text (one OCR line per entry) into draft items. */
+export function parsePrescription(lines: string[], makeId: () => string): RxItem[] {
+  const items: { form: string; lines: string[] }[] = [];
+  let cur: { form: string; lines: string[] } | null = null;
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (STOP_LINE.test(line)) {
+      cur = null;
+      continue;
+    }
+    const form = medStart(line);
+    if (form) {
+      cur = { form, lines: [line] };
+      items.push(cur);
+    } else if (cur && cur.lines.length < 3) {
+      cur.lines.push(line); // instruction lines under the medicine
+    }
+  }
+
+  return items.map(({ form, lines: ls }) => {
+    const { name, strength, rest } = parseNameLine(ls[0], form);
+    const instr = parseInstructions([rest, ...ls.slice(1)].join(' '), form);
+    const warnings = [...instr.warnings];
+    if (name.length < 3) warnings.unshift("Couldn't read the medicine name.");
+    if (!strength && form !== 'ml') warnings.unshift('Strength not found — check the prescription.');
+    return {
+      id: makeId(),
+      name,
+      strength,
+      unit: form,
+      aliases: [],
+      barcodes: [],
+      source: ls.join('\n'),
+      ...instr,
+      warnings,
+    };
+  });
+}

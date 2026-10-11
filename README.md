@@ -25,6 +25,12 @@ Expo (React Native, SDK 57) app for iPhone and Android. All data stays on the ph
 - Stock goes down when a dose is taken (and back up on undo). Refill / correct count, low-stock warning, "lasts about N days".
 - Export full history as CSV (share to WhatsApp, email, Drive).
 
+**4. Adding medicines** (Schedule → + Add medicine)
+- **Scan strip, bottle or box:** reads the brand name, strength, form and generic name from the pack (bigger text is treated as the brand) and saves the barcode. You confirm the details, then set when to take it.
+- **Photograph or choose a prescription** (up to 4 pages): reads printed lines like `Tab. Dolo 650 1-0-1 after food x 5 days` and understands 1-0-1 / ½-0-½, OD/BD/TDS/QID/HS/SOS, before/after food (AC/PC, empty stomach), weekly doses and durations.
+- **Nothing from a prescription is used until a person checks it.** Each medicine shows the exact text it was read from plus warnings for anything unclear. Each must be marked "Matches ✓" or corrected before "Add to schedule" is allowed.
+- All text is read on the phone; nothing is uploaded. Handwritten prescriptions usually can't be read — add those medicines one at a time.
+
 **Time-of-day colours:** the background changes with the time — warm sunrise in the morning (5 am–12), sky blue in the afternoon (12–5 pm), sunset coral in the evening (5–9 pm) and deep navy at night (9 pm–5 am). On Today, each dose group is tinted and labelled by its own period. Colours are in `src/period.ts`.
 
 All timing rules (meal offset, scan window, missed-after, follow-up, snooze) are adjustable in Settings (gear icon on Today).

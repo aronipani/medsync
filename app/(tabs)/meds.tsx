@@ -13,6 +13,15 @@ export default function Meds() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {state.pending && (
+        <Pressable onPress={() => router.push('/rx-review')}>
+          <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warn, marginBottom: 16 }}>
+            <Text style={{ color: t.warn, fontWeight: '700' }}>
+              Prescription waiting to be checked ({state.pending.items.filter((i) => i.checked).length}/{state.pending.items.length}) ›
+            </Text>
+          </Card>
+        </Pressable>
+      )}
       {state.members.map((member) => {
         const meds = state.meds.filter((m) => m.memberId === member.id);
         return (
@@ -23,7 +32,7 @@ export default function Meds() {
                 <Text style={[s.h2, { color: t.text }]}>{member.name}</Text>
                 <Ionicons name="create-outline" size={18} color={t.sub} style={{ marginLeft: 6 }} />
               </Pressable>
-              <Pressable onPress={() => router.push({ pathname: '/med/[id]', params: { id: 'new', memberId: member.id } })} hitSlop={10}>
+              <Pressable onPress={() => router.push({ pathname: '/add', params: { memberId: member.id } })} hitSlop={10}>
                 <Text style={{ color: t.brand, fontWeight: '700', fontSize: 15 }}>+ Add medicine</Text>
               </Pressable>
             </View>

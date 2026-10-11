@@ -38,7 +38,14 @@
           "color": "#0F766E"
         }
       ],
-      "@react-native-community/datetimepicker"
+      "@react-native-community/datetimepicker",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "MedSync opens your photos so you can choose a prescription to read.",
+          "cameraPermission": "MedSync uses the camera to photograph prescriptions and scan medicine strips."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

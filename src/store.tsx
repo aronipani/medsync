@@ -2,7 +2,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
 import { computeMissed, medLabel } from './schedule.ts';
-import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, Settings } from './types.ts';
+import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, Settings } from './types.ts';
 
 const KEY = 'medsync:v1';
 
@@ -52,6 +52,10 @@ interface Store {
   linkBarcode(medId: string, code: string): void;
   saveSettings(s: Settings): void;
   replaceAll(s: AppState): void;
+  setPending(p: PendingRx | undefined): void;
+  updatePendingItem(id: string, patch: Partial<PendingRxItem>): void;
+  /** Adds every included, checked prescription item to the schedule. Returns how many were added. */
+  approvePending(): number;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -188,6 +192,28 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         })),
       saveSettings: (settings) => update((s) => ({ ...s, settings })),
       replaceAll: (next) => update(() => next),
+      setPending: (pending) => update((s) => ({ ...s, pending })),
+      updatePendingItem: (id, patch) =>
+        update((s) =>
+          s.pending ? { ...s, pending: { ...s.pending, items: s.pending.items.map((i) => (i.id === id ? { ...i, ...patch } : i)) } } : s,
+        ),
+      approvePending: () => {
+        const p = state.pending;
+        if (!p) return 0;
+        const ready = p.items.filter((i) => i.include && i.checked);
+        const at = new Date().toISOString();
+        const label = new Date(p.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+        const meds: Medication[] = ready.map((i) => ({
+          ...i.med,
+          memberId: p.memberId,
+          active: true,
+          createdAt: at,
+          doses: i.med.doses.map((d) => ({ ...d, since: at })),
+          notes: [i.med.notes, `From prescription of ${label}.`].filter(Boolean).join(' '),
+        }));
+        update((s) => ({ ...s, meds: [...s.meds, ...meds], pending: undefined }));
+        return meds.length;
+      },
     }),
     [state, ready, now, update],
   );

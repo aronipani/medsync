@@ -22,20 +22,30 @@ const newDose = (meal: Meal = 'breakfast'): Dose => ({
 
 export default function EditMed() {
   const t = useTheme();
-  const { id, memberId } = useLocalSearchParams<{ id: string; memberId?: string }>();
-  const { state, saveMed, deleteMed } = useStore();
-  const existing = state.meds.find((m) => m.id === id);
+  const { id, memberId, prefill, rxItem } = useLocalSearchParams<{ id: string; memberId?: string; prefill?: string; rxItem?: string }>();
+  const { state, saveMed, deleteMed, updatePendingItem } = useStore();
+  const pendingItem = rxItem ? state.pending?.items.find((i) => i.id === rxItem) : undefined;
+  const existing = pendingItem ? undefined : state.meds.find((m) => m.id === id);
+  const draft = useMemo<Partial<Medication>>(() => {
+    try {
+      return prefill ? (JSON.parse(prefill) as Partial<Medication>) : {};
+    } catch {
+      return {};
+    }
+  }, [prefill]);
 
   const [med, setMed] = useState<Medication>(
     () =>
+      pendingItem?.med ??
       existing ?? {
+        ...draft,
         id: uid(),
         memberId: memberId ?? state.members[0]?.id ?? '',
-        name: '',
-        strength: '',
-        aliases: [],
-        barcodes: [],
-        unit: 'tablet',
+        name: draft.name ?? '',
+        strength: draft.strength ?? '',
+        aliases: draft.aliases ?? [],
+        barcodes: draft.barcodes ?? [],
+        unit: draft.unit ?? 'tablet',
         doses: [newDose()],
         stock: 10,
         lowStockAt: 5,
@@ -60,21 +70,35 @@ export default function EditMed() {
       const changed = !old || JSON.stringify([old.timing, old.days]) !== JSON.stringify([d.timing, d.days]) || existing?.memberId !== med.memberId;
       return changed && old ? { ...d, since: now } : d;
     });
-    saveMed({
+    const final = {
       ...med,
       name: med.name.trim(),
       strength: med.strength.trim(),
       aliases: aliases.split(',').map((a) => a.trim()).filter(Boolean),
       doses,
-    });
+    };
+    if (pendingItem) updatePendingItem(pendingItem.id, { med: final, checked: true, include: true });
+    else saveMed(final);
     router.back();
   };
 
   return (
     <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-      <Stack.Screen options={{ title: existing ? 'Edit medicine' : 'New medicine' }} />
+      <Stack.Screen options={{ title: pendingItem ? 'Check medicine' : existing ? 'Edit medicine' : 'New medicine' }} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-        {state.members.length > 1 && (
+        {pendingItem && (
+          <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warnSoft }}>
+            <Text style={{ color: t.warn, fontWeight: '700', marginBottom: 4 }}>On the prescription</Text>
+            <Text style={{ color: t.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{pendingItem.source}</Text>
+            {pendingItem.warnings.map((w) => (
+              <Text key={w} style={{ color: t.warn, marginTop: 6 }}>
+                ⚠ {w}
+              </Text>
+            ))}
+            <Text style={{ color: t.sub, marginTop: 8, fontSize: 13 }}>Compare every field with the prescription, fix anything wrong, then save.</Text>
+          </Card>
+        )}
+        {state.members.length > 1 && !pendingItem && (
           <>
             <Label>For</Label>
             <MemberPicker value={med.memberId} onChange={(v) => v && set({ memberId: v })} />
@@ -192,7 +216,7 @@ export default function EditMed() {
           <Switch value={med.active} onValueChange={(active) => set({ active })} />
         </View>
 
-        <Button big title="Save" onPress={save} style={{ marginTop: 24 }} />
+        <Button big title={pendingItem ? 'Confirm — this matches the prescription' : 'Save'} onPress={save} style={{ marginTop: 24 }} />
         {existing && (
           <Button
             title="Delete medicine"

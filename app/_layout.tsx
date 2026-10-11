@@ -73,6 +73,9 @@ function Shell() {
         <Stack.Screen name="med/[id]" options={{ presentation: 'modal', title: 'Medicine' }} />
         <Stack.Screen name="member/[id]" options={{ presentation: 'modal', title: 'Family member' }} />
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
+        <Stack.Screen name="add" options={{ presentation: 'modal', title: 'Add medicine' }} />
+        <Stack.Screen name="scan-add" options={{ title: 'Scan to add' }} />
+        <Stack.Screen name="rx-review" options={{ title: 'Check prescription' }} />
       </Stack>
     </>
   );

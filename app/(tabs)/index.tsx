@@ -122,7 +122,7 @@ export default function Today() {
             </View>
           ))
         )}
-        {state.meds.length === 0 && <Button title="Add a medicine" onPress={() => router.push('/med/new')} />}
+        {state.meds.length === 0 && <Button title="Add a medicine" onPress={() => router.push('/add')} />}
       </ScrollView>
     </>
   );

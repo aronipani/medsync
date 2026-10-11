@@ -78,6 +78,25 @@ export interface StockEvent {
   at: string;
 }
 
+/** A prescription read by the app, waiting for a person to check it. */
+export interface PendingRxItem {
+  id: string;
+  med: Medication; // draft medicine (not yet in the schedule)
+  source: string; // text read from the prescription
+  warnings: string[];
+  checked: boolean; // a person confirmed it against the prescription
+  include: boolean;
+  asNeeded: boolean;
+}
+
+export interface PendingRx {
+  id: string;
+  memberId: string;
+  imageUris: string[];
+  createdAt: string;
+  items: PendingRxItem[];
+}
+
 export interface AppState {
   version: 1;
   members: Member[];
@@ -85,6 +104,7 @@ export interface AppState {
   logs: DoseLog[];
   stock: StockEvent[];
   settings: Settings;
+  pending?: PendingRx;
 }
 
 export type OccurrenceStatus = 'upcoming' | 'due' | LogStatus;
