@@ -1,4 +1,3 @@
-import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { useIsFocused } from 'expo-router';
@@ -6,6 +5,8 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
 import { matchBarcode, matchText } from '../../src/match.ts';
+import { readBurst, readLinesAnyOrientation } from '../../src/ocr.ts';
+import { Ionicons } from '@expo/vector-icons';
 import { dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { dateKey, fmt12 } from '../../src/time.ts';
@@ -35,6 +36,8 @@ export default function Scan() {
   const due = useMemo(() => dueNow(state, now, memberId), [state, now, memberId]);
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [torch, setTorch] = useState(false);
   const [typed, setTyped] = useState('');
   const lastCode = useRef({ code: '', at: 0 });
 
@@ -93,7 +96,7 @@ export default function Scan() {
     show({
       kind: 'nomatch',
       reason: why ?? 'No medicine due now matches this strip.',
-      detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || 'No readable text found — move closer and avoid glare.',
+      detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || 'No readable text found — move closer, and tilt the strip away from lights to cut the shine.',
     });
   };
 
@@ -101,9 +104,16 @@ export default function Scan() {
     if (!camera.current || busy) return;
     setBusy(true);
     try {
-      const photo = await camera.current.takePictureAsync({ quality: 0.8, shutterSound: false });
-      const res = await TextRecognition.recognize(photo.uri);
-      checkText(res.text, 'text');
+      const cam = camera.current;
+      const take = async () => (await cam.takePictureAsync({ quality: 0.9, shutterSound: false })).uri;
+      setProgress('Reading the strip…');
+      let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
+      // Nothing matched? Glare may be hiding letters — take two more photos at slightly different angles.
+      if (!due.some((o) => matchText(text, o.med).matched)) {
+        const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
+        text += '\n' + more.map((l) => l.text).join('\n');
+      }
+      checkText(text, 'text');
     } catch (e) {
       show({
         kind: 'nomatch',
@@ -172,14 +182,25 @@ export default function Scan() {
                 style={{ flex: 1 }}
                 facing="back"
                 autofocus="on"
+                flash="off"
+                enableTorch={torch}
                 barcodeScannerSettings={{ barcodeTypes: BARCODES }}
                 onBarcodeScanned={result ? undefined : onBarcode}
               />
             ) : null}
+            {perm?.granted && focused && (
+              <Pressable
+                onPress={() => setTorch((v) => !v)}
+                accessibilityLabel={torch ? 'Turn light off' : 'Turn light on'}
+                style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 20, padding: 8 }}
+              >
+                <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={22} color="#fff" />
+              </Pressable>
+            )}
             {busy && (
               <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0007' }}>
                 <ActivityIndicator color="#fff" size="large" />
-                <Text style={{ color: '#fff', marginTop: 8 }}>Reading strip…</Text>
+                <Text style={{ color: '#fff', marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>{progress || 'Reading strip…'}</Text>
               </View>
             )}
             {!result && !busy && (

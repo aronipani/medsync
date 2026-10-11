@@ -36,8 +36,16 @@ export interface MedDraft {
   barcodes: string[];
 }
 
+export interface Ingredient {
+  name: string; // e.g. "Clopidogrel"
+  strength?: string; // e.g. "75" or "50 mcg"
+}
+
 export interface LabelResult extends MedDraft {
-  nameOptions: string[]; // other likely brand names, for the user to pick from
+  ingredients: Ingredient[]; // what the medicine is, read first from the strip
+  contents: string; // human-readable, e.g. "Bempedoic Acid 180 mg + Ezetimibe 10 mg"
+  brand?: string; // brand name, if one was found
+  nameOptions: string[]; // other likely names for the user to pick from
 }
 
 const FORM_WORDS: [RegExp, string][] = [
@@ -50,11 +58,18 @@ const FORM_WORDS: [RegExp, string][] = [
   [/\b(sachets?|granules|powder)\b/i, 'sachet'],
 ];
 
+// Salt names are dropped so the medicine reads as people say it ("Clopidogrel", not "Clopidogrel Bisulphate").
+const SALTS =
+  /\b(hydrochloride|hcl|bisulphate|bisulfate|besylate|besilate|maleate|tartrate|succinate|sodium|potassium|calcium|magnesium|dihydrate|monohydrate|trihydrate|hydrobromide|mesylate|fumarate|citrate|phosphate|sulphate|sulfate|acetate)\b/gi;
+const PHARMACOPOEIA = /\b(i\.?\s?p\.?|b\.?\s?p\.?|u\.?\s?s\.?\s?p\.?(?:-?\s?nf)?|ph\.?\s?eur\.?)(?=\s|$|[^a-z])/gi;
+const NOT_INGREDIENT =
+  /\b(excipients?|colou?rs?|oxide|dioxide|lake|q\.?s|each|contains?|composition|mrp|m\.r\.p|rs|price|per|pack|tabs?|tablets?|capsules?|store|storage|below|dosage|dose|directed|physician|batch|exp|mfg|mfd|lic|reg|schedule|caution|warning)\b/i;
+const EXCIPIENT = /\b(oxide|dioxide|lake|excipients?|colou?rs?|titanium|iron|sucrose|lactose|starch|q\.\s?s)\b/i;
+const COMPANY = /\b(pharma|pharmaceuticals?|labs?|laboratories|ltd|limited|pvt|healthcare|life\s?sciences|remedies|drugs|industries|marketed|manufactured)\b/i;
 const NOISE =
-  /\b(tablets?|capsules?|ip|bp|usp|each|contains?|film|coated|mfd|mfg|manufactured|marketed|ltd|limited|pvt|private|batch|b\.?\s?no|lot|exp|expiry|rx|schedule|warning|store|keep|reach|children|price|mrp|rs|incl|taxes|dosage|composition|pharma|pharmaceuticals?|labs?|laboratories|healthcare|lifesciences|india|directed|physician|prescription|only|retail|sale|protect|light|moisture|temperature|below|use|before|tablet|strip|reg|lic|no|dr|uses?|syrup|suspension|drops?|injection|inhaler|sachets?|oral|solution)\b/gi;
+  /\b(tablets?|capsules?|ip|i\.p|bp|usp|each|contains?|film|coated|uncoated|mfd|mfg|manufactured|marketed|ltd|limited|pvt|private|batch|b\.?\s?no|lot|exp|expiry|rx|schedule|warning|caution|store|keep|reach|children|price|mrp|rs|incl|inclusive|taxes|dosage|dose|composition|pharma|pharmaceuticals?|labs?|laboratories|healthcare|lifesciences|india|directed|physician|prescription|only|retail|sale|sold|protect|protected|light|moisture|temperature|below|use|before|tablet|strip|reg|lic|no|dr|uses?|syrup|suspension|drops?|injection|inhaler|sachets?|oral|solution|registered|trade\s?mark|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|blister|equivalent|to|storage|excipients?|colou?r)\b/gi;
 
 const STRENGTH = /(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug|ml|gm|g|iu|k)\b/i;
-const BARE_NUM = /\b(\d{1,4}(?:\.\d+)?)\b/;
 
 export function formatStrength(num: string, unit?: string): string {
   const u = (unit ?? '').toLowerCase();
@@ -74,77 +89,165 @@ const titleCase = (s: string) =>
   s
     .toLowerCase()
     .split(/\s+/)
+    .filter(Boolean)
     .map((w) => (w.length <= 2 && /[a-z]/.test(w) ? w.toUpperCase() : w.charAt(0).toUpperCase() + w.slice(1)))
     .join(' ');
 
-/** Generic composition, e.g. "Paracetamol Tablets IP 650 mg" or "Each tablet contains: Telmisartan IP 40 mg". */
-function findGenerics(text: string): string[] {
-  const out: string[] = [];
-  const res = [
-    /([A-Za-z][A-Za-z ]{3,40}?)[ \t]+(?:tablets?|capsules?|oral suspension|syrup|injection)[ \t]*(?:ip|bp|usp)?[ \t]*(\d+(?:\.\d+)?)[ \t]*(mg|mcg|iu)\b/gi,
-    /contains[ \t]*:?[ \t]*([A-Za-z][A-Za-z ]{3,40}?)[ \t]*(?:ip|bp|usp)?[ \t]+(\d+(?:\.\d+)?)[ \t]*(mg|mcg|iu)\b/gi,
-  ];
-  for (const re of res) {
-    for (const m of text.matchAll(re)) {
-      const generic = m[1].replace(NOISE, ' ').replace(/\s+/g, ' ').trim();
-      if (generic.length >= 4) out.push(`${titleCase(generic)} ${formatStrength(m[2], m[3])}`);
-    }
-  }
-  return [...new Set(out)];
+function cleanIngredient(raw: string): string {
+  return titleCase(
+    raw
+      .replace(PHARMACOPOEIA, ' ')
+      .replace(SALTS, ' ')
+      .replace(/[^A-Za-z ]/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim(),
+  );
 }
 
-/** "DOLO-650" -> { name: "Dolo", strength: "650" } */
-function splitBrand(line: string): { name: string; strength?: string } | undefined {
-  const cleaned = line.replace(/[®™©]/g, ' ').replace(NOISE, ' ').replace(/[^A-Za-z0-9.\- ]/g, ' ');
+function editDistance(a: string, b: string): number {
+  const prev = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let diag = prev[0];
+    prev[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const tmp = prev[j];
+      prev[j] = Math.min(prev[j] + 1, prev[j - 1] + 1, diag + (a[i - 1] === b[j - 1] ? 0 : 1));
+      diag = tmp;
+    }
+  }
+  return prev[b.length];
+}
+
+/** Same ingredient despite OCR slips ("Bampedoic" vs "Bempedoic")? Compares first words. */
+const sameIngredient = (a: string, b: string) => {
+  const x = a.split(' ')[0].toLowerCase();
+  const y = b.split(' ')[0].toLowerCase();
+  return x === y || (x.length >= 5 && y.length >= 5 && editDistance(x, y) <= 2);
+};
+
+/** "Cilnidipine & Telmisartan Tablets" / "Nebivolol Hydrochloride Tablets I.P." -> ingredient names. */
+function headerIngredients(lines: string[]): string[] {
+  for (let i = 0; i < lines.length; i++) {
+    const m = /^(.*?)\s*\b(tablets?|capsules?|oral suspension|syrup|injection|eye drops|drops)\b/i.exec(lines[i]);
+    if (!m) continue;
+    let head = m[1].replace(/^(rx|℞)\s*/i, '').trim();
+    if (/\d/.test(head) || NOT_INGREDIENT.test(head) || COMPANY.test(head)) continue;
+    // Name split over two lines: "Nebivolol" / "Hydrochloride Tablets I.P."
+    if (!cleanIngredient(head) && i > 0 && /^[A-Za-z]{4,}$/.test(lines[i - 1].trim())) head = `${lines[i - 1]} ${head}`;
+    const names = head
+      .split(/\s*(?:&|\+|,|\band\b|\bwith\b)\s*/i)
+      .map(cleanIngredient)
+      .filter((n) => n.replace(/\s/g, '').length >= 4);
+    if (names.length) return names;
+  }
+  return [];
+}
+
+/** "Ezetimibe IP ...... 10 mg", "equivalent to Clopidogrel 75 mg", "Each tablet contains: Thyroxine Sodium IP 50 mcg". */
+function compositionIngredients(lines: string[]): Ingredient[] {
+  const out: Ingredient[] = [];
+  for (const raw of lines) {
+    const line = raw.replace(/^.*?\b(contains|equivalent to)\s*:?\s*/i, '');
+    const m = /^([A-Za-z][A-Za-z ]{2,40}?)\s*(?:tablets?|capsules?)?\s*(?:i\.?\s?p\.?|b\.?\s?p\.?|u\.?\s?s\.?\s?p\.?(?:-?nf)?)?[\s.…:_·-]*(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug|iu)\b/i.exec(line.trim());
+    if (!m || NOT_INGREDIENT.test(m[1]) || COMPANY.test(m[1])) continue;
+    const name = cleanIngredient(m[1]);
+    if (name.replace(/\s/g, '').length < 4) continue;
+    const ing = { name, strength: formatStrength(m[2], m[3]) };
+    const i = out.findIndex((x) => sameIngredient(x.name, name));
+    if (i >= 0) out[i] = /equivalent to/i.test(raw) ? ing : out[i];
+    else out.push(ing);
+  }
+  return out;
+}
+
+function readIngredients(lines: string[]): Ingredient[] {
+  const fromHeader = headerIngredients(lines);
+  const fromComposition = compositionIngredients(lines);
+  if (!fromHeader.length) return fromComposition;
+  // Header gives the order and the full list; composition gives the strengths.
+  const merged: Ingredient[] = fromHeader.map((name) => {
+    const c = fromComposition.find((x) => sameIngredient(x.name, name));
+    return { name: c && c.name.length >= name.length ? c.name : name, strength: c?.strength };
+  });
+  for (const c of fromComposition) if (!merged.some((x) => sameIngredient(x.name, c.name))) merged.push(c);
+  return merged;
+}
+
+/** "CILACAR® T" -> Cilacar T; "NEBICARD-2.5" -> Nebicard + 2.5; "DOLO-650" -> Dolo + 650. */
+function brandCandidate(line: string, ingredients: Ingredient[]): { name: string; strength?: string; reg: boolean } | undefined {
+  if (line.length > 32 || COMPANY.test(line) || EXCIPIENT.test(line)) return undefined;
+  const reg = /[®™]/.test(line);
+  const start = line.replace(/^[^A-Za-z]+/, '');
+  if (!/^[A-Z]/.test(start)) return undefined; // torn or partial words start mid-word, in lower case
+  const cleaned = start.replace(/[®™©]/g, ' ').replace(NOISE, ' ').replace(SALTS, ' ').replace(/[^A-Za-z0-9.\- ]/g, ' ');
   const m = /^\s*([A-Za-z][A-Za-z\-]*(?:\s+[A-Za-z][A-Za-z\-]*){0,2})[\s-]*(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|iu|k)?)?/i.exec(cleaned);
   if (!m) return undefined;
   const name = m[1].replace(/-+$/, '').replace(/-/g, ' ').trim();
   if (name.replace(/\s/g, '').length < 3) return undefined;
+  if (ingredients.some((i) => name.toLowerCase().split(' ').some((w) => w.length >= 5 && sameIngredient(w, i.name)))) return undefined;
   let strength: string | undefined;
   if (m[2]) {
-    const s = STRENGTH.exec(m[2]) ?? BARE_NUM.exec(m[2]);
+    const s = STRENGTH.exec(m[2]) ?? /\b(\d{1,4}(?:\.\d+)?)\b/.exec(m[2]);
     if (s) strength = formatStrength(s[1], s[2]);
   }
-  return { name: titleCase(name), strength };
+  return { name: titleCase(name), strength, reg };
 }
 
+export function describeIngredients(ings: Ingredient[]): string {
+  return ings.map((i) => (i.strength ? `${i.name} ${/^\d/.test(i.strength) && !/[a-z]/i.test(i.strength) ? `${i.strength} mg` : i.strength}` : i.name)).join(' + ');
+}
+
+/**
+ * Reads a strip / bottle / box. The medicine contents are read first (the generic name and strength,
+ * including combinations), then the brand, which is often smaller, torn off or printed upside down.
+ */
 export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
-  const text = lines.map((l) => l.text).join('\n');
-  const unit = detectForm(text) ?? 'tablet';
-  const generics = findGenerics(text);
+  const texts = lines.map((l) => l.text);
+  const rows = mergeRows(lines);
+  const allText = texts.join('\n');
+  const unit = detectForm(allText) ?? 'tablet';
 
-  // Most prominent lines first (bigger text); keep OCR order when sizes are unknown.
-  const ranked = lines
-    .map((l, i) => ({ ...l, i }))
-    .sort((a, b) => (b.height ?? 0) - (a.height ?? 0) || a.i - b.i);
+  const ingredients = readIngredients([...new Set([...texts, ...rows])]);
 
-  const genericNames = new Set(generics.map((g) => g.split(' ')[0].toLowerCase()));
-  const options: { name: string; strength?: string }[] = [];
-  for (const l of ranked) {
-    if (l.text.length > 40) continue;
-    const b = splitBrand(l.text);
-    if (!b) continue;
-    if (options.some((o) => o.name.toLowerCase() === b.name.toLowerCase())) continue;
-    options.push(b);
-    if (options.length >= 5) break;
-  }
-  // Prefer a brand that isn't just the generic name, when one exists.
-  const brand = options.find((o) => !genericNames.has(o.name.split(' ')[0].toLowerCase())) ?? options[0];
+  // Brand: prominent text that isn't the ingredient, a company or packaging small print.
+  const scored = lines
+    .map((l, i) => {
+      const b = brandCandidate(l.text, ingredients);
+      if (!b) return undefined;
+      const h = l.height ?? 10;
+      return { ...b, score: h * (1 + (b.strength ? 0.6 : 0) + (b.reg ? 0.5 : 0)) - i * 0.001 };
+    })
+    .filter((x): x is NonNullable<typeof x> => !!x)
+    .sort((a, b) => b.score - a.score);
+  const brands: typeof scored = [];
+  for (const b of scored) if (!brands.some((x) => x.name.toLowerCase() === b.name.toLowerCase())) brands.push(b);
+  const brand = brands[0];
 
-  let strength = brand?.strength;
-  if (!strength) {
-    // For liquids the only number is often the bottle size (100 ml) — not a strength.
-    const s = unit === 'ml' ? null : STRENGTH.exec(text);
+  const genericName = ingredients.map((i) => i.name).join(' + ');
+  const genericStrength = ingredients.map((i) => i.strength).filter(Boolean).join('/');
+  const contents = describeIngredients(ingredients);
+
+  let strength = brand?.strength ?? (ingredients.length && ingredients.every((i) => i.strength) ? genericStrength : '');
+  if (!strength && !ingredients.length && unit !== 'ml') {
+    const s = STRENGTH.exec(allText);
     if (s) strength = formatStrength(s[1], s[2]);
   }
 
-  const barcodes = barcode ? [barcode] : [];
+  const name = brand?.name ?? genericName;
+  const genericAlias = ingredients.length ? ingredients.map((i) => `${i.name} ${i.strength ?? ''}`.trim()).join(' + ') : '';
+  const aliases = brand && genericAlias ? [genericAlias] : [];
+
+  const nameOptions = [...brands.slice(0, 4).map((b) => b.name), ...(genericName && brand ? [genericName] : [])];
+
   return {
-    name: brand?.name ?? '',
-    strength: strength ?? '',
+    name,
+    strength,
     unit,
-    aliases: generics.filter((g) => !brand || !g.toLowerCase().startsWith(brand.name.toLowerCase())).slice(0, 2),
-    barcodes,
-    nameOptions: options.map((o) => o.name),
+    aliases,
+    barcodes: barcode ? [barcode] : [],
+    ingredients,
+    contents,
+    brand: brand?.name,
+    nameOptions: [...new Set(nameOptions)],
   };
 }

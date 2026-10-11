@@ -29,7 +29,7 @@ test('bottle without text sizes: composition and microgram strength', () => {
   ], '8901234567890');
   assert.equal(r.name, 'Thyronorm');
   assert.equal(r.strength, '50 mcg');
-  assert.ok(r.aliases.some((a) => a.includes('Thyroxine Sodium 50 mcg')));
+  assert.ok(r.aliases.some((a) => a.includes('Thyroxine 50 mcg')));
   assert.deepEqual(r.barcodes, ['8901234567890']);
 });
 

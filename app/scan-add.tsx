@@ -1,10 +1,11 @@
 import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
-import { ActivityIndicator, ScrollView, Text, View } from 'react-native';
-import { parseLabel, type LabelResult } from '../src/label.ts';
-import { isNotLinkedError, readLines } from '../src/ocr.ts';
+import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
+import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { useStore } from '../src/store.tsx';
 import { Button, Card, Chip, Field, Label, s, useTheme } from '../src/ui.tsx';
 
@@ -20,34 +21,52 @@ export default function ScanToAdd() {
   const [barcode, setBarcode] = useState<string>();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string>();
+  const [lines, setLines] = useState<OcrLine[]>([]); // everything read so far, across photos
+  const [photos, setPhotos] = useState(0);
   const [result, setResult] = useState<LabelResult>();
+  const [showCamera, setShowCamera] = useState(true);
+  const [edited, setEdited] = useState(false);
+  const [torch, setTorch] = useState(false);
+  const [progress, setProgress] = useState('');
 
   const onBarcode = ({ data }: BarcodeScanningResult) => {
     if (data === barcode) return;
     setBarcode(data);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
-    // Some QR codes carry the product name as text.
-    if (!result && /[A-Za-z]{4,}/.test(data)) {
-      const r = parseLabel(data.split(/[\n;|]/).map((text) => ({ text })), data);
-      if (r.name) setResult(r);
-    }
+    if (/[A-Za-z]{4,}/.test(data)) {
+      // Some QR codes carry the product name as text — add it to what's been read.
+      const qrLines = data.split(/[\n;|]/).map((text) => ({ text }));
+      const all = [...lines, ...qrLines];
+      setLines(all);
+      if (result) setResult(parseLabel(all, data));
+    } else if (result) setResult({ ...result, barcodes: [data] });
   };
 
-  const readLabel = async () => {
+  const takePhoto = async () => {
     if (!camera.current || busy) return;
     setBusy(true);
     setError(undefined);
     try {
-      const photo = await camera.current.takePictureAsync({ quality: 0.8, shutterSound: false });
-      const lines = await readLines(photo.uri);
-      if (!lines.length) {
-        setError('No text found. Hold the label flat, fill the frame, and avoid glare.');
+      const cam = camera.current;
+      const read = await readBurst(async () => (await cam.takePictureAsync({ quality: 0.9, shutterSound: false })).uri, {
+        shots: 3,
+        onShot: (n, of) => setProgress(n < of ? `Photo ${n} of ${of} — tilt the strip a little…` : `Photo ${n} of ${of}…`),
+      });
+      setProgress('Reading the strip…');
+      if (!read.length) {
+        setError('No text found. Hold the strip flat, fill the frame, and tilt it slightly to avoid glare.');
         return;
       }
-      setResult(parseLabel(lines, barcode));
+      const all = [...lines, ...read];
+      setLines(all);
+      setPhotos((n) => n + 1);
+      const r = parseLabel(all, barcode);
+      // A fresh reading with more text is better — but keep anything the person typed themselves.
+      setResult(result && edited ? { ...r, name: result.name, strength: result.strength, unit: result.unit } : r);
+      setShowCamera(false);
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
     } catch (e) {
-      setError(isNotLinkedError(e) ? 'Reading text needs the installed app build (not Expo Go).' : 'Could not read the label. Try again.');
+      setError(isNotLinkedError(e) ? 'Reading text needs the installed app build (not Expo Go).' : 'Could not read the strip. Try again.');
     } finally {
       setBusy(false);
     }
@@ -55,12 +74,17 @@ export default function ScanToAdd() {
 
   const useIt = () => {
     if (!result) return;
+    const aliases = [...result.aliases];
+    // Keep the medicine contents as a second name so a torn strip still verifies.
+    const generic = result.ingredients.map((i) => `${i.name} ${i.strength ?? ''}`.trim()).join(' + ');
+    if (generic && result.name.trim().toLowerCase() !== result.ingredients.map((i) => i.name).join(' + ').toLowerCase() && !aliases.includes(generic)) aliases.push(generic);
     const prefill = {
       name: result.name.trim(),
       strength: result.strength.trim(),
       unit: result.unit,
-      aliases: result.aliases,
+      aliases,
       barcodes: barcode ? [barcode] : [],
+      notes: result.contents ? `Contains ${result.contents}.` : undefined,
     };
     router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId: memberId ?? state.members[0]?.id, prefill: JSON.stringify(prefill) } });
   };
@@ -68,10 +92,13 @@ export default function ScanToAdd() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
       <Stack.Screen options={{ title: 'Scan to add' }} />
-      {!result && (
+
+      {showCamera && (
         <>
           <Text style={{ color: t.sub, marginBottom: 10 }}>
-            Point at the strip, bottle or box so the medicine name fills the frame. Barcodes are picked up automatically.
+            {photos
+              ? 'Photograph another part of the strip — for example the side with the composition ("Each tablet contains…").'
+              : 'Hold the printed side of the strip, bottle or box to the camera. Upside-down or sideways print is fine. Barcodes are picked up automatically.'}
           </Text>
           <View style={{ height: 320, borderRadius: 18, overflow: 'hidden', backgroundColor: '#000' }}>
             {!perm ? null : !perm.granted ? (
@@ -80,33 +107,66 @@ export default function ScanToAdd() {
                 <Button title="Allow camera" onPress={requestPerm} />
               </View>
             ) : (
-              <CameraView ref={camera} style={{ flex: 1 }} facing="back" autofocus="on" barcodeScannerSettings={{ barcodeTypes: BARCODES }} onBarcodeScanned={onBarcode} />
+              <CameraView
+                ref={camera}
+                style={{ flex: 1 }}
+                facing="back"
+                autofocus="on"
+                flash="off"
+                enableTorch={torch}
+                barcodeScannerSettings={{ barcodeTypes: BARCODES }}
+                onBarcodeScanned={onBarcode}
+              />
+            )}
+            {perm?.granted && (
+              <Pressable
+                onPress={() => setTorch((v) => !v)}
+                accessibilityLabel={torch ? 'Turn light off' : 'Turn light on'}
+                style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 20, padding: 8 }}
+              >
+                <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={22} color="#fff" />
+              </Pressable>
             )}
             {busy && (
               <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0007' }}>
                 <ActivityIndicator color="#fff" size="large" />
-                <Text style={{ color: '#fff', marginTop: 8 }}>Reading label…</Text>
+                <Text style={{ color: '#fff', marginTop: 8, textAlign: 'center', paddingHorizontal: 16 }}>{progress || 'Reading the strip…'}</Text>
               </View>
             )}
           </View>
-          {barcode && <Text style={{ color: t.ok, marginTop: 8, fontWeight: '600' }}>✓ Barcode saved — it will be recognised when scanning doses.</Text>}
+          {barcode && <Text style={{ color: t.ok, marginTop: 8, fontWeight: '600' }}>✓ Barcode saved</Text>}
           {error && <Text style={{ color: t.bad, marginTop: 8 }}>{error}</Text>}
-          <Button big title="Read label" onPress={readLabel} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
-          <Button title="Type it in instead" kind="ghost" onPress={() => router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId } })} />
+          <Text style={{ color: t.sub, marginTop: 10, fontSize: 13, lineHeight: 18 }}>
+            Shiny foil? Stand away from overhead lights and window glare, keep the light off unless it's dark, and tilt the strip slowly while the 3 photos are taken.
+          </Text>
+          <Button big title={photos ? 'Read this side too' : 'Read the strip'} onPress={takePhoto} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
+          {result ? (
+            <Button title="Back to results" kind="ghost" onPress={() => setShowCamera(false)} />
+          ) : (
+            <Button title="Type it in instead" kind="ghost" onPress={() => router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId } })} />
+          )}
         </>
       )}
 
-      {result && (
+      {result && !showCamera && (
         <>
           <Card>
-            <Text style={{ color: t.text, fontSize: 18, fontWeight: '700' }}>Is this right?</Text>
-            <Text style={{ color: t.sub, marginTop: 4 }}>Check against the pack and correct anything that's wrong.</Text>
+            <Text style={{ color: t.sub, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>MEDICINE INSIDE</Text>
+            {result.ingredients.length ? (
+              <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 4 }}>{result.contents}</Text>
+            ) : (
+              <Text style={{ color: t.warn, marginTop: 4 }}>
+                Couldn't read what's inside. Add a photo of the part that says "Each tablet contains…" — or type it in below.
+              </Text>
+            )}
 
-            <Label>Name</Label>
-            <Field value={result.name} onChangeText={(name) => setResult({ ...result, name })} autoCapitalize="words" />
-            {result.nameOptions.length > 1 && (
+            <Label>Name to show in the schedule</Label>
+            <Field value={result.name} onChangeText={(name) => (setEdited(true), setResult({ ...result, name }))} autoCapitalize="words" />
+            {result.nameOptions.length > 0 && (
               <>
-                <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6, fontSize: 13 }}>Other text on the pack — tap if one is the name:</Text>
+                <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6, fontSize: 13 }}>
+                  {result.brand ? `Brand found: ${result.brand}. Tap to choose:` : 'Tap to choose:'}
+                </Text>
                 <View style={s.wrap}>
                   {result.nameOptions.map((n) => (
                     <Chip key={n} label={n} active={n === result.name} onPress={() => setResult({ ...result, name: n })} />
@@ -116,7 +176,7 @@ export default function ScanToAdd() {
             )}
 
             <Label>Strength</Label>
-            <Field value={result.strength} onChangeText={(strength) => setResult({ ...result, strength })} placeholder="e.g. 650" />
+            <Field value={result.strength} onChangeText={(strength) => (setEdited(true), setResult({ ...result, strength }))} placeholder="e.g. 75 or 10/40" />
 
             <Label>Form</Label>
             <View style={s.wrap}>
@@ -124,17 +184,22 @@ export default function ScanToAdd() {
                 <Chip key={u} label={u} active={result.unit === u} onPress={() => setResult({ ...result, unit: u })} />
               ))}
             </View>
-
-            {result.aliases.length > 0 && (
-              <>
-                <Label>Generic name found</Label>
-                <Text style={{ color: t.text }}>{result.aliases.join(', ')}</Text>
-              </>
-            )}
             {barcode && <Text style={{ color: t.ok, marginTop: 12 }}>✓ Barcode linked</Text>}
           </Card>
+
           <Button big title="Next — set when to take it" onPress={useIt} disabled={!result.name.trim()} style={{ marginTop: 14 }} />
-          <Button title="Scan again" kind="ghost" onPress={() => setResult(undefined)} />
+          <Button title="Add a photo of another side" kind="secondary" onPress={() => setShowCamera(true)} style={{ marginTop: 8 }} />
+          <Button
+            title="Start again"
+            kind="ghost"
+            onPress={() => {
+              setLines([]);
+              setPhotos(0);
+              setResult(undefined);
+              setEdited(false);
+              setShowCamera(true);
+            }}
+          />
         </>
       )}
     </ScrollView>
