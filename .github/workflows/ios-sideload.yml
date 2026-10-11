@@ -1,0 +1,65 @@
+name: iPhone IPA (AltStore / SideStore)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: macos-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Generate native iOS project
+        run: npx expo prebuild --platform ios --no-install
+        env:
+          CI: 1
+
+      - name: Install CocoaPods
+        working-directory: ios
+        run: pod install
+
+      - name: Build unsigned app
+        run: |
+          WS=$(ls -d ios/*.xcworkspace | head -1)
+          SCHEME=$(basename "$WS" .xcworkspace)
+          echo "Workspace $WS, scheme $SCHEME"
+          xcodebuild -workspace "$WS" -scheme "$SCHEME" -configuration Release \
+            -sdk iphoneos -destination 'generic/platform=iOS' -derivedDataPath build \
+            CODE_SIGNING_ALLOWED=NO CODE_SIGNING_REQUIRED=NO CODE_SIGN_IDENTITY="" \
+            build | tail -40
+          test "${PIPESTATUS[0]}" -eq 0
+
+      - name: Package IPA
+        run: |
+          APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
+          mkdir -p Payload out
+          cp -R "$APP" Payload/
+          zip -qry "out/MedSync-${{ github.run_number }}.ipa" Payload
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MedSync-ipa
+          path: out/*.ipa
+
+      - name: Publish as a GitHub release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-${{ github.run_number }}
+          name: MedSync iPhone build ${{ github.run_number }}
+          body: Unsigned IPA for AltStore / SideStore. Open in AltStore on the iPhone (My Apps → +), or download on your PC and drag onto AltServer.
+          files: out/*.ipa
+          make_latest: false
