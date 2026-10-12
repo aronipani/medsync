@@ -38,6 +38,11 @@ Expo (React Native, SDK 57) app for iPhone and Android. All data stays on the ph
 - **Before every change** (prescription, edit, delete, merge, restore) the person's schedule is saved. **Schedule → Schedule history** shows each version, what changed and why, lets you go back to any version, and exports a CSV change log.
 - Medicines already listed twice show a **Merge into one** button (times combined, stock added up, dose history kept).
 
+**Two-sided check on every dose scan.** The schedule tells the app what to look for, but green needs both:
+1. the due medicine (or its contents) is printed on the strip — near-exact letters only, so look-alike words like *Mononitrate* aren't taken as *Monotrate*; and
+2. nothing points to a different medicine — no other household or known medicine printed more clearly, nothing extra in it (e.g. *Telma H* contains hydrochlorothiazide, *Cilacar T* contains telmisartan). Otherwise it shows "This looks like …, not …".
+Numbers in price, batch, dates and pack counts ("per 10 Tablets", "MRP Rs. 75") are never taken as the strength.
+
 **6. Teaching strips and training photos**
 - When a strip isn't recognised, the red or amber result offers **Teach the app this strip** for the medicines due. After you confirm, the app remembers the brand and composition words it read, so the same strip is recognised next time even with glare or a torn name ("Recognised from a strip you taught the app").
 - Every confirmed camera scan also strengthens this, and Scan to add teaches the strip it was added from.

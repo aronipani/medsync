@@ -4,7 +4,7 @@ import { useIsFocused } from 'expo-router';
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
-import { matchBarcode, matchDetail, matchText } from '../../src/match.ts';
+import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
 import { readBurst, readLinesAnyOrientation } from '../../src/ocr.ts';
@@ -114,20 +114,32 @@ export default function Scan() {
   };
 
   const checkText = (text: string, method: LogMethod) => {
-    const checked = due.map((o) => ({ o, d: matchDetail(text, o.med) }));
+    // Every medicine in the household, to spot a strip that is really something else.
+    const household = state.meds.filter((m) => m.active);
+    const checked = due.map((o) => ({ o, d: matchDetail(text, o.med, household) }));
     const hits = checked.filter((x) => x.d.level === 'match');
     if (hits.length) return show({ kind: 'match', occs: hits.map((x) => x.o), method });
     const subs = checked.filter((x) => x.d.level === 'substitute');
     if (subs.length) return show({ kind: 'match', occs: subs.map((x) => x.o), method, substitute: subs[0].d.via });
     const other = checked.find((x) => x.d.level === 'otherStrength');
     if (other) return show({ kind: 'strength', occ: other.o, found: other.d.foundStrengths ?? [], detail: text });
-    // A strip a person taught earlier (by what was printed on it).
+    // The strip looks like a different medicine than the one due: say what it looks like.
+    const conflict = checked.find((x) => x.d.level === 'conflict');
+    if (conflict) {
+      return show({
+        kind: 'nomatch',
+        reason: `This looks like ${conflict.d.looksLike}, not ${medLabel(conflict.o.med)}. Don't take it — check the strip.`,
+        detail: text.replace(/\s+/g, ' ').trim().slice(0, 90),
+        say: 'wrong',
+      });
+    }
+    // A strip a person taught earlier (by what was printed on it) — unless it plainly says something else.
     const learned = bestLearned(text.split('\n'), due.map((o) => o.med));
     const learnedOcc = learned && due.find((o) => o.med.id === learned.medId);
-    if (learnedOcc) return show({ kind: 'match', occs: [learnedOcc], method, learned: true });
+    if (learnedOcc && !findConflict(text, learnedOcc.med, household)) return show({ kind: 'match', occs: [learnedOcc], method, learned: true });
     const nameOnly = checked.find((x) => x.d.level === 'nameOnly');
     if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method });
-    const why = explainMiss((o) => ['match', 'substitute'].includes(matchDetail(text, o.med).level));
+    const why = explainMiss((o) => ['match', 'substitute'].includes(matchDetail(text, o.med, household).level));
     show({
       kind: 'nomatch',
       reason: why?.text ?? 'No medicine due now matches this strip.',
@@ -150,7 +162,7 @@ export default function Scan() {
       setProgress('Reading the strip…');
       let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
       // Nothing matched? Glare may be hiding letters — take two more photos at slightly different angles.
-      if (!due.some((o) => ['match', 'substitute'].includes(matchDetail(text, o.med).level))) {
+      if (!due.some((o) => ['match', 'substitute', 'conflict'].includes(matchDetail(text, o.med, state.meds).level))) {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }

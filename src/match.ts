@@ -1,7 +1,8 @@
 // Pure matching logic: does scanned text / barcode belong to a medication?
 // Built for Indian strips where the brand + strength is printed on foil, e.g. "DOLO-650", "Telma 40".
 
-import { relatedNames } from './drugdb.ts';
+import { sameMedicine } from './consolidate.ts';
+import { DRUGS, lookupBrand, lookupIngredients, relatedNames } from './drugdb.ts';
 import type { Medication } from './types.ts';
 
 const NOISE = new Set([
@@ -44,11 +45,41 @@ export function levenshtein(a: string, b: string): number {
   return prev[b.length];
 }
 
-const tolerance = (len: number) => (len >= 8 ? 2 : len >= 4 ? 1 : 0);
+// Strict: look-alike medicine names differ by one or two letters, so only small OCR slips are forgiven.
+const tolerance = (len: number) => (len >= 10 ? 2 : len >= 5 ? 1 : 0);
+
+// Distinctive words of known medicine contents ("ISOSORBIDE", "CLOPIDOGREL", "HYDROCHLOROTHIAZIDE").
+const GENERIC_WORDS = new Set(['ACID', 'VITAMIN', 'CALCIUM', 'SODIUM', 'POTASSIUM', 'MAGNESIUM', 'MULTIVITAMIN', 'CHOLECALCIFEROL']);
+const INGREDIENT_WORDS: Set<string> = new Set(
+  DRUGS.flatMap((d) => d.ingredients.flatMap((i) => i.toUpperCase().split(/\s+/))).filter((w) => w.length >= 6 && !GENERIC_WORDS.has(w)),
+);
 
 function wordPresent(word: string, textTokens: string[], joined: string[]): boolean {
   const tol = tolerance(word.length);
-  return [...textTokens, ...joined].some((t) => Math.abs(t.length - word.length) <= tol && levenshtein(t, word) <= tol);
+  return [...textTokens, ...joined].some((t) => {
+    if (t === word) return true;
+    // A real medicine word on the strip ("MONONITRATE") is not a misread of a different name ("MONOTRATE").
+    if (INGREDIENT_WORDS.has(t) && !INGREDIENT_WORDS.has(word)) return false;
+    return Math.abs(t.length - word.length) <= tol && levenshtein(t, word) <= tol;
+  });
+}
+
+/**
+ * Text with the numbers that are never a strength removed: price, batch, dates, licence numbers
+ * and pack counts ("per 10 Tablets", "15 Tablets", "Pack of 10").
+ */
+export function strengthText(text: string): string {
+  return text
+    .split('\n')
+    .map((l) =>
+      l
+        // From a price / batch / date / licence word to the end of the line.
+        .replace(/(\b(m\.?\s?r\.?\s?p|rs\.?|price|b\.?\s?no|batch|lot|mfg|mfd|exp|expiry|lic|m\.?\s?l\.?|reg|incl|taxes)\b|₹).*$/i, ' ')
+        .replace(/\b(per|of|pack of|strip of|x)\s*\d+\s*(tablets?|tabs?|capsules?|caps?)\b/gi, ' ')
+        .replace(/^\s*\d+\s*(tablets?|tabs?|capsules?|caps?)\s*$/gi, ' ')
+        .replace(/\b\d{1,2}\s*[/.-]\s*\d{2,4}\b/g, ' '),
+    )
+    .join('\n');
 }
 
 function numberPresent(num: string, textTokens: string[]): boolean {
@@ -87,6 +118,7 @@ function textTokens(text: string): string[] {
 
 export function matchText(text: string, med: Pick<Medication, 'name' | 'strength' | 'aliases'>): TextMatch {
   const toks = textTokens(text);
+  const numToks = textTokens(strengthText(text));
   // OCR sometimes splits a word ("DO LO") — also try adjacent pairs joined.
   const base = tokenize(text);
   const joined = base.slice(1).map((t, i) => base[i] + t);
@@ -99,7 +131,7 @@ export function matchText(text: string, med: Pick<Medication, 'name' | 'strength
     const namesOk = names.every((w) => wordPresent(w, toks, joined));
     if (!namesOk) continue;
     nameFound = true;
-    if (nums.every((n) => numberPresent(n, toks))) return { matched: true, nameFound: true, candidate: cand };
+    if (nums.every((n) => numberPresent(n, numToks))) return { matched: true, nameFound: true, candidate: cand };
   }
   return { matched: false, nameFound };
 }
@@ -122,25 +154,91 @@ export function matchBarcode(raw: string, med: Pick<Medication, 'barcodes' | 'na
 
 // ---------- Detailed result for dose checking ----------
 
-export type MatchLevel = 'match' | 'substitute' | 'nameOnly' | 'otherStrength' | 'none';
+export type MatchLevel = 'match' | 'substitute' | 'nameOnly' | 'otherStrength' | 'conflict' | 'none';
 
 export interface MatchDetail {
   level: MatchLevel;
   via?: string; // the name that matched, e.g. "Clopidogrel 75" or "Plavix 75"
   foundStrengths?: string[]; // strengths printed on the strip when they differ from the prescription
+  looksLike?: string; // conflict: what the strip appears to be instead
 }
 
 const STRENGTH_IN_TEXT = /(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug|iu|k)\b/gi;
 
+type Med = Pick<Medication, 'name' | 'strength' | 'aliases'>;
+
+const keywordsOf = (ingredients: string[]) =>
+  new Set(ingredients.flatMap((i) => i.toUpperCase().split(/\s+/)).filter((w) => INGREDIENT_WORDS.has(w)));
+
+function entryFor(med: Med) {
+  return (
+    lookupBrand(med.name) ??
+    med.aliases.map((a) => lookupBrand(a.replace(/\b\d.*$/, '').trim())).find(Boolean) ??
+    lookupIngredients(med.name.split(/\s*\+\s*/))[0] ??
+    med.aliases.map((a) => lookupIngredients(a.replace(/\s*\d+(\.\d+)?\s*(mg|mcg)?/gi, '').split(/\s*\+\s*/))[0]).find(Boolean)
+  );
+}
+
+/** Every word of the name printed exactly (OCR digit/letter slips allowed), e.g. "CILACAR" + "T". */
+function namePrintedExactly(name: string, toks: Set<string>): boolean {
+  const ws = tokenize(name).filter((w) => !NOISE.has(w) && !isNumeric(w));
+  if (!ws.length || ws.join('').length < 4) return false;
+  return ws.every((w) => toks.has(w));
+}
+
+/**
+ * Is there stronger evidence that this strip is a DIFFERENT medicine than the one expected?
+ *  - it contains a medicine the expected one doesn't (Telma H has hydrochlorothiazide; Cilacar T has telmisartan), or
+ *  - another known medicine's name is printed exactly while the expected name is only a near match,
+ *    or the other name is the more specific one ("Cilacar T" vs "Cilacar").
+ */
+export function findConflict(text: string, med: Med, others: Med[] = []): string | undefined {
+  const toks = new Set(textTokens(text));
+  const entry = entryFor(med);
+  if (entry) {
+    const own = keywordsOf(entry.ingredients);
+    const extra = [...toks].filter((t) => INGREDIENT_WORDS.has(t) && !own.has(t));
+    if (extra.length) {
+      const fit = DRUGS.filter((d) => [...keywordsOf(d.ingredients)].some((k) => extra.includes(k))).sort(
+        (a, b) => Number(namePrintedExactly(b.brands[0], toks)) - Number(namePrintedExactly(a.brands[0], toks)) || b.ingredients.length - a.ingredients.length,
+      )[0];
+      const printed = fit?.brands.find((b) => namePrintedExactly(b, toks));
+      return printed ?? (fit ? `a medicine containing ${fit.ingredients.join(' + ')}` : `a medicine containing ${extra.join(', ').toLowerCase()}`);
+    }
+  }
+  const ownExact = med.name.split(/\s*\/\s*/).some((n) => namePrintedExactly(n, toks)) || med.aliases.some((a) => namePrintedExactly(a, toks));
+  const rivals: { name: string; strength: string }[] = [
+    ...others.filter((o) => !sameMedicine(o, med)).map((o) => ({ name: o.name, strength: o.strength })),
+    ...DRUGS.flatMap((d) => d.brands.map((b) => ({ name: b, strength: '' }))).filter((r) => !sameMedicine({ name: r.name, aliases: [] }, med)),
+  ];
+  const ownWords = tokenize(med.name).filter((w) => !NOISE.has(w) && !isNumeric(w));
+  for (const r of rivals) {
+    if (!namePrintedExactly(r.name, toks)) continue;
+    const rWords = tokenize(r.name).filter((w) => !NOISE.has(w) && !isNumeric(w));
+    const moreSpecific = ownWords.length > 0 && ownWords.every((w) => rWords.includes(w)) && rWords.length > ownWords.length;
+    if (!ownExact || moreSpecific) return `${r.name} ${r.strength}`.trim();
+  }
+  return undefined;
+}
+
 /**
  * How well a strip matches a scheduled medicine:
- *  - match: name (or its contents) and strength both found
+ *  - match: name (or its contents) and strength both found, and nothing points to a different medicine
  *  - substitute: another brand of the same medicine and strength (from the built-in list)
  *  - nameOnly: the name is there but no strength could be read (torn / glare) — a person should check
  *  - otherStrength: the name is there with a different strength printed — don't take
+ *  - conflict: the strip looks like a different medicine (see looksLike) — don't take
  *  - none: not this medicine
+ * `others` are the household's other medicines, used to spot a different medicine on the strip.
  */
-export function matchDetail(text: string, med: Pick<Medication, 'name' | 'strength' | 'aliases'>): MatchDetail {
+export function matchDetail(text: string, med: Med, others: Med[] = []): MatchDetail {
+  const base = baseDetail(text, med);
+  if (base.level === 'none') return base;
+  const looksLike = findConflict(text, med, others);
+  return looksLike ? { level: 'conflict', looksLike } : base;
+}
+
+function baseDetail(text: string, med: Med): MatchDetail {
   const own = matchText(text, med);
   if (own.matched) return { level: 'match', via: own.candidate };
 
@@ -151,6 +249,6 @@ export function matchDetail(text: string, med: Pick<Medication, 'name' | 'streng
 
   if (!own.nameFound && !relMatch.nameFound) return { level: 'none' };
   const expected = new Set(med.strength.split('/').map((x) => x.replace(/[^\d.]/g, '')));
-  const found = [...new Set([...text.matchAll(STRENGTH_IN_TEXT)].map((m) => m[1]))].filter((x) => !expected.has(x));
+  const found = [...new Set([...strengthText(text).matchAll(STRENGTH_IN_TEXT)].map((m) => m[1]))].filter((x) => !expected.has(x));
   return found.length ? { level: 'otherStrength', foundStrengths: found } : { level: 'nameOnly' };
 }
