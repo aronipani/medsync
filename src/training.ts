@@ -4,6 +4,9 @@
 import { Directory, File, Paths } from 'expo-file-system';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as Sharing from 'expo-sharing';
+import { lookupBrand } from './drugdb.ts';
+import { boxesFor } from './ocr.ts';
+import { labelRegions, REGION_CLASSES, toYolo } from './regions.ts';
 import { makeZip } from './zip.ts';
 
 export interface TrainingEntry {
@@ -15,6 +18,8 @@ export interface TrainingEntry {
   how: 'dose-check' | 'taught' | 'scan-to-add';
   ocrText: string;
   at: string;
+  yolo?: string; // auto-labelled boxes, YOLO format (class cx cy w h, relative) — from the phone's text reader
+  regions?: { cls: string; text: string }[]; // what each box said, to help when checking labels
 }
 
 const dir = () => new Directory(Paths.document, 'training');
@@ -58,7 +63,24 @@ export async function saveTrainingPhotos(
       const img = await ref.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
       const fileName = `${at.replace(/[:.]/g, '-')}-${i + 1}.jpg`;
       await new File(img.uri).copy(new File(folder, fileName));
-      entries.push({ file: `${safe(medicine)}/${fileName}`, medicine, name: label.name, strength: label.strength, contents: label.contents, how, ocrText: ocrText.slice(0, 2000), at });
+      // Auto-label where the brand, contents and strength are printed (boxes are relative, so resizing is fine).
+      const info = boxesFor(uris[i]);
+      const ingredients = label.contents
+        ? label.contents.split('+').map((x) => x.replace(/\d.*$/, '').trim())
+        : lookupBrand(label.name)?.ingredients;
+      const regions = info ? labelRegions(info.boxes, { name: label.name, strength: label.strength, ingredients }) : [];
+      entries.push({
+        file: `${safe(medicine)}/${fileName}`,
+        medicine,
+        name: label.name,
+        strength: label.strength,
+        contents: label.contents,
+        how,
+        ocrText: ocrText.slice(0, 2000),
+        at,
+        yolo: info ? toYolo(regions, info) : undefined,
+        regions: regions.map((r) => ({ cls: r.cls, text: r.text })),
+      });
       saved++;
     }
     writeManifest(entries);
@@ -87,10 +109,32 @@ export async function exportTraining(): Promise<boolean> {
       ),
     },
   ];
+  // YOLO layout: images/<stem>.jpg + labels/<stem>.txt (+ data.yaml), ready for the scripts in training/.
+  const enc = new TextEncoder();
+  let labelled = 0;
   for (const e of entries) {
     const f = new File(dir(), ...e.file.split('/'));
-    if (f.exists) files.push({ name: e.file, data: f.bytesSync() });
+    if (!f.exists) continue;
+    const stem = e.file.replace(/\.jpg$/i, '').replace(/[\/]+/g, '__');
+    files.push({ name: `images/${stem}.jpg`, data: f.bytesSync() });
+    if (e.yolo !== undefined) {
+      files.push({ name: `labels/${stem}.txt`, data: enc.encode(e.yolo) });
+      labelled++;
+    }
   }
+  files.push({
+    name: 'data.yaml',
+    data: enc.encode(`# MedSync strip regions\npath: .\ntrain: images\nval: images\nnames:\n${REGION_CLASSES.map((c, i) => `  ${i}: ${c}`).join('\n')}\n`),
+  });
+  files[1] = {
+    name: 'README.txt',
+    data: enc.encode(
+      'MedSync training photos, confirmed by a person in the app.\n' +
+        `images/ — ${entries.length} photos. labels/ — ${labelled} auto-labelled (YOLO: class cx cy w h). Classes: ${REGION_CLASSES.join(', ')}.\n` +
+        'Photos without a label file were saved before auto-labelling; run training/autolabel.py to label them.\n' +
+        'manifest.json — each photo with its medicine, how it was confirmed, the text read and the region texts.\n',
+    ),
+  };
   const out = new File(Paths.cache, `medsync-training-${new Date().toISOString().slice(0, 10)}.zip`);
   if (out.exists) out.delete();
   out.create();

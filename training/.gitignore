@@ -1,0 +1,8 @@
+runs/
+dataset/
+predictions/
+*.pt
+*.tflite
+*.mlpackage/
+__pycache__/
+.venv/

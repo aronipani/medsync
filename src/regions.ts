@@ -49,19 +49,44 @@ function editDistance(a: string, b: string): number {
 }
 
 /** A word from the photo that is (a readable or torn piece of) the target word. */
-function wordMatches(seen: string, target: string): boolean {
+function wordMatches(seen: string, target: string, allowGlued = false): boolean {
   const a = norm(seen).replace(/\d+$/, ''); // "MONOTRATE10" -> "MONOTRATE"
   const b = norm(target);
   if (a.length < 3 || b.length < 3) return false;
   if (a === b) return true;
   if (a.length >= 4 && b.endsWith(a)) return true; // torn left edge: "OTRATE"
   if (a.length >= 4 && b.startsWith(a)) return true; // cut right edge
+  if (a.length >= 5 && a.length < b.length && (editDistance(a, b.slice(-a.length)) <= 1 || editDistance(a, b.slice(0, a.length)) <= 1)) return true; // torn + misread: "PPILET"
   const tol = b.length >= 8 ? 2 : b.length >= 5 ? 1 : 0;
-  return Math.abs(a.length - b.length) <= tol && editDistance(a, b) <= tol;
+  if (Math.abs(a.length - b.length) <= tol && editDistance(a, b) <= tol) return true;
+  // glued to other words: "ENTLOCLOPICTOGRE" contains (nearly) "CLOPIDOGREL"
+  if (allowGlued && b.length >= 7 && a.length > b.length) {
+    for (const n of [b.length - 1, b.length]) for (let i = 0; i + n <= a.length; i++) if (editDistance(a.slice(i, i + n), b) <= 2) return true;
+  }
+  return false;
+}
+
+function iou(a: Box, b: Box): number {
+  const x0 = Math.max(a.left, b.left);
+  const y0 = Math.max(a.top, b.top);
+  const x1 = Math.min(a.left + a.width, b.left + b.width);
+  const y1 = Math.min(a.top + a.height, b.top + b.height);
+  const inter = Math.max(0, x1 - x0) * Math.max(0, y1 - y0);
+  const union = a.width * a.height + b.width * b.height - inter;
+  return union > 0 ? inter / union : 0;
+}
+
+/** The same print read in several orientations gives near-identical boxes: keep one per class (the larger). */
+export function dedupeRegions(regions: Region[], threshold = 0.4): Region[] {
+  const kept: Region[] = [];
+  for (const r of [...regions].sort((a, b) => b.width * b.height - a.width * a.height)) {
+    if (!kept.some((k) => k.cls === r.cls && iou(k, r) > threshold)) kept.push(r);
+  }
+  return kept;
 }
 
 const SKIP = /\b(caution|schedule|prescription|retail|sold|practitioner|registered|trade\s?mark|manufactured|marketed|ltd|limited|pvt|road|dist|vill|batch|b\.?\s?no|mfg|exp|m\.?\s?r\.?\s?p|price|taxes|store|storage|dosage|directed|physician|children)\b/i;
-const CONTENTS_HINT = /\b(contains|equivalent|composition|tablets?\s+i\.?p|capsules?\s+i\.?p|tablets?\s+b\.?p|tablets?\s+u\.?s\.?p|hydrochloride|sodium|bisulphate)\b/i;
+const CONTENTS_HINT = /(\bcontains|\bequivalent|composition|tablets?\s+i\.?p|capsules?\s+i\.?p|tablets?\s+b\.?p|tablets?\s+u\.?s\.?p|hydrochloride|sodium|bisulphate)\b/i;
 
 /**
  * Which OCR lines are the brand, the contents and the strength — given what the strip was confirmed to be.
@@ -80,10 +105,15 @@ export function labelRegions(lines: Box[], label: { name: string; strength: stri
     if (SKIP.test(l.text)) continue;
     const ws = words(l.text);
     // "MONONITRATE" is close to "MONOTRATE": a word that is (nearly) an ingredient word is not the brand.
-    const isIngredientWord = (w: string) => ingredientWords.some((g) => norm(w) === g || (norm(w).length >= 6 && editDistance(norm(w), g) <= 1));
+    // Fragments that fit a contents word ("CLOPE" of Clopidogrel) are contents, never the brand.
+    const isIngredientWord = (w: string) =>
+      ingredientWords.some((g) => {
+        const a = norm(w);
+        return a === g || (a.length >= 6 && editDistance(a, g) <= 1) || (a.length >= 5 && a.length < g.length && editDistance(a, g.slice(0, a.length)) <= 1);
+      });
     const hasBrand =
       brandWords.length > 0 && brandWords.some((b) => ws.some((w) => !isIngredientWord(w) && (norm(w).replace(/\d+$/, '') === b || wordMatches(w, b))));
-    const hasIngredient = ingredientWords.some((g) => ws.some((w) => wordMatches(w, g)));
+    const hasIngredient = ingredientWords.some((g) => ws.some((w) => wordMatches(w, g, true)));
     const strengthHere =
       strengths.length > 0 &&
       strengths.some((s) => new RegExp(`(^|[^\\d.])${s.replace('.', '\\.')}\\s*(mg|mcg|µg|ml|iu|k)?\\b`, 'i').test(l.text.replace(/[®Ⓡ]/g, ' ')));
@@ -91,7 +121,7 @@ export function labelRegions(lines: Box[], label: { name: string; strength: stri
     if (!hasBrand && (hasIngredient || CONTENTS_HINT.test(l.text))) out.push({ ...l, cls: 'contents' });
     if (strengthHere && /\d\s*(mg|mcg|µg|ml|iu)\b/i.test(l.text)) out.push({ ...l, cls: 'strength' });
   }
-  return out;
+  return dedupeRegions(out);
 }
 
 /** YOLO label lines: "class cx cy w h", all relative to the photo size. */

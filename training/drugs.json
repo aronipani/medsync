@@ -1,0 +1,842 @@
+[
+ {
+  "brands": [
+   "Dolo"
+  ],
+  "ingredients": [
+   "Paracetamol"
+  ],
+  "strengths": [
+   "500",
+   "650"
+  ]
+ },
+ {
+  "brands": [
+   "Crocin",
+   "Calpol",
+   "P 500"
+  ],
+  "ingredients": [
+   "Paracetamol"
+  ],
+  "strengths": [
+   "500",
+   "650"
+  ]
+ },
+ {
+  "brands": [
+   "Telma",
+   "Telmikind",
+   "Telsartan"
+  ],
+  "ingredients": [
+   "Telmisartan"
+  ],
+  "strengths": [
+   "20",
+   "40",
+   "80"
+  ]
+ },
+ {
+  "brands": [
+   "Telma H"
+  ],
+  "ingredients": [
+   "Telmisartan",
+   "Hydrochlorothiazide"
+  ],
+  "strengths": [
+   "40/12.5",
+   "80/12.5"
+  ]
+ },
+ {
+  "brands": [
+   "Telma AM"
+  ],
+  "ingredients": [
+   "Telmisartan",
+   "Amlodipine"
+  ],
+  "strengths": [
+   "40/5",
+   "80/5"
+  ]
+ },
+ {
+  "brands": [
+   "Amlong",
+   "Amlokind",
+   "Stamlo",
+   "Amlopres",
+   "Amlip"
+  ],
+  "ingredients": [
+   "Amlodipine"
+  ],
+  "strengths": [
+   "2.5",
+   "5",
+   "10"
+  ]
+ },
+ {
+  "brands": [
+   "Cilacar",
+   "Cilnidip"
+  ],
+  "ingredients": [
+   "Cilnidipine"
+  ],
+  "strengths": [
+   "5",
+   "10",
+   "20"
+  ]
+ },
+ {
+  "brands": [
+   "Cilacar T"
+  ],
+  "ingredients": [
+   "Cilnidipine",
+   "Telmisartan"
+  ],
+  "strengths": [
+   "10/40"
+  ]
+ },
+ {
+  "brands": [
+   "Losar",
+   "Repace",
+   "Losacar"
+  ],
+  "ingredients": [
+   "Losartan"
+  ],
+  "strengths": [
+   "25",
+   "50"
+  ]
+ },
+ {
+  "brands": [
+   "Olmezest",
+   "Benitec"
+  ],
+  "ingredients": [
+   "Olmesartan"
+  ],
+  "strengths": [
+   "20",
+   "40"
+  ]
+ },
+ {
+  "brands": [
+   "Nebicard",
+   "Nebistar",
+   "Nodon"
+  ],
+  "ingredients": [
+   "Nebivolol"
+  ],
+  "strengths": [
+   "2.5",
+   "5",
+   "10"
+  ]
+ },
+ {
+  "brands": [
+   "Concor"
+  ],
+  "ingredients": [
+   "Bisoprolol"
+  ],
+  "strengths": [
+   "2.5",
+   "5"
+  ]
+ },
+ {
+  "brands": [
+   "Metolar",
+   "Met XL",
+   "Revelol",
+   "Starpress XL"
+  ],
+  "ingredients": [
+   "Metoprolol"
+  ],
+  "strengths": [
+   "12.5",
+   "25",
+   "50"
+  ]
+ },
+ {
+  "brands": [
+   "Cardivas",
+   "Carca"
+  ],
+  "ingredients": [
+   "Carvedilol"
+  ],
+  "strengths": [
+   "3.125",
+   "6.25",
+   "12.5",
+   "25"
+  ]
+ },
+ {
+  "brands": [
+   "Vymada",
+   "Entresto"
+  ],
+  "ingredients": [
+   "Sacubitril",
+   "Valsartan"
+  ],
+  "strengths": [
+   "24/26",
+   "49/51",
+   "97/103"
+  ]
+ },
+ {
+  "brands": [
+   "Ismo",
+   "Monotrate",
+   "Monit"
+  ],
+  "ingredients": [
+   "Isosorbide Mononitrate"
+  ],
+  "strengths": [
+   "10",
+   "20",
+   "30",
+   "60"
+  ]
+ },
+ {
+  "brands": [
+   "Sorbitrate",
+   "Isordil"
+  ],
+  "ingredients": [
+   "Isosorbide Dinitrate"
+  ],
+  "strengths": [
+   "5",
+   "10"
+  ]
+ },
+ {
+  "brands": [
+   "Cordarone",
+   "Tachyra",
+   "Eurythmic"
+  ],
+  "ingredients": [
+   "Amiodarone"
+  ],
+  "strengths": [
+   "100",
+   "200"
+  ]
+ },
+ {
+  "brands": [
+   "Lanoxin"
+  ],
+  "ingredients": [
+   "Digoxin"
+  ],
+  "strengths": [
+   "0.25"
+  ]
+ },
+ {
+  "brands": [
+   "Ranozex"
+  ],
+  "ingredients": [
+   "Ranolazine"
+  ],
+  "strengths": [
+   "500"
+  ]
+ },
+ {
+  "brands": [
+   "Tide",
+   "Dytor"
+  ],
+  "ingredients": [
+   "Torsemide"
+  ],
+  "strengths": [
+   "5",
+   "10",
+   "20"
+  ]
+ },
+ {
+  "brands": [
+   "Lasix"
+  ],
+  "ingredients": [
+   "Furosemide"
+  ],
+  "strengths": [
+   "20",
+   "40"
+  ]
+ },
+ {
+  "brands": [
+   "Aldactone"
+  ],
+  "ingredients": [
+   "Spironolactone"
+  ],
+  "strengths": [
+   "25",
+   "50"
+  ]
+ },
+ {
+  "brands": [
+   "Clopilet",
+   "Plavix",
+   "Clopitab",
+   "Deplatt"
+  ],
+  "ingredients": [
+   "Clopidogrel"
+  ],
+  "strengths": [
+   "75"
+  ]
+ },
+ {
+  "brands": [
+   "Ecosprin",
+   "Loprin"
+  ],
+  "ingredients": [
+   "Aspirin"
+  ],
+  "strengths": [
+   "75",
+   "150"
+  ]
+ },
+ {
+  "brands": [
+   "Ecosprin AV"
+  ],
+  "ingredients": [
+   "Aspirin",
+   "Atorvastatin"
+  ],
+  "strengths": [
+   "75/10",
+   "75/20",
+   "150/20"
+  ]
+ },
+ {
+  "brands": [
+   "Brilinta",
+   "Axcer"
+  ],
+  "ingredients": [
+   "Ticagrelor"
+  ],
+  "strengths": [
+   "60",
+   "90"
+  ]
+ },
+ {
+  "brands": [
+   "Eliquis"
+  ],
+  "ingredients": [
+   "Apixaban"
+  ],
+  "strengths": [
+   "2.5",
+   "5"
+  ]
+ },
+ {
+  "brands": [
+   "Xarelto"
+  ],
+  "ingredients": [
+   "Rivaroxaban"
+  ],
+  "strengths": [
+   "10",
+   "15",
+   "20"
+  ]
+ },
+ {
+  "brands": [
+   "Acitrom"
+  ],
+  "ingredients": [
+   "Acenocoumarol"
+  ],
+  "strengths": [
+   "1",
+   "2",
+   "4"
+  ]
+ },
+ {
+  "brands": [
+   "Atorva",
+   "Lipvas",
+   "Storvas",
+   "Tonact",
+   "Atorlip"
+  ],
+  "ingredients": [
+   "Atorvastatin"
+  ],
+  "strengths": [
+   "10",
+   "20",
+   "40",
+   "80"
+  ]
+ },
+ {
+  "brands": [
+   "Rosuvas",
+   "Rozavel",
+   "Crestor"
+  ],
+  "ingredients": [
+   "Rosuvastatin"
+  ],
+  "strengths": [
+   "5",
+   "10",
+   "20",
+   "40"
+  ]
+ },
+ {
+  "brands": [
+   "Brillo"
+  ],
+  "ingredients": [
+   "Bempedoic Acid"
+  ],
+  "strengths": [
+   "180"
+  ]
+ },
+ {
+  "brands": [
+   "Brillo EZ"
+  ],
+  "ingredients": [
+   "Bempedoic Acid",
+   "Ezetimibe"
+  ],
+  "strengths": [
+   "180/10"
+  ]
+ },
+ {
+  "brands": [
+   "Ezedoc"
+  ],
+  "ingredients": [
+   "Ezetimibe"
+  ],
+  "strengths": [
+   "10"
+  ]
+ },
+ {
+  "brands": [
+   "Glycomet",
+   "Glyciphage",
+   "Obimet"
+  ],
+  "ingredients": [
+   "Metformin"
+  ],
+  "strengths": [
+   "250",
+   "500",
+   "850",
+   "1000"
+  ]
+ },
+ {
+  "brands": [
+   "Glycomet GP"
+  ],
+  "ingredients": [
+   "Metformin",
+   "Glimepiride"
+  ],
+  "strengths": [
+   "500/0.5",
+   "500/1",
+   "500/2",
+   "1000/1",
+   "1000/2"
+  ]
+ },
+ {
+  "brands": [
+   "Amaryl"
+  ],
+  "ingredients": [
+   "Glimepiride"
+  ],
+  "strengths": [
+   "0.5",
+   "1",
+   "2",
+   "3",
+   "4"
+  ]
+ },
+ {
+  "brands": [
+   "Januvia",
+   "Istavel"
+  ],
+  "ingredients": [
+   "Sitagliptin"
+  ],
+  "strengths": [
+   "25",
+   "50",
+   "100"
+  ]
+ },
+ {
+  "brands": [
+   "Galvus",
+   "Jalra"
+  ],
+  "ingredients": [
+   "Vildagliptin"
+  ],
+  "strengths": [
+   "50"
+  ]
+ },
+ {
+  "brands": [
+   "Jardiance",
+   "Gibtulio"
+  ],
+  "ingredients": [
+   "Empagliflozin"
+  ],
+  "strengths": [
+   "10",
+   "25"
+  ]
+ },
+ {
+  "brands": [
+   "Forxiga"
+  ],
+  "ingredients": [
+   "Dapagliflozin"
+  ],
+  "strengths": [
+   "5",
+   "10"
+  ]
+ },
+ {
+  "brands": [
+   "Thyronorm",
+   "Eltroxin",
+   "Thyrox"
+  ],
+  "ingredients": [
+   "Thyroxine"
+  ],
+  "strengths": [
+   "12.5",
+   "25",
+   "50",
+   "75",
+   "88",
+   "100",
+   "125"
+  ]
+ },
+ {
+  "brands": [
+   "Pan",
+   "Pantocid",
+   "Pantop"
+  ],
+  "ingredients": [
+   "Pantoprazole"
+  ],
+  "strengths": [
+   "20",
+   "40"
+  ]
+ },
+ {
+  "brands": [
+   "Pan D",
+   "Pantocid DSR"
+  ],
+  "ingredients": [
+   "Pantoprazole",
+   "Domperidone"
+  ],
+  "strengths": [
+   "40/30"
+  ],
+  "unit": "capsule"
+ },
+ {
+  "brands": [
+   "Razo",
+   "Rabicip",
+   "Happi"
+  ],
+  "ingredients": [
+   "Rabeprazole"
+  ],
+  "strengths": [
+   "10",
+   "20"
+  ]
+ },
+ {
+  "brands": [
+   "Omez"
+  ],
+  "ingredients": [
+   "Omeprazole"
+  ],
+  "strengths": [
+   "20",
+   "40"
+  ],
+  "unit": "capsule"
+ },
+ {
+  "brands": [
+   "Vonasec"
+  ],
+  "ingredients": [
+   "Vonoprazan"
+  ],
+  "strengths": [
+   "10",
+   "20"
+  ]
+ },
+ {
+  "brands": [
+   "Sucrafil"
+  ],
+  "ingredients": [
+   "Sucralfate"
+  ],
+  "strengths": [],
+  "unit": "ml"
+ },
+ {
+  "brands": [
+   "Ondem",
+   "Emeset"
+  ],
+  "ingredients": [
+   "Ondansetron"
+  ],
+  "strengths": [
+   "4",
+   "8"
+  ]
+ },
+ {
+  "brands": [
+   "Duphalac"
+  ],
+  "ingredients": [
+   "Lactulose"
+  ],
+  "strengths": [],
+  "unit": "ml"
+ },
+ {
+  "brands": [
+   "Montair LC",
+   "Montek LC"
+  ],
+  "ingredients": [
+   "Montelukast",
+   "Levocetirizine"
+  ],
+  "strengths": [
+   "10/5"
+  ]
+ },
+ {
+  "brands": [
+   "Allegra"
+  ],
+  "ingredients": [
+   "Fexofenadine"
+  ],
+  "strengths": [
+   "120",
+   "180"
+  ]
+ },
+ {
+  "brands": [
+   "Levocet",
+   "Xyzal"
+  ],
+  "ingredients": [
+   "Levocetirizine"
+  ],
+  "strengths": [
+   "5"
+  ]
+ },
+ {
+  "brands": [
+   "Shelcal",
+   "Calcimax"
+  ],
+  "ingredients": [
+   "Calcium",
+   "Vitamin D3"
+  ],
+  "strengths": [
+   "500"
+  ]
+ },
+ {
+  "brands": [
+   "Uprise D3",
+   "D Rise"
+  ],
+  "ingredients": [
+   "Cholecalciferol"
+  ],
+  "strengths": [
+   "60K"
+  ],
+  "unit": "capsule"
+ },
+ {
+  "brands": [
+   "Becosules"
+  ],
+  "ingredients": [
+   "Multivitamin"
+  ],
+  "strengths": [],
+  "unit": "capsule"
+ },
+ {
+  "brands": [
+   "Zyloric"
+  ],
+  "ingredients": [
+   "Allopurinol"
+  ],
+  "strengths": [
+   "100",
+   "300"
+  ]
+ },
+ {
+  "brands": [
+   "Febustat",
+   "Zurig"
+  ],
+  "ingredients": [
+   "Febuxostat"
+  ],
+  "strengths": [
+   "40",
+   "80"
+  ]
+ },
+ {
+  "brands": [
+   "Gabapin"
+  ],
+  "ingredients": [
+   "Gabapentin"
+  ],
+  "strengths": [
+   "100",
+   "300"
+  ]
+ },
+ {
+  "brands": [
+   "Nexito",
+   "Cipralex"
+  ],
+  "ingredients": [
+   "Escitalopram"
+  ],
+  "strengths": [
+   "5",
+   "10",
+   "20"
+  ]
+ },
+ {
+  "brands": [
+   "Azithral",
+   "Azee"
+  ],
+  "ingredients": [
+   "Azithromycin"
+  ],
+  "strengths": [
+   "250",
+   "500"
+  ]
+ },
+ {
+  "brands": [
+   "Augmentin"
+  ],
+  "ingredients": [
+   "Amoxicillin",
+   "Clavulanic Acid"
+  ],
+  "strengths": [
+   "375",
+   "625"
+  ]
+ }
+]

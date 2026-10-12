@@ -17,8 +17,8 @@ test('labels brand (even torn), contents and strength on a Monotrate strip', () 
   ];
   const r = labelRegions(lines, { name: 'Monotrate', strength: '10', ingredients: ['Isosorbide Mononitrate'] });
   const by = (c: string) => r.filter((x) => x.cls === c).map((x) => x.text);
-  assert.deepEqual(by('brand'), ['MONOTRATE®10', 'OTRATE®10']);
-  assert.deepEqual(by('contents'), ['Isosorbide Mononitrate Tablets IP', 'Each uncoated tablet contains:', 'Isosorbide Mononitrate   10 mg']);
+  assert.deepEqual(by('brand').sort(), ['MONOTRATE®10', 'OTRATE®10']);
+  assert.deepEqual(by('contents').sort(), ['Each uncoated tablet contains:', 'Isosorbide Mononitrate   10 mg', 'Isosorbide Mononitrate Tablets IP']);
   assert.deepEqual(by('strength'), ['Isosorbide Mononitrate   10 mg']);
 });
 
@@ -51,4 +51,22 @@ test('re-read picks the biggest print and strength lines, and padded crops stay 
   assert.equal(c.originX, 0);
   assert.equal(c.originY, 0);
   assert.ok(c.originX + c.width <= 200 && c.originY + c.height <= 100);
+});
+
+test('torn + misread brand, glued generic, and duplicate boxes from rotations', async () => {
+  const lines = [
+    B('ppilet', 917, 1744, 60, 190),
+    B('entloClopictogre', 445, 1758, 44, 233), // 3 letters off: too far to trust
+    B('equivalentto Clope', 1073, 1825, 27, 278), // cut at the photo edge
+    B('equivalent to Clopidogrel 75 mg', 100, 100, 400, 30),
+  ];
+  const r = labelRegions(lines, { name: 'Clopilet', strength: '75', ingredients: ['Clopidogrel'] });
+  assert.deepEqual(r.map((x) => [x.cls, x.text]).sort(), [
+    ['brand', 'ppilet'],
+    ['contents', 'equivalent to Clopidogrel 75 mg'],
+    ['contents', 'equivalentto Clope'],
+    ['strength', 'equivalent to Clopidogrel 75 mg'],
+  ]);
+  const dup = labelRegions([B('NEBICARD-2.5', 193, 980, 444, 46), B('NEBICARD-2.5', 196, 976, 443, 54)], { name: 'Nebicard', strength: '2.5' });
+  assert.equal(dup.length, 1);
 });
