@@ -6,7 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { MemberPicker } from '../../src/components.tsx';
 import { matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
-import { say, stopSpeaking } from '../../src/speech.ts';
+import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
 import { readBurst, readLinesAnyOrientation } from '../../src/ocr.ts';
 import { Ionicons } from '@expo/vector-icons';
 import { dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
@@ -85,8 +85,9 @@ export default function Scan() {
         return phrase(lang, r.say);
     }
   };
+  const [speakStatus, setSpeakStatus] = useState<SpeakStatus>();
   useEffect(() => {
-    if (result && voiceOn) say(lang, announcement(result));
+    if (result && voiceOn) say(lang, announcement(result), setSpeakStatus);
     if (!result) stopSpeaking();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -243,9 +244,11 @@ export default function Scan() {
 
           {/* Result */}
           {result && (
-            <Pressable onPress={() => voiceOn && say(lang, announcement(result))} style={{ alignSelf: 'flex-end', marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus)} style={{ alignSelf: 'flex-end', marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="volume-high-outline" size={20} color={t.brand} />
-              <Text style={{ color: t.brand, fontWeight: '700', marginLeft: 6 }}>{voiceOn ? 'Say it again' : 'Voice is off for this person'}</Text>
+              <Text style={{ color: t.brand, fontWeight: '700', marginLeft: 6 }}>
+                {!voiceOn ? 'Voice is off for this person' : speakStatus === 'noVoice' ? 'No voice for this language on this phone — see family member settings' : 'Say it again'}
+              </Text>
             </Pressable>
           )}
 

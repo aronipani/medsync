@@ -2,7 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Switch, Text, View } from 'react-native';
 import { LANGS, MAIN_LANGS, MORE_LANGS, matchAnnouncement, type LangCode } from '../../src/phrases.ts';
-import { hasVoice, say } from '../../src/speech.ts';
+import { hasVoice, say, type SpeakStatus } from '../../src/speech.ts';
 import { MEMBER_COLORS, newMember, useStore } from '../../src/store.tsx';
 import type { Meal, Member } from '../../src/types.ts';
 import { Button, Chip, Field, Label, s, TimeField, useTheme } from '../../src/ui.tsx';
@@ -20,6 +20,7 @@ export default function EditMember() {
   const lang: LangCode = m.language ?? 'en';
   const [voiceOk, setVoiceOk] = useState(true);
   const [showMore, setShowMore] = useState(MORE_LANGS.includes(lang));
+  const [speak, setSpeak] = useState<SpeakStatus | undefined>();
   useEffect(() => {
     hasVoice(lang).then(setVoiceOk).catch(() => setVoiceOk(true));
   }, [lang]);
@@ -83,11 +84,22 @@ export default function EditMember() {
         <Switch value={m.voice !== false} onValueChange={(voice) => setM({ ...m, voice })} />
       </View>
       <Button
-        title="Hear an example"
+        title={speak === 'speaking' ? '🔊 Speaking…' : '🔊 Hear an example'}
         kind="secondary"
         style={{ marginTop: 8 }}
-        onPress={() => say(lang, matchAnnouncement(lang, [{ name: 'Clopilet 75', qty: 0.5, unit: 'tablet' }]))}
+        onPress={() => {
+          setSpeak('speaking');
+          say(lang, matchAnnouncement(lang, [{ name: 'Clopilet 75', qty: 0.5, unit: 'tablet' }]), (st) => setSpeak(st));
+        }}
       />
+      {speak === 'speaking' && <Text style={{ color: t.sub, marginTop: 6 }}>If you hear nothing, turn the volume up.</Text>}
+      {speak === 'noVoice' && (
+        <Text style={{ color: t.warn, marginTop: 6, lineHeight: 19 }}>
+          This phone has no {LANGS[lang].english} voice installed, so it can't speak this language yet. iPhone: Settings → Accessibility → Spoken Content → Voices →{' '}
+          {LANGS[lang].english} → download a voice. Android: Settings → Text-to-speech → Google → Install voice data → {LANGS[lang].english}. Then try again.
+        </Text>
+      )}
+      {speak === 'error' && <Text style={{ color: t.bad, marginTop: 6 }}>Couldn't speak. Check the volume and try again.</Text>}
 
       <Label>Usual meal times</Label>
       <Text style={{ color: t.sub, marginBottom: 8 }}>Doses set to "before / with / after" a meal follow these times.</Text>
