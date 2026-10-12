@@ -3,7 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { parseLabel, type OcrLine } from '../src/label.ts';
-import { matchText } from '../src/match.ts';
+import { matchDetail, matchText } from '../src/match.ts';
 
 const L = (text: string, height = 14): OcrLine => ({ text, height });
 
@@ -114,4 +114,31 @@ test('a torn strip still verifies by the medicine name when the brand is missing
   const combo = { name: 'Brillo EZ', strength: '180/10', aliases: ['Bempedoic Acid 180 + Ezetimibe 10'] };
   assert.equal(matchText('Bempedoic Acid 180 mg Ezetimibe IP 10 mg', combo).matched, true);
   assert.equal(matchText('Ezetimibe IP 10 mg', combo).matched, false); // half a combination isn't a match
+});
+
+test('Monotrate strip: torn "OTRATE", partial generic words, ® read as 8', () => {
+  const r = parseLabel([
+    L('Mononitrate Tablets IP', 30), L('contains:'), L('Mononitrate IP'), L('bide Mononitrate   10 mg'),
+    L('OTRATE®10', 16), L('MONOTRATE®10', 16), L('MONOTRATE®10', 16),
+    L('SCHEDULE H PRESCRIPTION'), L('DRUG - CAUTION: Not to be sold'), L('sun pharma laboratories ltd.'),
+    L('Isosorbide Mononitrate Tablets IP', 30), L('MONOTRATE ®10', 22), L('Each uncoated tablet contains:'),
+    L('Diluted Isosorbide Mononitrate IP'), L('equivalent to'), L('Isosorbide Mononitrate     10 mg'),
+    L('Colour: Tartrazine'), L('M.R.P.Rs.27.19'), L('per 10 Tablets'),
+  ]);
+  assert.equal(r.name, 'Monotrate');
+  assert.equal(r.strength, '10');
+  assert.deepEqual(r.ingredients, [{ name: 'Isosorbide Mononitrate', strength: '10' }]);
+  assert.ok(!r.nameOptions.includes('Otrate'));
+  assert.ok(!r.nameOptions.includes('Drug'));
+  assert.ok(!r.nameOptions.includes('Mononitrate'));
+  assert.ok(r.nameOptions.includes('Ismo')); // other brand of the same medicine, from the built-in list
+
+  for (const med of [
+    { name: 'Ismo', strength: '10', aliases: ['Monotrate 10'] },
+    { name: 'Ismo / Monotrate', strength: '10', aliases: [] },
+    { name: 'Ismo', strength: '10', aliases: [] }, // matched through the built-in list
+  ]) {
+    assert.ok(['match', 'substitute'].includes(matchDetail('MONOTRATE810 Isosorbide Mononitrate 10 mg', med).level), med.name);
+  }
+  assert.equal(matchText('MONOTRATE810', { name: 'Monotrate', strength: '10', aliases: [] }).matched, true);
 });

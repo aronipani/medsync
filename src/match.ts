@@ -63,7 +63,9 @@ export interface TextMatch {
 
 /** Names a medication may be printed as: "name strength" plus aliases. */
 export function candidatesFor(med: Pick<Medication, 'name' | 'strength' | 'aliases'>): string[] {
-  return [`${med.name} ${med.strength}`, ...med.aliases].map((s) => s.trim()).filter(Boolean);
+  // "Ismo / Monotrate" means either brand.
+  const names = med.name.split(/\s*\/\s*/).filter(Boolean);
+  return [...names.map((n) => `${n} ${med.strength}`), ...med.aliases].map((s) => s.trim()).filter(Boolean);
 }
 
 /** OCR reads O as 0, S as 5 inside words ("THYR0NORM"). */
@@ -75,7 +77,12 @@ function asLetters(t: string): string {
 function textTokens(text: string): string[] {
   const raw = text.toUpperCase().split(/[^A-Z0-9]+/).filter(Boolean);
   const mixed = raw.filter((t) => /[A-Z]/.test(t) && /\d/.test(t));
-  return [...new Set([...tokenize(text), ...mixed, ...mixed.map(asLetters)])];
+  // "MONOTRATE®10" is often read as "MONOTRATE810" / "MONOTRATE910": the ® became a digit.
+  const regMark = mixed.flatMap((t) => {
+    const m = /^([A-Z]{3,})[89](\d{1,4})$/.exec(t);
+    return m ? [m[1], m[2]] : [];
+  });
+  return [...new Set([...tokenize(text), ...mixed, ...mixed.map(asLetters), ...regMark])];
 }
 
 export function matchText(text: string, med: Pick<Medication, 'name' | 'strength' | 'aliases'>): TextMatch {

@@ -67,6 +67,7 @@ const PHARMACOPOEIA = /\b(i\.?\s?p\.?|b\.?\s?p\.?|u\.?\s?s\.?\s?p\.?(?:-?\s?nf)?
 const NOT_INGREDIENT =
   /\b(excipients?|colou?rs?|oxide|dioxide|lake|q\.?s|each|contains?|composition|mrp|m\.r\.p|rs|price|per|pack|tabs?|tablets?|capsules?|store|storage|below|dosage|dose|directed|physician|batch|exp|mfg|mfd|lic|reg|schedule|caution|warning)\b/i;
 const EXCIPIENT = /\b(oxide|dioxide|lake|excipients?|colou?rs?|titanium|iron|sucrose|lactose|starch|q\.\s?s)\b/i;
+const WARNING_BOX = /\b(caution|schedule\s*h|prescription|registered|trade\s*mark|sold|retail|practitioner|drug)\b/i;
 const COMPANY = /\b(pharma|pharmaceuticals?|labs?|laboratories|ltd|limited|pvt|healthcare|life\s?sciences|remedies|drugs|industries|marketed|manufactured)\b/i;
 const NOISE =
   /\b(tablets?|capsules?|ip|i\.p|bp|usp|each|contains?|film|coated|uncoated|mfd|mfg|manufactured|marketed|ltd|limited|pvt|private|batch|b\.?\s?no|lot|exp|expiry|rx|schedule|warning|caution|store|keep|reach|children|price|mrp|rs|incl|inclusive|taxes|dosage|dose|composition|pharma|pharmaceuticals?|labs?|laboratories|healthcare|lifesciences|india|directed|physician|prescription|only|retail|sale|sold|protect|protected|light|moisture|temperature|below|use|before|tablet|strip|reg|lic|no|dr|uses?|syrup|suspension|drops?|injection|inhaler|sachets?|oral|solution|registered|trade\s?mark|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|blister|equivalent|to|storage|excipients?|colou?r)\b/gi;
@@ -127,6 +128,29 @@ const sameIngredient = (a: string, b: string) => {
   return x === y || (x.length >= 5 && y.length >= 5 && editDistance(x, y) <= 2);
 };
 
+/**
+ * A torn or covered piece of a longer name: "Mononitrate" or "bide Mononitrate" of "Isosorbide Mononitrate".
+ * The short name's words must be the last words of the long one (its first word may be cut at the start).
+ */
+function fragmentOf(short: string, long: string): boolean {
+  const a = short.toLowerCase().split(' ').filter(Boolean);
+  const b = long.toLowerCase().split(' ').filter(Boolean);
+  if (!a.length || a.length > b.length || short.length >= long.length) return false;
+  const tail = b.slice(b.length - a.length);
+  return a.every((w, i) => (i === 0 ? tail[0].endsWith(w) : tail[i] === w));
+}
+
+/** Drops ingredient names that are only pieces of another one, keeping the strength if only the piece had it. */
+function dropFragments(list: Ingredient[]): Ingredient[] {
+  const out: Ingredient[] = [];
+  for (const x of list) {
+    if (list.some((y) => y !== x && fragmentOf(x.name, y.name))) continue;
+    const strength = x.strength ?? list.find((y) => y !== x && fragmentOf(y.name, x.name) && y.strength)?.strength;
+    out.push(strength ? { name: x.name, strength } : { name: x.name });
+  }
+  return out;
+}
+
 /** "Cilnidipine & Telmisartan Tablets" / "Nebivolol Hydrochloride Tablets I.P." -> ingredient names. */
 function headerIngredients(lines: string[]): string[] {
   for (let i = 0; i < lines.length; i++) {
@@ -165,28 +189,30 @@ function compositionIngredients(lines: string[]): Ingredient[] {
 function readIngredients(lines: string[]): Ingredient[] {
   const fromHeader = headerIngredients(lines);
   const fromComposition = compositionIngredients(lines);
-  if (!fromHeader.length) return fromComposition;
+  if (!fromHeader.length) return dropFragments(fromComposition);
   // Header gives the order and the full list; composition gives the strengths.
   const merged: Ingredient[] = fromHeader.map((name) => {
     const c = fromComposition.find((x) => sameIngredient(x.name, name));
     return { name: c && c.name.length >= name.length ? c.name : name, strength: c?.strength };
   });
   for (const c of fromComposition) if (!merged.some((x) => sameIngredient(x.name, c.name))) merged.push(c);
-  return merged;
+  return dropFragments(merged);
 }
 
 /** "CILACAR® T" -> Cilacar T; "NEBICARD-2.5" -> Nebicard + 2.5; "DOLO-650" -> Dolo + 650. */
 function brandCandidate(line: string, ingredients: Ingredient[]): { name: string; strength?: string; reg: boolean } | undefined {
-  if (line.length > 32 || COMPANY.test(line) || EXCIPIENT.test(line)) return undefined;
+  if (line.length > 32 || COMPANY.test(line) || EXCIPIENT.test(line) || WARNING_BOX.test(line)) return undefined;
   const reg = /[®™]/.test(line);
   const start = line.replace(/^[^A-Za-z]+/, '');
   if (!/^[A-Z]/.test(start)) return undefined; // torn or partial words start mid-word, in lower case
-  const cleaned = start.replace(/[®™©]/g, ' ').replace(NOISE, ' ').replace(SALTS, ' ').replace(/[^A-Za-z0-9.\- ]/g, ' ');
+  const cleaned = start.replace(/([A-Za-z])[89@]\s?(\d{1,4}(?:\.\d+)?)\b/g, '$1 $2').replace(/[®™©Ⓡ]/g, ' ').replace(NOISE, ' ').replace(SALTS, ' ').replace(/[^A-Za-z0-9.\- ]/g, ' ');
   const m = /^\s*([A-Za-z][A-Za-z\-]*(?:\s+[A-Za-z][A-Za-z\-]*){0,2})[\s-]*(\d+(?:\.\d+)?\s*(?:mg|mcg|ml|iu|k)?)?/i.exec(cleaned);
   if (!m) return undefined;
   const name = m[1].replace(/-+$/, '').replace(/-/g, ' ').trim();
   if (name.replace(/\s/g, '').length < 3) return undefined;
   if (ingredients.some((i) => name.toLowerCase().split(' ').some((w) => w.length >= 5 && sameIngredient(w, i.name)))) return undefined;
+  // A piece of the medicine's own name ("Mononitrate" of "Isosorbide Mononitrate") isn't a brand.
+  if (ingredients.some((i) => fragmentOf(titleCase(name), i.name) || i.name.toLowerCase().split(' ').includes(name.toLowerCase()))) return undefined;
   let strength: string | undefined;
   if (m[2]) {
     const s = STRENGTH.exec(m[2]) ?? /\b(\d{1,4}(?:\.\d+)?)\b/.exec(m[2]);
@@ -221,8 +247,18 @@ export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
     })
     .filter((x): x is NonNullable<typeof x> => !!x)
     .sort((a, b) => b.score - a.score);
+  // Same brand printed several times on a strip: count it; torn pieces ("OTRATE") give way to the full word.
+  const key = (n: string) => n.toLowerCase().replace(/[^a-z]/g, '');
+  const counts = new Map<string, number>();
+  for (const b of scored) counts.set(key(b.name), (counts.get(key(b.name)) ?? 0) + 1);
+  const whole = scored.filter((b) => !scored.some((o) => key(o.name).length > key(b.name).length + 1 && key(o.name).endsWith(key(b.name))));
+  const ranked = whole
+    .map((b) => ({ ...b, score: b.score + Math.min(counts.get(key(b.name)) ?? 1, 4) * 6 }))
+    .sort((a, b) => b.score - a.score);
   const brands: typeof scored = [];
-  for (const b of scored) if (!brands.some((x) => x.name.toLowerCase() === b.name.toLowerCase())) brands.push(b);
+  for (const b of ranked) if (!brands.some((x) => key(x.name) === key(b.name))) brands.push(b);
+  // A strength glued to any copy of the brand ("MONOTRATE®10") counts even if the biggest copy lost it.
+  for (const b of brands) if (!b.strength) b.strength = scored.find((o) => key(o.name) === key(b.name) && o.strength)?.strength;
   const brand = brands[0];
 
   // The built-in list fills gaps: contents of a known brand, or known brands of the contents read.
