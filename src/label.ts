@@ -8,6 +8,7 @@ export interface OcrLine {
   height?: number; // text height in pixels, when known; bigger = more prominent (usually the brand)
   top?: number;
   left?: number;
+  width?: number;
 }
 
 /**
