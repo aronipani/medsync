@@ -97,6 +97,18 @@ export interface PendingRx {
   imageUris: string[];
   createdAt: string;
   items: PendingRxItem[];
+  stopIds?: string[]; // current medicines the person chose to stop (not on the new prescription)
+}
+
+/** A saved copy of one person's schedule, taken just before it was changed. */
+export interface ScheduleVersion {
+  id: string;
+  memberId: string;
+  at: string; // when the change happened
+  reason: string; // "Prescription of 12 Oct 2026", "Edited by hand", "Merged duplicates", "Restored version"
+  source?: string; // prescription text, when the change came from one
+  before: Medication[]; // the person's medicines just before the change
+  changes: import('./consolidate.ts').ScheduleChange[];
 }
 
 export interface AppState {
@@ -107,6 +119,7 @@ export interface AppState {
   stock: StockEvent[];
   settings: Settings;
   pending?: PendingRx;
+  history?: ScheduleVersion[]; // newest last
 }
 
 export type OccurrenceStatus = 'upcoming' | 'due' | LogStatus;

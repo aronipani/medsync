@@ -1,6 +1,8 @@
 import { router, Stack } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { Alert, Image, Modal, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { planPrescription } from '../src/consolidate.ts';
+import { describeMedTimes } from '../src/describe.ts';
 import { describeTiming, medLabel, qtyLabel } from '../src/schedule.ts';
 import { useStore } from '../src/store.tsx';
 import { DAY_LABELS } from '../src/time.ts';
@@ -12,6 +14,18 @@ export default function PrescriptionReview() {
   const { state, updatePendingItem, approvePending, setPending } = useStore();
   const [zoom, setZoom] = useState<string>();
   const p = state.pending;
+
+  // How this prescription compares with what's already in the schedule.
+  const plan = useMemo(() => {
+    if (!p) return undefined;
+    const mem = state.members.find((m) => m.id === p.memberId);
+    const describe = (m: import('../src/types.ts').Medication) => (mem ? describeMedTimes(m, mem, state.settings) : '');
+    return planPrescription(
+      state.meds.filter((m) => m.memberId === p.memberId),
+      p.items.filter((i) => i.include).map((i) => ({ id: i.id, med: i.med })),
+      describe,
+    );
+  }, [p, state.meds, state.members, state.settings]);
 
   if (!p) {
     return (
@@ -26,9 +40,20 @@ export default function PrescriptionReview() {
   const included = p.items.filter((i) => i.include);
   const unchecked = included.filter((i) => !i.checked);
 
+  const stopIds = p.stopIds ?? [];
+  const toggleStop = (id: string) => setPending({ ...p, stopIds: stopIds.includes(id) ? stopIds.filter((x) => x !== id) : [...stopIds, id] });
+
   const approve = () => {
-    const n = approvePending();
-    Alert.alert('Added to schedule', `${n} medicine${n === 1 ? '' : 's'} added for ${member?.name ?? 'this person'}. Reminders are on.`);
+    const r = approvePending();
+    const parts = [
+      r.added && `${r.added} added`,
+      r.changed && `${r.changed} updated`,
+      r.stopped && `${r.stopped} stopped`,
+    ].filter(Boolean);
+    Alert.alert(
+      'Schedule updated',
+      `${parts.length ? parts.join(', ') : 'No changes needed'} for ${member?.name ?? 'this person'}. The previous schedule was saved in History.`,
+    );
     router.replace('/meds');
   };
 
@@ -73,6 +98,28 @@ export default function PrescriptionReview() {
               <Text style={{ color: t.text, fontSize: 17, fontWeight: '700', flex: 1 }}>{medLabel(i.med) || 'Unnamed medicine'}</Text>
               <Text style={{ color: i.checked ? t.ok : t.warn, fontWeight: '700' }}>{i.checked ? '✓ Checked' : 'Not checked'}</Text>
             </View>
+            {(() => {
+              const pi = plan?.items.find((x) => x.itemId === i.id);
+              if (!pi || !i.include) return null;
+              const badge =
+                pi.action === 'new'
+                  ? { text: 'NEW — will be added', bg: t.brandSoft, fg: t.brand }
+                  : pi.action === 'same'
+                    ? { text: `ALREADY IN SCHEDULE — no change`, bg: t.muted, fg: t.sub }
+                    : { text: `UPDATES ${pi.targetLabel}`, bg: t.warnSoft, fg: t.warn };
+              return (
+                <View style={{ marginTop: 6 }}>
+                  <Text style={{ alignSelf: 'flex-start', backgroundColor: badge.bg, color: badge.fg, fontWeight: '800', fontSize: 12, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' }}>
+                    {badge.text}
+                  </Text>
+                  {pi.diffs.map((d) => (
+                    <Text key={d} style={{ color: t.text, marginTop: 4 }}>
+                      • {d}
+                    </Text>
+                  ))}
+                </View>
+              );
+            })()}
             <Text style={{ color: t.sub, marginTop: 4 }}>{summary(i)}</Text>
             {i.med.endDate && <Text style={{ color: t.sub, marginTop: 2 }}>Until {i.med.endDate}</Text>}
 
@@ -114,6 +161,22 @@ export default function PrescriptionReview() {
           </Card>
         ))}
 
+        {plan && plan.missing.length > 0 && (
+          <Card style={{ marginTop: 16, borderColor: t.warn }}>
+            <Text style={{ color: t.text, fontSize: 16, fontWeight: '700' }}>Already in {member?.name}'s schedule but not on this prescription</Text>
+            <Text style={{ color: t.sub, marginTop: 4, lineHeight: 19 }}>
+              If the doctor stopped one, switch it to Stop. If this page is only part of the prescription, keep them.
+            </Text>
+            {plan.missing.map((m) => (
+              <View key={m.id} style={[s.between, { marginTop: 10 }]}>
+                <Text style={{ color: t.text, flex: 1, fontWeight: '600' }}>{medLabel(m)}</Text>
+                <Text style={{ color: stopIds.includes(m.id) ? t.bad : t.ok, fontWeight: '700', marginRight: 8 }}>{stopIds.includes(m.id) ? 'Stop' : 'Keep'}</Text>
+                <Switch value={!stopIds.includes(m.id)} onValueChange={() => toggleStop(m.id)} />
+              </View>
+            ))}
+          </Card>
+        )}
+
         <Text style={{ color: t.sub, marginTop: 14, lineHeight: 20 }}>
           Medicine missing from the list? Add it afterwards from Schedule → Add medicine. Set stock counts later in Inventory.
         </Text>
@@ -128,7 +191,8 @@ export default function PrescriptionReview() {
               ? `${unchecked.length} of ${included.length} still to check`
               : `All ${included.length} checked`}
         </Text>
-        <Button big title={`Add ${included.length} to schedule`} onPress={approve} disabled={!included.length || unchecked.length > 0} />
+        <Button big title="Update schedule" onPress={approve} disabled={(!included.length && !stopIds.length) || unchecked.length > 0} />
+        <Text style={{ color: t.sub, textAlign: 'center', marginTop: 6, fontSize: 12 }}>The current schedule is saved in History first.</Text>
       </View>
 
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(undefined)}>

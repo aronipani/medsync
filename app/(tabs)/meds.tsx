@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
 import { router } from 'expo-router';
 import React from 'react';
-import { Pressable, ScrollView, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import { duplicateGroups } from '../../src/consolidate.ts';
 import { describeTiming, doseTime, medLabel, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
@@ -9,7 +10,7 @@ import { Button, Card, s, useTheme } from '../../src/ui.tsx';
 
 export default function Meds() {
   const t = useTheme();
-  const { state } = useStore();
+  const { state, mergeDuplicates } = useStore();
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
@@ -23,7 +24,13 @@ export default function Meds() {
         </Pressable>
       )}
       {state.members.map((member) => {
-        const meds = state.meds.filter((m) => m.memberId === member.id);
+        // Sorted by first dose of the day; stopped medicines last.
+        const first = (m: (typeof state.meds)[number]) =>
+          m.doses.map((d) => doseTime(d, member, state.settings)).sort()[0] ?? '99:99';
+        const meds = state.meds
+          .filter((m) => m.memberId === member.id)
+          .sort((a, b) => Number(!a.active) - Number(!b.active) || first(a).localeCompare(first(b)) || a.name.localeCompare(b.name));
+        const dups = duplicateGroups(meds);
         return (
           <View key={member.id} style={{ marginBottom: 22 }}>
             <View style={[s.between, { marginBottom: 8 }]}>
@@ -39,6 +46,24 @@ export default function Meds() {
             <Text style={{ color: t.sub, marginBottom: 8 }}>
               Meals: breakfast {fmt12(member.mealTimes.breakfast)} · lunch {fmt12(member.mealTimes.lunch)} · dinner {fmt12(member.mealTimes.dinner)}
             </Text>
+            {dups.length > 0 && (
+              <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warn, marginBottom: 10 }}>
+                <Text style={{ color: t.warn, fontWeight: '700' }}>
+                  Listed more than once: {dups.map((g) => `${medLabel(g[0])} (×${g.length})`).join(', ')}
+                </Text>
+                <Button
+                  title="Merge into one"
+                  kind="secondary"
+                  style={{ marginTop: 8 }}
+                  onPress={() =>
+                    Alert.alert('Merge duplicates?', 'Times are combined (each time once), stock is added up and dose history is kept. The current schedule is saved in History first.', [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Merge', onPress: () => mergeDuplicates(member.id) },
+                    ])
+                  }
+                />
+              </Card>
+            )}
             {!meds.length && <Text style={{ color: t.sub, fontStyle: 'italic' }}>No medicines yet.</Text>}
             {meds.map((med) => (
               <Pressable key={med.id} onPress={() => router.push(`/med/${med.id}`)}>
@@ -48,7 +73,7 @@ export default function Meds() {
                     {!med.active && <Text style={{ color: t.sub }}>Paused</Text>}
                     {med.endDate && <Text style={{ color: t.sub, fontSize: 12 }}>until {med.endDate}</Text>}
                   </View>
-                  {med.doses.map((d) => (
+                  {[...med.doses].sort((a, b) => doseTime(a, member, state.settings).localeCompare(doseTime(b, member, state.settings))).map((d) => (
                     <Text key={d.id} style={{ color: t.sub, marginTop: 4 }}>
                       {fmt12(doseTime(d, member, state.settings))} · {describeTiming(d)} · {qtyLabel(d.qty, med.unit)}
                       {d.days.length ? ` · ${d.days.map((x) => DAY_LABELS[x]).join(', ')}` : ''}
@@ -62,6 +87,7 @@ export default function Meds() {
         );
       })}
       <Button title="+ Add family member" kind="secondary" onPress={() => router.push('/member/new')} />
+      <Button title={`Schedule history (${state.history?.length ?? 0})`} kind="ghost" onPress={() => router.push('/history')} style={{ marginTop: 8 }} />
     </ScrollView>
   );
 }

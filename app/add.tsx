@@ -7,6 +7,7 @@ import { MemberPicker } from '../src/components.tsx';
 import { mergeRows } from '../src/label.ts';
 import { isNotLinkedError, readLines } from '../src/ocr.ts';
 import { parsePrescription } from '../src/rx.ts';
+import { sameMedicine, strengthKey } from '../src/consolidate.ts';
 import { uid, useStore } from '../src/store.tsx';
 import { addDays, dateKey } from '../src/time.ts';
 import type { Medication, PendingRxItem } from '../src/types.ts';
@@ -61,7 +62,25 @@ export default function AddMedicine() {
         };
         return { id: d.id, med, source: d.source, warnings: d.warnings, checked: false, include: true, asNeeded: d.asNeeded };
       });
-      setPending({ id: uid(), memberId, imageUris: res.assets.map((a) => a.uri), createdAt: now.toISOString(), items });
+      // The same medicine on two pages (or twice on one) becomes one item with all its times.
+      const merged: PendingRxItem[] = [];
+      for (const it of items) {
+        const same = merged.find((x) => sameMedicine(x.med, it.med) && strengthKey(x.med.strength) === strengthKey(it.med.strength));
+        if (!same) {
+          merged.push(it);
+          continue;
+        }
+        const key = (d: (typeof it.med.doses)[number]) => JSON.stringify([d.timing, d.days]);
+        same.med = {
+          ...same.med,
+          doses: [...same.med.doses, ...it.med.doses.filter((d) => !same.med.doses.some((x) => key(x) === key(d)))],
+          aliases: [...new Set([...same.med.aliases, ...it.med.aliases])],
+          notes: [same.med.notes, it.med.notes].filter((n, i, a) => n && a.indexOf(n) === i).join(' ') || undefined,
+        };
+        same.source = `${same.source}\n${it.source}`;
+        same.warnings = [...new Set([...same.warnings, ...it.warnings])];
+      }
+      setPending({ id: uid(), memberId, imageUris: res.assets.map((a) => a.uri), createdAt: now.toISOString(), items: merged });
       router.replace('/rx-review');
     } catch (e) {
       Alert.alert(

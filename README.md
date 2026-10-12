@@ -31,7 +31,14 @@ Expo (React Native, SDK 57) app for iPhone and Android. All data stays on the ph
 - **Nothing from a prescription is used until a person checks it.** Each medicine shows the exact text it was read from plus warnings for anything unclear. Each must be marked "Matches ✓" or corrected before "Add to schedule" is allowed.
 - All text is read on the phone; nothing is uploaded. Handwritten prescriptions usually can't be read — add those medicines one at a time.
 
-**Time-of-day colours:** the background changes with the time — warm sunrise in the morning (5 am–12), sky blue in the afternoon (12–5 pm), sunset coral in the evening (5–9 pm) and deep navy at night (9 pm–5 am). On Today, each dose group is tinted and labelled by its own period. Colours are in `src/period.ts`.
+**5. Updating from a new prescription, and history**
+- A new prescription **updates** the schedule rather than adding copies. Each medicine is matched to what's already there (by name, other brand names, or the same contents, e.g. Plavix ↔ Clopilet) and shown as **New**, **Updates …** (with old → new) or **Already in schedule**.
+- Medicines in the schedule but not on the new prescription are listed with **Keep / Stop** (stopped ones are paused, not deleted).
+- Doses at an unchanged time keep their history, so a dose already taken today isn't asked for again.
+- **Before every change** (prescription, edit, delete, merge, restore) the person's schedule is saved. **Schedule → Schedule history** shows each version, what changed and why, lets you go back to any version, and exports a CSV change log.
+- Medicines already listed twice show a **Merge into one** button (times combined, stock added up, dose history kept).
+
+**Time-of-day colours:** the background changes with the time — light sky blue in the morning (5 am–12), warm cream in the afternoon (12–5 pm), sunset coral in the evening (5–9 pm) and deep navy at night (9 pm–5 am). On Today, each dose group is tinted and labelled by its own period. Colours are in `src/period.ts`.
 
 All timing rules (meal offset, scan window, missed-after, follow-up, snooze) are adjustable in Settings (gear icon on Today).
 

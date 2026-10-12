@@ -2,7 +2,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { AppState as RNAppState } from 'react-native';
 import { computeMissed, medLabel } from './schedule.ts';
-import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, Settings } from './types.ts';
+import { applyPrescription, duplicateGroups, mergeGroup, planPrescription, remapLogs, type ScheduleChange } from './consolidate.ts';
+import { describeMedTimes } from './describe.ts';
+import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, ScheduleVersion, Settings } from './types.ts';
 
 const KEY = 'medsync:v1';
 
@@ -37,6 +39,24 @@ const initialState = (): AppState => ({
 });
 
 const LOG_RETENTION_DAYS = 365;
+const HISTORY_LIMIT = 80;
+
+/** Saves the person's medicines as they are now, then returns state with the version appended. */
+function withVersion(s: AppState, memberId: string, reason: string, changes: ScheduleChange[], source?: string): AppState {
+  if (!changes.length) return s;
+  const v: ScheduleVersion = {
+    id: uid(),
+    memberId,
+    at: new Date().toISOString(),
+    reason,
+    source,
+    before: JSON.parse(JSON.stringify(s.meds.filter((m) => m.memberId === memberId))),
+    changes,
+  };
+  return { ...s, history: [...(s.history ?? []), v].slice(-HISTORY_LIMIT) };
+}
+
+const label = (m: Medication) => `${m.name} ${m.strength}`.trim();
 
 interface Store {
   state: AppState;
@@ -54,8 +74,12 @@ interface Store {
   replaceAll(s: AppState): void;
   setPending(p: PendingRx | undefined): void;
   updatePendingItem(id: string, patch: Partial<PendingRxItem>): void;
-  /** Adds every included, checked prescription item to the schedule. Returns how many were added. */
-  approvePending(): number;
+  /** Applies the checked prescription items to the schedule (updating, not duplicating). Returns a summary. */
+  approvePending(): { added: number; changed: number; stopped: number };
+  /** Merges medicines that are listed twice for a person. Returns how many entries were removed. */
+  mergeDuplicates(memberId: string): number;
+  /** Puts a person's schedule back to how it was before a saved change (saving the current one first). */
+  restoreVersion(versionId: string): void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -127,11 +151,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           meds: s.meds.filter((m) => m.memberId !== id),
         })),
       saveMed: (m) =>
-        update((s) => ({
-          ...s,
-          meds: s.meds.some((x) => x.id === m.id) ? s.meds.map((x) => (x.id === m.id ? m : x)) : [...s.meds, m],
-        })),
-      deleteMed: (id) => update((s) => ({ ...s, meds: s.meds.filter((m) => m.id !== id) })),
+        update((s) => {
+          const old = s.meds.find((x) => x.id === m.id);
+          const changes: ScheduleChange[] = [];
+          if (!old) changes.push({ kind: 'added', medName: label(m) });
+          else {
+            const d: string[] = [];
+            if (old.name !== m.name) d.push(`Name ${old.name} → ${m.name}`);
+            if (old.strength !== m.strength) d.push(`Strength ${old.strength || '—'} → ${m.strength}`);
+            const member = s.members.find((x) => x.id === m.memberId);
+            const before = member ? describeMedTimes(old, member, s.settings) : '';
+            const after = member ? describeMedTimes(m, member, s.settings) : '';
+            if (before !== after) d.push(`When: ${before || 'no times'} → ${after || 'no times'}`);
+            if (old.active !== m.active) d.push(m.active ? 'Restarted' : 'Paused');
+            if ((old.endDate ?? '') !== (m.endDate ?? '')) d.push(`Until: ${old.endDate ?? 'ongoing'} → ${m.endDate ?? 'ongoing'}`);
+            if (d.length) changes.push({ kind: 'edited', medName: label(m), detail: d.join('; ') });
+          }
+          const next = withVersion(s, m.memberId, old ? 'Edited by hand' : 'Added by hand', changes);
+          return { ...next, meds: old ? next.meds.map((x) => (x.id === m.id ? m : x)) : [...next.meds, m] };
+        }),
+      deleteMed: (id) =>
+        update((s) => {
+          const m = s.meds.find((x) => x.id === id);
+          if (!m) return s;
+          const next = withVersion(s, m.memberId, 'Deleted by hand', [{ kind: 'removed', medName: label(m) }]);
+          return { ...next, meds: next.meds.filter((x) => x.id !== id) };
+        }),
       record: (occs, status, method) =>
         update((s) => {
           const at = new Date().toISOString();
@@ -199,21 +244,64 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         ),
       approvePending: () => {
         const p = state.pending;
-        if (!p) return 0;
-        const ready = p.items.filter((i) => i.include && i.checked);
+        if (!p) return { added: 0, changed: 0, stopped: 0 };
+        const member = state.members.find((m) => m.id === p.memberId);
+        const describe = (m: Medication) => (member ? describeMedTimes(m, member, state.settings) : '');
+        const drafts = p.items.filter((i) => i.include && i.checked).map((i) => ({ id: i.id, med: { ...i.med, memberId: p.memberId } }));
+        const mine = state.meds.filter((m) => m.memberId === p.memberId);
+        const plan = planPrescription(mine, drafts, describe);
+        const when = new Date(p.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
         const at = new Date().toISOString();
-        const label = new Date(p.createdAt).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
-        const meds: Medication[] = ready.map((i) => ({
-          ...i.med,
-          memberId: p.memberId,
-          active: true,
-          createdAt: at,
-          doses: i.med.doses.map((d) => ({ ...d, since: at })),
-          notes: [i.med.notes, `From prescription of ${label}.`].filter(Boolean).join(' '),
-        }));
-        update((s) => ({ ...s, meds: [...s.meds, ...meds], pending: undefined }));
-        return meds.length;
+        const { meds, changes } = applyPrescription(mine, drafts, plan, p.stopIds ?? [], at, `From prescription of ${when}.`);
+        const source = p.items.map((i) => i.source).join('\n');
+        update((s) => {
+          const next = withVersion(s, p.memberId, `Prescription of ${when}`, changes.length ? changes : [{ kind: 'edited', medName: '—', detail: 'Prescription matched the schedule — no changes' }], source);
+          return { ...next, meds: [...next.meds.filter((m) => m.memberId !== p.memberId), ...meds], pending: undefined };
+        });
+        return {
+          added: changes.filter((c) => c.kind === 'added').length,
+          changed: changes.filter((c) => c.kind === 'changed').length,
+          stopped: changes.filter((c) => c.kind === 'stopped').length,
+        };
       },
+      mergeDuplicates: (memberId) => {
+        const groups = duplicateGroups(state.meds.filter((m) => m.memberId === memberId));
+        if (!groups.length) return 0;
+        let removedCount = 0;
+        update((s) => {
+          let meds = s.meds;
+          let logs = s.logs;
+          let stock = s.stock;
+          const changes: ScheduleChange[] = [];
+          for (const g of duplicateGroups(s.meds.filter((m) => m.memberId === memberId))) {
+            const { med, removed, remap } = mergeGroup(g);
+            const gone = new Set(removed);
+            meds = meds.filter((m) => !gone.has(m.id)).map((m) => (m.id === med.id ? med : m));
+            logs = remapLogs(logs, remap);
+            stock = stock.map((e) => (gone.has(e.medId) ? { ...e, medId: med.id } : e));
+            removedCount += removed.length;
+            changes.push({ kind: 'merged', medName: label(med), detail: `${g.length} entries combined into one` });
+          }
+          const next = withVersion(s, memberId, 'Merged duplicates', changes);
+          return { ...next, meds, logs, stock };
+        });
+        return groups.reduce((n, g) => n + g.length - 1, 0);
+      },
+      restoreVersion: (versionId) =>
+        update((s) => {
+          const v = s.history?.find((x) => x.id === versionId);
+          if (!v) return s;
+          const when = new Date(v.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: 'numeric', minute: '2-digit' });
+          const next = withVersion(s, v.memberId, `Restored version from ${when}`, [{ kind: 'restored', medName: '—', detail: `Went back to before "${v.reason}"` }]);
+          const at = new Date().toISOString();
+          // Restored doses only count from now, so nothing earlier today is marked missed.
+          const currentDoseIds = new Set(s.meds.filter((m) => m.memberId === v.memberId).flatMap((m) => m.doses.map((d) => `${m.id}|${d.id}`)));
+          const restored = v.before.map((m) => ({
+            ...m,
+            doses: m.doses.map((d) => (currentDoseIds.has(`${m.id}|${d.id}`) ? d : { ...d, since: at })),
+          }));
+          return { ...next, meds: [...next.meds.filter((m) => m.memberId !== v.memberId), ...restored] };
+        }),
     }),
     [state, ready, now, update],
   );
