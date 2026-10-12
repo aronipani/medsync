@@ -199,6 +199,7 @@ export function mergeGroup(group: Medication[]): { med: Medication; removed: str
       stock: +stock.toFixed(2),
       aliases: union(keep.aliases, ...sorted.slice(1).map((m) => [...m.aliases, m.name !== keep.name ? m.name : ''])),
       barcodes: union(keep.barcodes, ...sorted.slice(1).map((m) => m.barcodes)),
+      learned: [...new Set(sorted.flatMap((m) => m.learned ?? []))].slice(-8),
       notes: notes.join(' ') || undefined,
       active: sorted.some((m) => m.active),
       endDate: sorted.some((m) => m.active && !m.endDate) ? undefined : keep.endDate,

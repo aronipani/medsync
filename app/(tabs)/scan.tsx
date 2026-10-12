@@ -8,6 +8,9 @@ import { matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
 import { readBurst, readLinesAnyOrientation } from '../../src/ocr.ts';
+import { bestLearned } from '../../src/learn.ts';
+import { saveTrainingPhotos } from '../../src/training.ts';
+import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
@@ -18,7 +21,7 @@ import { Button, Card, Empty, Field, s, useTheme } from '../../src/ui.tsx';
 const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'pdf417', 'itf14'];
 
 type Result =
-  | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string } // green
+  | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean } // green
   | { kind: 'check'; occ: Occurrence; method: LogMethod } // amber: name matches, strength unreadable
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
   | { kind: 'nomatch'; reason: string; detail?: string; code?: string; say: PhraseKey }; // red
@@ -26,7 +29,7 @@ type Result =
 export default function Scan() {
   const t = useTheme();
   const focused = useIsFocused();
-  const { state, now, record, linkBarcode } = useStore();
+  const { state, now, record, linkBarcode, teach } = useStore();
   const [perm, requestPerm] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
 
@@ -44,6 +47,8 @@ export default function Scan() {
   const [torch, setTorch] = useState(false);
   const [typed, setTyped] = useState('');
   const lastCode = useRef({ code: '', at: 0 });
+  // What the last strip reading saw (for "Teach this strip" and optional training photos).
+  const lastRead = useRef<{ lines: string[]; photos: string[] }>({ lines: [], photos: [] });
 
   useEffect(() => setResult(null), [memberId]);
 
@@ -116,6 +121,10 @@ export default function Scan() {
     if (subs.length) return show({ kind: 'match', occs: subs.map((x) => x.o), method, substitute: subs[0].d.via });
     const other = checked.find((x) => x.d.level === 'otherStrength');
     if (other) return show({ kind: 'strength', occ: other.o, found: other.d.foundStrengths ?? [], detail: text });
+    // A strip a person taught earlier (by what was printed on it).
+    const learned = bestLearned(text.split('\n'), due.map((o) => o.med));
+    const learnedOcc = learned && due.find((o) => o.med.id === learned.medId);
+    if (learnedOcc) return show({ kind: 'match', occs: [learnedOcc], method, learned: true });
     const nameOnly = checked.find((x) => x.d.level === 'nameOnly');
     if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method });
     const why = explainMiss((o) => ['match', 'substitute'].includes(matchDetail(text, o.med).level));
@@ -132,7 +141,12 @@ export default function Scan() {
     setBusy(true);
     try {
       const cam = camera.current;
-      const take = async () => (await cam.takePictureAsync({ quality: 0.9, shutterSound: false })).uri;
+      const photos: string[] = [];
+      const take = async () => {
+        const uri = (await cam.takePictureAsync({ quality: 0.9, shutterSound: false })).uri;
+        photos.push(uri);
+        return uri;
+      };
       setProgress('Reading the strip…');
       let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
       // Nothing matched? Glare may be hiding letters — take two more photos at slightly different angles.
@@ -140,6 +154,7 @@ export default function Scan() {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }
+      lastRead.current = { lines: text.split('\n'), photos };
       checkText(text, 'text');
     } catch (e) {
       show({
@@ -153,11 +168,59 @@ export default function Scan() {
     }
   };
 
+  const keepPhotos = (o: Occurrence, how: 'dose-check' | 'taught') => {
+    const { lines, photos } = lastRead.current;
+    if (state.settings.collectTraining && photos.length) {
+      saveTrainingPhotos(photos, { name: o.med.name, strength: o.med.strength }, how, lines.join('\n')).catch(() => {});
+    }
+  };
+
   const confirm = (occs: Occurrence[], method: LogMethod) => {
     record(occs, 'taken', method);
+    // A strip read by camera and confirmed as one medicine: remember it, so it's recognised more easily next time.
+    if (occs.length === 1 && lastRead.current.lines.length) {
+      teach(occs[0].med.id, lastRead.current.lines);
+      keepPhotos(occs[0], 'dose-check');
+    }
+    lastRead.current = { lines: [], photos: [] };
     setResult(null);
     setTyped('');
   };
+
+  const teachAs = (o: Occurrence) =>
+    Alert.alert(
+      `Teach: this strip is ${medLabel(o.med)}?`,
+      `Only do this after checking the strip yourself — name and strength ${o.med.strength}. Next time the app will recognise this strip even if the name is hard to read.`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Yes, teach it',
+          onPress: () => {
+            teach(o.med.id, lastRead.current.lines);
+            keepPhotos(o, 'taught');
+            show({ kind: 'match', occs: [o], method: 'manual', learned: true });
+          },
+        },
+      ],
+    );
+
+  const TeachChips = () =>
+    lastRead.current.lines.length ? (
+      <>
+        <Text style={{ color: '#fff', marginTop: 14, fontWeight: '600' }}>Is it one of these? Teach the app this strip:</Text>
+        <View style={[s.wrap, { marginTop: 8 }]}>
+          {due.map((o) => (
+            <Pressable
+              key={o.key}
+              onPress={() => teachAs(o)}
+              style={{ backgroundColor: '#fff3', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 }}
+            >
+              <Text style={{ color: '#fff', fontWeight: '700' }}>{medLabel(o.med)}</Text>
+            </Pressable>
+          ))}
+        </View>
+      </>
+    ) : null;
 
   if (!state.meds.length) return <Empty title="No medicines scheduled" body="Add medicines in the Schedule tab first." />;
 
@@ -270,6 +333,12 @@ export default function Scan() {
                   {o.med.notes ? <Text style={{ color: '#fffd', marginTop: 4 }}>{o.med.notes}</Text> : null}
                 </View>
               ))}
+              {result.learned && (
+                <View style={{ backgroundColor: '#0003', borderRadius: 10, padding: 10, marginTop: 12 }}>
+                  <Text style={{ color: '#fff', fontWeight: '700' }}>Recognised from a strip you taught the app.</Text>
+                  <Text style={{ color: '#fff' }}>Glance at the name and strength before taking.</Text>
+                </View>
+              )}
               {result.substitute && (
                 <View style={{ backgroundColor: '#0003', borderRadius: 10, padding: 10, marginTop: 12 }}>
                   <Text style={{ color: '#fff', fontWeight: '700' }}>Same medicine, different brand: {result.substitute}</Text>
@@ -320,6 +389,7 @@ export default function Scan() {
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.detail ? <Text style={{ color: '#fffc', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
               <Button title="Scan next" kind="secondary" big onPress={() => setResult(null)} style={{ marginTop: 14 }} />
+              {!result.code && <TeachChips />}
               {result.code && (
                 <>
                   <Text style={{ color: '#fff', marginTop: 14, fontWeight: '600' }}>Is this one of these? Link the code once:</Text>
@@ -348,7 +418,7 @@ export default function Scan() {
               <Text style={{ color: t.sub, fontWeight: '700', marginBottom: 8 }}>Can't scan? Type the name on the strip</Text>
               <View style={[s.row, { gap: 8 }]}>
                 <Field value={typed} onChangeText={setTyped} placeholder="e.g. Dolo 650" autoCapitalize="characters" style={{ flex: 1 }} />
-                <Button title="Check" onPress={() => typed.trim() && checkText(typed, 'manual')} />
+                <Button title="Check" onPress={() => typed.trim() && ((lastRead.current = { lines: [], photos: [] }), checkText(typed, 'manual'))} />
               </View>
             </Card>
           )}

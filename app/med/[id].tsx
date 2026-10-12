@@ -25,7 +25,7 @@ const newDose = (meal: Meal = 'breakfast'): Dose => ({
 export default function EditMed() {
   const t = useTheme();
   const { id, memberId, prefill, rxItem } = useLocalSearchParams<{ id: string; memberId?: string; prefill?: string; rxItem?: string }>();
-  const { state, saveMed, deleteMed, updatePendingItem } = useStore();
+  const { state, saveMed, deleteMed, updatePendingItem, forgetLearned } = useStore();
   const pendingItem = rxItem ? state.pending?.items.find((i) => i.id === rxItem) : undefined;
   const existing = pendingItem ? undefined : state.meds.find((m) => m.id === id);
   const draft = useMemo<Partial<Medication>>(() => {
@@ -47,6 +47,7 @@ export default function EditMed() {
         strength: draft.strength ?? '',
         aliases: draft.aliases ?? [],
         barcodes: draft.barcodes ?? [],
+        learned: draft.learned ?? [],
         unit: draft.unit ?? 'tablet',
         doses: [newDose()],
         stock: 10,
@@ -270,6 +271,32 @@ export default function EditMed() {
                 </Pressable>
               </View>
             ))}
+          </>
+        )}
+
+        {(med.learned?.length ?? 0) > 0 && (
+          <>
+            <Label>Taught strips</Label>
+            <View style={s.between}>
+              <Text style={{ color: t.text, flex: 1 }}>Recognises {med.learned!.length} strip reading{med.learned!.length === 1 ? '' : 's'} you confirmed</Text>
+              <Pressable
+                onPress={() =>
+                  Alert.alert('Forget taught strips?', 'The app will only use the name, strength and barcode to recognise this medicine.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    {
+                      text: 'Forget',
+                      style: 'destructive',
+                      onPress: () => {
+                        set({ learned: [] });
+                        if (existing) forgetLearned(existing.id);
+                      },
+                    },
+                  ])
+                }
+              >
+                <Text style={{ color: t.bad, fontWeight: '600' }}>Forget</Text>
+              </Pressable>
+            </View>
           </>
         )}
 

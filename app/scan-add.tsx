@@ -6,6 +6,8 @@ import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
 import { isNotLinkedError, readBurst } from '../src/ocr.ts';
+import { encode, fingerprint } from '../src/learn.ts';
+import { saveTrainingPhotos } from '../src/training.ts';
 import { useStore } from '../src/store.tsx';
 import { Button, Card, Chip, Field, Label, s, useTheme } from '../src/ui.tsx';
 
@@ -23,6 +25,7 @@ export default function ScanToAdd() {
   const [error, setError] = useState<string>();
   const [lines, setLines] = useState<OcrLine[]>([]); // everything read so far, across photos
   const [photos, setPhotos] = useState(0);
+  const photoUris = useRef<string[]>([]);
   const [result, setResult] = useState<LabelResult>();
   const [showCamera, setShowCamera] = useState(true);
   const [edited, setEdited] = useState(false);
@@ -48,7 +51,11 @@ export default function ScanToAdd() {
     setError(undefined);
     try {
       const cam = camera.current;
-      const read = await readBurst(async () => (await cam.takePictureAsync({ quality: 0.9, shutterSound: false })).uri, {
+      const read = await readBurst(async () => {
+        const uri = (await cam.takePictureAsync({ quality: 0.9, shutterSound: false })).uri;
+        photoUris.current.push(uri);
+        return uri;
+      }, {
         shots: 3,
         onShot: (n, of) => setProgress(n < of ? `Photo ${n} of ${of} — tilt the strip a little…` : `Photo ${n} of ${of}…`),
       });
@@ -85,7 +92,11 @@ export default function ScanToAdd() {
       aliases,
       barcodes: barcode ? [barcode] : [],
       notes: result.contents ? `Contains ${result.contents}.` : undefined,
+      learned: lines.length ? [encode(fingerprint(lines.map((l) => l.text)))] : [],
     };
+    if (state.settings.collectTraining && photoUris.current.length) {
+      saveTrainingPhotos(photoUris.current, { name: prefill.name, strength: prefill.strength, contents: result.contents }, 'scan-to-add', lines.map((l) => l.text).join('\n')).catch(() => {});
+    }
     router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId: memberId ?? state.members[0]?.id, prefill: JSON.stringify(prefill) } });
   };
 
@@ -195,6 +206,7 @@ export default function ScanToAdd() {
             onPress={() => {
               setLines([]);
               setPhotos(0);
+              photoUris.current = [];
               setResult(undefined);
               setEdited(false);
               setShowCamera(true);

@@ -38,6 +38,13 @@ Expo (React Native, SDK 57) app for iPhone and Android. All data stays on the ph
 - **Before every change** (prescription, edit, delete, merge, restore) the person's schedule is saved. **Schedule → Schedule history** shows each version, what changed and why, lets you go back to any version, and exports a CSV change log.
 - Medicines already listed twice show a **Merge into one** button (times combined, stock added up, dose history kept).
 
+**6. Teaching strips and training photos**
+- When a strip isn't recognised, the red or amber result offers **Teach the app this strip** for the medicines due. After you confirm, the app remembers the brand and composition words it read, so the same strip is recognised next time even with glare or a torn name ("Recognised from a strip you taught the app").
+- Every confirmed camera scan also strengthens this, and Scan to add teaches the strip it was added from.
+- Only words that are unique to that medicine's taught strips count. Maker, address, warning boxes, price and batch lines are ignored, so two strips from the same company can't be confused.
+- Each medicine shows how many strips it has learned, with **Forget**.
+- **Settings → Training photos** (off by default) saves confirmed scan photos on the phone, labelled with the medicine. **Export (.zip)** gives a folder per medicine plus `manifest.json` (label, how it was confirmed, the text read) for training an image model.
+
 **Time-of-day colours:** the background changes with the time — light sky blue in the morning (5 am–12), warm cream in the afternoon (12–5 pm), sunset coral in the evening (5–9 pm) and deep navy at night (9 pm–5 am). On Today, each dose group is tinted and labelled by its own period. Colours are in `src/period.ts`.
 
 All timing rules (meal offset, scan window, missed-after, follow-up, snooze) are adjustable in Settings (gear icon on Today).

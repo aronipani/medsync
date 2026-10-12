@@ -4,6 +4,7 @@ import { AppState as RNAppState } from 'react-native';
 import { computeMissed, medLabel } from './schedule.ts';
 import { applyPrescription, duplicateGroups, mergeGroup, planPrescription, remapLogs, type ScheduleChange } from './consolidate.ts';
 import { describeMedTimes } from './describe.ts';
+import { addLearned, fingerprint } from './learn.ts';
 import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, ScheduleVersion, Settings } from './types.ts';
 
 const KEY = 'medsync:v1';
@@ -80,6 +81,9 @@ interface Store {
   mergeDuplicates(memberId: string): number;
   /** Puts a person's schedule back to how it was before a saved change (saving the current one first). */
   restoreVersion(versionId: string): void;
+  /** Remembers what was read from a strip a person confirmed is this medicine. */
+  teach(medId: string, lines: string[]): void;
+  forgetLearned(medId: string): void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -287,6 +291,12 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         });
         return groups.reduce((n, g) => n + g.length - 1, 0);
       },
+      teach: (medId, lines) =>
+        update((s) => {
+          const fp = fingerprint(lines);
+          return { ...s, meds: s.meds.map((m) => (m.id === medId ? { ...m, learned: addLearned(m.learned, fp) } : m)) };
+        }),
+      forgetLearned: (medId) => update((s) => ({ ...s, meds: s.meds.map((m) => (m.id === medId ? { ...m, learned: [] } : m)) })),
       restoreVersion: (versionId) =>
         update((s) => {
           const v = s.history?.find((x) => x.id === versionId);

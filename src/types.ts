@@ -28,6 +28,7 @@ export interface Medication {
   notes?: string;
   active: boolean;
   createdAt: string;
+  learned?: string[]; // fingerprints of strips a person confirmed ("Teach this strip")
 }
 
 export interface MealTimes {
@@ -51,6 +52,7 @@ export interface Settings {
   missedAfterMin: number; // a dose is logged "missed" this many minutes after its time
   followUpMin: number; // "still not taken" reminder after this many minutes (0 = off)
   snoozeMin: number;
+  collectTraining?: boolean; // save confirmed scan photos for training an image model (off by default)
 }
 
 export type LogStatus = 'taken' | 'missed' | 'skipped';
