@@ -80,7 +80,13 @@ def label_photo(path: Path, name: str, strength: str, contents: str | None, labe
     img = cv2.imread(str(path))
     if img is None:
         return 0
-    boxes = read_boxes(img)
+    cache = labels_dir.parent / "ocr" / f"{path.stem}.json"  # reading is slow; relabelling after a rule change is instant
+    if cache.exists():
+        boxes = [Box(**b) for b in json.loads(cache.read_text())]
+    else:
+        boxes = read_boxes(img)
+        cache.parent.mkdir(exist_ok=True)
+        cache.write_text(json.dumps([vars(b) for b in boxes]))
     ingredients = [re.sub(r"\d.*$", "", x).strip() for x in contents.split("+")] if contents else None
     regions = label_regions(boxes, name, strength, ingredients)
     h, w = img.shape[:2]
@@ -89,11 +95,19 @@ def label_photo(path: Path, name: str, strength: str, contents: str | None, labe
     for r in regions:
         c = COLORS[r.cls]
         cv2.rectangle(prev, (int(r.left), int(r.top)), (int(r.left + r.width), int(r.top + r.height)), c, max(2, w // 400))
-        cv2.putText(prev, r.cls, (int(r.left), max(12, int(r.top) - 6)), cv2.FONT_HERSHEY_SIMPLEX, max(0.5, w / 1600), c, max(1, w // 600))
+    for r in regions:  # tags drawn after all boxes so none is hidden under another box
+        c = COLORS[r.cls]
+        fs, th = max(0.6, w / 1400), max(1, w // 700)
+        (tw, tht), _ = cv2.getTextSize(r.cls, cv2.FONT_HERSHEY_SIMPLEX, fs, th)
+        x, y = int(r.left), max(tht + 8, int(r.top) - 4)
+        cv2.rectangle(prev, (x, y - tht - 6), (x + tw + 6, y + 2), c, -1)
+        cv2.putText(prev, r.cls, (x + 3, y - 3), cv2.FONT_HERSHEY_SIMPLEX, fs, (255, 255, 255), th)
     scale = 1280 / max(w, h)
     cv2.imwrite(str(previews_dir / f"{path.stem}.jpg"), cv2.resize(prev, (int(w * scale), int(h * scale))), [cv2.IMWRITE_JPEG_QUALITY, 85])
     counts = {c: sum(r.cls == c for r in regions) for c in CLASSES}
     print(f"{path.name}: {counts}")
+    for r in sorted(regions, key=lambda r: CLASSES.index(r.cls)):
+        print(f"    {r.cls:9s} {r.text}")
     return len(regions)
 
 

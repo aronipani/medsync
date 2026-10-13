@@ -85,6 +85,8 @@ export function dedupeRegions(regions: Region[], threshold = 0.4): Region[] {
   return kept;
 }
 
+// Ordinary label words that a torn or misread brand can look like ("INDIA" ~ "kerENDIA"): never the brand unless spelt exactly.
+const COMMON_WORDS = new Set(['INDIA', 'TABLET', 'TABLETS', 'CAPSULE', 'CAPSULES', 'COATED', 'FILM', 'EACH', 'CONTAINS', 'LIMITED', 'PHARMA', 'PHARMACEUTICALS', 'LABORATORIES', 'VILLAGE', 'GERMANY', 'MUMBAI', 'DOSAGE', 'EXCIPIENTS', 'COLOURS', 'COLORS', 'PROTECTED', 'MOISTURE', 'LIGHT', 'TEMPERATURE', 'EXPORTS', 'AFFILIATES', 'MICRONIZED', 'EQUIVALENT']);
 const SKIP = /\b(caution|schedule|prescription|retail|sold|practitioner|registered|trade\s?mark|manufactured|marketed|ltd|limited|pvt|road|dist|vill|batch|b\.?\s?no|mfg|exp|m\.?\s?r\.?\s?p|price|taxes|store|storage|dosage|directed|physician|children)\b/i;
 const CONTENTS_HINT = /(\bcontains|\bequivalent|composition|tablets?\s+i\.?p|capsules?\s+i\.?p|tablets?\s+b\.?p|tablets?\s+u\.?s\.?p|hydrochloride|sodium|bisulphate)\b/i;
 
@@ -112,7 +114,7 @@ export function labelRegions(lines: Box[], label: { name: string; strength: stri
         return a === g || (a.length >= 6 && editDistance(a, g) <= 1) || (a.length >= 5 && a.length < g.length && editDistance(a, g.slice(0, a.length)) <= 1);
       });
     const hasBrand =
-      brandWords.length > 0 && brandWords.some((b) => ws.some((w) => !isIngredientWord(w) && (norm(w).replace(/\d+$/, '') === b || wordMatches(w, b))));
+      brandWords.length > 0 && brandWords.some((b) => ws.some((w) => !isIngredientWord(w) && (norm(w).replace(/\d+$/, '') === b || (!COMMON_WORDS.has(norm(w)) && wordMatches(w, b)))));
     const hasIngredient = ingredientWords.some((g) => ws.some((w) => wordMatches(w, g, true)));
     const strengthHere =
       strengths.length > 0 &&

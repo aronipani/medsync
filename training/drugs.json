@@ -646,10 +646,23 @@
  },
  {
   "brands": [
-   "Vonasec"
+   "Vonasec",
+   "Vonzai"
   ],
   "ingredients": [
    "Vonoprazan"
+  ],
+  "strengths": [
+   "10",
+   "20"
+  ]
+ },
+ {
+  "brands": [
+   "Kerendia"
+  ],
+  "ingredients": [
+   "Finerenone"
   ],
   "strengths": [
    "10",

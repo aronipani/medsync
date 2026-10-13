@@ -71,6 +71,11 @@ def _word_matches(seen: str, target: str, glued: bool = False) -> bool:
     return False
 
 
+# Ordinary label words that a torn or misread brand can look like ("INDIA" ~ "kerENDIA"): never the brand unless spelt exactly.
+COMMON_WORDS = {"INDIA", "TABLET", "TABLETS", "CAPSULE", "CAPSULES", "COATED", "FILM", "EACH", "CONTAINS", "LIMITED", "PHARMA", "PHARMACEUTICALS",
+                "LABORATORIES", "VILLAGE", "GERMANY", "MUMBAI", "DOSAGE", "EXCIPIENTS", "COLOURS", "COLORS", "PROTECTED", "MOISTURE", "LIGHT",
+                "TEMPERATURE", "EXPORTS", "AFFILIATES", "MICRONIZED", "EQUIVALENT"}
+
 SKIP = re.compile(
     r"\b(caution|schedule|prescription|retail|sold|practitioner|registered|trade\s?mark|manufactured|marketed|ltd|limited|pvt|"
     r"road|dist|vill|batch|b\.?\s?no|mfg|exp|m\.?\s?r\.?\s?p|price|taxes|store|storage|dosage|directed|physician|children)\b",
@@ -114,7 +119,7 @@ def label_regions(lines: list[Box], name: str, strength: str, ingredients: list[
             )
 
         has_brand = any(
-            not is_ingredient(w) and (re.sub(r"\d+$", "", _norm(w)) == b or _word_matches(w, b)) for b in brand_words for w in ws
+            not is_ingredient(w) and (re.sub(r"\d+$", "", _norm(w)) == b or (_norm(w) not in COMMON_WORDS and _word_matches(w, b))) for b in brand_words for w in ws
         )
         has_ingr = any(_word_matches(w, g, glued=True) for g in ingr_words for w in ws)
         clean = re.sub("[®Ⓡ]", " ", l.text)
