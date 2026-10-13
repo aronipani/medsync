@@ -1,5 +1,6 @@
 // Region boxes on a strip photo: where the brand, contents and strength are printed.
-// Used to (1) crop and re-read those areas and (2) auto-label photos for training a YOLO detector.
+// Used to (1) crop and re-read those areas and (2) auto-label photos for training a YOLO detector
+// with rotated boxes (YOLO-OBB), because strips are photographed at any angle.
 // Pure — no React Native — so it can be unit tested.
 
 export type RegionClass = 'brand' | 'contents' | 'strength';
@@ -11,6 +12,13 @@ export interface Box {
   top: number;
   width: number;
   height: number;
+  /** The text line's four corners on the photo, in reading order (top-left, top-right, bottom-right, bottom-left) — tilted when the strip is. */
+  corners?: Point[];
+}
+
+export interface Point {
+  x: number;
+  y: number;
 }
 
 export interface Region extends Box {
@@ -28,7 +36,11 @@ export function unrotateBox(b: Box, degrees: number, orig: { width: number; heig
   if (degrees === 90) [l, t, w, h] = [b.top, h1 - b.left - b.width, b.height, b.width];
   else if (degrees === 270) [l, t, w, h] = [w1 - b.top - b.height, b.left, b.height, b.width];
   else if (degrees === 180) [l, t] = [w1 - b.left - b.width, h1 - b.top - b.height];
-  return { text: b.text, left: l * s, top: t * s, width: w * s, height: h * s };
+  const back = (p: Point): Point => {
+    const [x, y] = degrees === 90 ? [p.y, h1 - p.x] : degrees === 270 ? [w1 - p.y, p.x] : degrees === 180 ? [w1 - p.x, h1 - p.y] : [p.x, p.y];
+    return { x: x * s, y: y * s };
+  };
+  return { text: b.text, left: l * s, top: t * s, width: w * s, height: h * s, ...(b.corners ? { corners: b.corners.map(back) } : {}) };
 }
 
 const norm = (s: string) => s.toUpperCase().replace(/[^A-Z0-9]/g, '');
@@ -126,20 +138,20 @@ export function labelRegions(lines: Box[], label: { name: string; strength: stri
   return dedupeRegions(out);
 }
 
-/** YOLO label lines: "class cx cy w h", all relative to the photo size. */
+/** The four corners of a box: the read line's own (tilted) corners when known, else its upright rectangle. */
+export function cornersOf(b: Box): Point[] {
+  if (b.corners && b.corners.length === 4) return b.corners;
+  const { left: l, top: t, width: w, height: h } = b;
+  return [{ x: l, y: t }, { x: l + w, y: t }, { x: l + w, y: t + h }, { x: l, y: t + h }];
+}
+
+/** YOLO-OBB label lines: "class x1 y1 x2 y2 x3 y3 x4 y4", corners relative to the photo size. */
 export function toYolo(regions: Region[], img: { width: number; height: number }): string {
   const clamp = (v: number) => Math.min(1, Math.max(0, v));
+  const f = (v: number) => v.toFixed(6);
   return regions
-    .map((r) => {
-      const x0 = clamp(r.left / img.width);
-      const y0 = clamp(r.top / img.height);
-      const x1 = clamp((r.left + r.width) / img.width);
-      const y1 = clamp((r.top + r.height) / img.height);
-      if (x1 - x0 <= 0 || y1 - y0 <= 0) return '';
-      const f = (v: number) => v.toFixed(6);
-      return `${REGION_CLASSES.indexOf(r.cls)} ${f((x0 + x1) / 2)} ${f((y0 + y1) / 2)} ${f(x1 - x0)} ${f(y1 - y0)}`;
-    })
-    .filter(Boolean)
+    .filter((r) => r.width > 0 && r.height > 0)
+    .map((r) => `${REGION_CLASSES.indexOf(r.cls)} ${cornersOf(r).map((p) => `${f(clamp(p.x / img.width))} ${f(clamp(p.y / img.height))}`).join(' ')}`)
     .join('\n');
 }
 

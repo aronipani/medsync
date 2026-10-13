@@ -22,9 +22,30 @@ test('labels brand (even torn), contents and strength on a Monotrate strip', () 
   assert.deepEqual(by('strength'), ['Isosorbide Mononitrate   10 mg']);
 });
 
-test('YOLO output is normalised centre/size per class', () => {
-  const y = toYolo([{ ...B('X', 100, 50, 200, 100), cls: 'brand' }, { ...B('Y', 0, 0, 1000, 1000), cls: 'strength' }], { width: 1000, height: 500 });
-  assert.equal(y, '0 0.200000 0.200000 0.200000 0.200000\n2 0.500000 0.500000 1.000000 1.000000');
+test('YOLO-OBB output: four relative corners per box, tilted corners when known', () => {
+  const tilted = { ...B('Z', 100, 100, 300, 300), corners: [{ x: 100, y: 300 }, { x: 300, y: 100 }, { x: 400, y: 200 }, { x: 200, y: 400 }], cls: 'contents' as const };
+  const y = toYolo([{ ...B('X', 100, 50, 200, 100), cls: 'brand' }, { ...B('Y', 0, 0, 1000, 1000), cls: 'strength' }, tilted], { width: 1000, height: 500 });
+  assert.equal(
+    y,
+    '0 0.100000 0.100000 0.300000 0.100000 0.300000 0.300000 0.100000 0.300000\n' +
+      '2 0.000000 0.000000 1.000000 0.000000 1.000000 1.000000 0.000000 1.000000\n' +
+      '1 0.100000 0.600000 0.300000 0.200000 0.400000 0.400000 0.200000 0.800000',
+  );
+});
+
+test('tilted corners read on rotated copies map back onto the photo', () => {
+  const orig = { width: 3000, height: 4000 };
+  const w1 = 1600;
+  const s = orig.width / w1;
+  const h1 = orig.height / s;
+  const p = { x: 900, y: 1200 }; // a corner on the original photo
+  const q = { x: p.x / s, y: p.y / s }; // on the resized copy
+  // the same point on each clockwise-rotated copy
+  const on = { 90: { x: h1 - q.y, y: q.x }, 180: { x: w1 - q.x, y: h1 - q.y }, 270: { x: q.y, y: w1 - q.x } } as const;
+  for (const deg of [90, 180, 270] as const) {
+    const back = unrotateBox({ ...B('t', 0, 0, 1, 1), corners: [on[deg], on[deg], on[deg], on[deg]] }, deg, orig, w1);
+    assert.ok(Math.abs(back.corners![0].x - p.x) < 0.01 && Math.abs(back.corners![0].y - p.y) < 0.01, `${deg}: ${JSON.stringify(back.corners![0])}`);
+  }
 });
 
 test('boxes read on rotated copies map back onto the photo', () => {

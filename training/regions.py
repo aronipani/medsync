@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import json
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 CLASSES = ["brand", "contents", "strength"]  # YOLO class ids 0, 1, 2
@@ -22,6 +22,7 @@ class Box:
     top: float
     width: float
     height: float
+    corners: list[list[float]] = field(default_factory=list)  # the line's 4 corners on the photo (tilted with the strip)
 
 
 @dataclass
@@ -150,12 +151,19 @@ def dedupe(regions: list[Region], iou: float = 0.4) -> list[Region]:
     return kept
 
 
+def corners_of(b: Box) -> list[list[float]]:
+    """The line's own tilted corners when known, else its upright rectangle."""
+    if len(b.corners) == 4:
+        return b.corners
+    return [[b.left, b.top], [b.left + b.width, b.top], [b.left + b.width, b.top + b.height], [b.left, b.top + b.height]]
+
+
 def to_yolo(regions: list[Region], width: int, height: int) -> str:
+    """YOLO-OBB rows: "class x1 y1 x2 y2 x3 y3 x4 y4", corners relative to the photo size."""
     rows = []
     for r in regions:
-        x0, y0 = max(0, r.left / width), max(0, r.top / height)
-        x1, y1 = min(1, (r.left + r.width) / width), min(1, (r.top + r.height) / height)
-        if x1 <= x0 or y1 <= y0:
+        if r.width <= 0 or r.height <= 0:
             continue
-        rows.append(f"{CLASSES.index(r.cls)} {(x0 + x1) / 2:.6f} {(y0 + y1) / 2:.6f} {x1 - x0:.6f} {y1 - y0:.6f}")
+        pts = " ".join(f"{min(1, max(0, x / width)):.6f} {min(1, max(0, y / height)):.6f}" for x, y in corners_of(r))
+        rows.append(f"{CLASSES.index(r.cls)} {pts}")
     return "\n".join(rows)

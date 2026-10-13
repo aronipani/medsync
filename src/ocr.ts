@@ -9,7 +9,10 @@ async function recognize(uri: string): Promise<OcrLine[]> {
   const res = await TextRecognition.recognize(uri);
   const out: OcrLine[] = [];
   for (const block of res.blocks) {
-    for (const line of block.lines) out.push({ text: line.text, height: line.frame?.height, top: line.frame?.top, left: line.frame?.left, width: line.frame?.width });
+    for (const line of block.lines) {
+      const corners = line.cornerPoints?.length === 4 ? line.cornerPoints.map((p) => ({ x: p.x, y: p.y })) : undefined;
+      out.push({ text: line.text, height: line.frame?.height, top: line.frame?.top, left: line.frame?.left, width: line.frame?.width, corners });
+    }
   }
   return out;
 }
@@ -29,7 +32,7 @@ export function boxesFor(uri: string) {
 
 const toBox = (l: OcrLine): Box | undefined =>
   l.left !== undefined && l.top !== undefined && l.width !== undefined && l.height !== undefined
-    ? { text: l.text, left: l.left, top: l.top, width: l.width, height: l.height }
+    ? { text: l.text, left: l.left, top: l.top, width: l.width, height: l.height, ...(l.corners ? { corners: l.corners } : {}) }
     : undefined;
 
 class LineSet {

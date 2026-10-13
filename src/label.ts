@@ -9,6 +9,7 @@ export interface OcrLine {
   top?: number;
   left?: number;
   width?: number;
+  corners?: { x: number; y: number }[]; // the line's four corners when the reader gives them (tilted text)
 }
 
 /**

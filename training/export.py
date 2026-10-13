@@ -1,6 +1,6 @@
 """Export the trained detector for the phone.
 
-  python export.py --weights runs/detect/strip-regions/weights/best.pt --imgsz 960
+  python export.py --weights runs/obb/strip-regions/weights/best.pt --imgsz 960
 
 Writes:
   * TFLite (Android; also usable on iPhone via react-native-fast-tflite) — float16, small and fast

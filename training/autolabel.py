@@ -1,4 +1,4 @@
-"""Auto-label strip photos with brand / contents / strength boxes for YOLO.
+"""Auto-label strip photos with brand / contents / strength rotated boxes for YOLO-OBB.
 
 Works on:
   * an unzipped MedSync export (images/ + manifest.json) — labels any photo that has no label file yet
@@ -21,7 +21,7 @@ import cv2
 import numpy as np
 from rapidocr_onnxruntime import RapidOCR
 
-from regions import CLASSES, Box, label_regions, to_yolo
+from regions import CLASSES, Box, corners_of, label_regions, to_yolo
 
 COLORS = {"brand": (40, 160, 40), "contents": (200, 120, 0), "strength": (30, 30, 220)}
 _ocr = RapidOCR()
@@ -55,7 +55,8 @@ def read_boxes(img: np.ndarray) -> list[Box]:
             pts = _unrotate(quad, k, w, h)  # back onto the original photo
             x0, y0 = pts.min(axis=0)
             x1, y1 = pts.max(axis=0)
-            out.append(Box(text=text, left=float(x0), top=float(y0), width=float(x1 - x0), height=float(y1 - y0)))
+            corners = [[float(x), float(y)] for x, y in pts]  # RapidOCR order: top-left, top-right, bottom-right, bottom-left of the text
+            out.append(Box(text=text, left=float(x0), top=float(y0), width=float(x1 - x0), height=float(y1 - y0), corners=corners))
     return out
 
 
@@ -80,7 +81,7 @@ def label_photo(path: Path, name: str, strength: str, contents: str | None, labe
     img = cv2.imread(str(path))
     if img is None:
         return 0
-    cache = labels_dir.parent / "ocr" / f"{path.stem}.json"  # reading is slow; relabelling after a rule change is instant
+    cache = labels_dir.parent / "ocr" / f"{path.stem}.v2.json"  # reading is slow; relabelling after a rule change is instant
     if cache.exists():
         boxes = [Box(**b) for b in json.loads(cache.read_text())]
     else:
@@ -94,12 +95,13 @@ def label_photo(path: Path, name: str, strength: str, contents: str | None, labe
     prev = img.copy()
     for r in regions:
         c = COLORS[r.cls]
-        cv2.rectangle(prev, (int(r.left), int(r.top)), (int(r.left + r.width), int(r.top + r.height)), c, max(2, w // 400))
+        poly = np.array(corners_of(r), dtype=np.int32).reshape(-1, 1, 2)
+        cv2.polylines(prev, [poly], True, c, max(2, w // 400))
     for r in regions:  # tags drawn after all boxes so none is hidden under another box
         c = COLORS[r.cls]
         fs, th = max(0.6, w / 1400), max(1, w // 700)
         (tw, tht), _ = cv2.getTextSize(r.cls, cv2.FONT_HERSHEY_SIMPLEX, fs, th)
-        x, y = int(r.left), max(tht + 8, int(r.top) - 4)
+        x, y = int(corners_of(r)[0][0]), max(tht + 8, int(corners_of(r)[0][1]) - 4)  # tag at the start of the text
         cv2.rectangle(prev, (x, y - tht - 6), (x + tw + 6, y + 2), c, -1)
         cv2.putText(prev, r.cls, (x + 3, y - 3), cv2.FONT_HERSHEY_SIMPLEX, fs, (255, 255, 255), th)
     scale = 1280 / max(w, h)

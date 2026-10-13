@@ -18,7 +18,7 @@ export interface TrainingEntry {
   how: 'dose-check' | 'taught' | 'scan-to-add';
   ocrText: string;
   at: string;
-  yolo?: string; // auto-labelled boxes, YOLO format (class cx cy w h, relative) — from the phone's text reader
+  yolo?: string; // auto-labelled boxes, YOLO-OBB format (class x1 y1 … x4 y4, relative) — from the phone's text reader
   regions?: { cls: string; text: string }[]; // what each box said, to help when checking labels
 }
 
@@ -130,7 +130,7 @@ export async function exportTraining(): Promise<boolean> {
     name: 'README.txt',
     data: enc.encode(
       'MedSync training photos, confirmed by a person in the app.\n' +
-        `images/ — ${entries.length} photos. labels/ — ${labelled} auto-labelled (YOLO: class cx cy w h). Classes: ${REGION_CLASSES.join(', ')}.\n` +
+        `images/ — ${entries.length} photos. labels/ — ${labelled} auto-labelled (YOLO-OBB rotated boxes: class x1 y1 x2 y2 x3 y3 x4 y4). Classes: ${REGION_CLASSES.join(', ')}.\n` +
         'Photos without a label file were saved before auto-labelling; run training/autolabel.py to label them.\n' +
         'manifest.json — each photo with its medicine, how it was confirmed, the text read and the region texts.\n',
     ),
