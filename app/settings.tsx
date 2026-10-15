@@ -5,6 +5,7 @@ import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { ageText, backupOverdue } from '../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
 import { DEFAULT_SETTINGS } from '../src/store.tsx';
+import { buildLabel } from '../src/buildInfo.ts';
 import { clearTraining, exportTraining, trainingSummary } from '../src/training.ts';
 import { setupNotifications } from '../src/notifications.ts';
 import { useStore } from '../src/store.tsx';
@@ -104,6 +105,9 @@ export default function SettingsScreen() {
 
       <Label>About</Label>
       <Button title="About & safety · privacy" kind="secondary" onPress={() => router.push('/about')} />
+      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 8, fontSize: 13 }} selectable>
+        Version {buildLabel()}
+      </Text>
 
       <Label>Reminders</Label>
       <Button title="Send a test reminder" kind="secondary" onPress={test} />

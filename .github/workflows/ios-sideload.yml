@@ -12,6 +12,11 @@ jobs:
   build:
     runs-on: macos-latest
     timeout-minutes: 90
+    # Shown in Settings so you can tell which build is installed (matches the release tag).
+    env:
+      EXPO_PUBLIC_BUILD: ios-${{ github.run_number }}
+      EXPO_PUBLIC_COMMIT: ${{ github.sha }}
+      EXPO_PUBLIC_BUILT_AT: ${{ github.event.head_commit.timestamp }}
     steps:
       - uses: actions/checkout@v5
 
