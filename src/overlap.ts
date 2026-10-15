@@ -2,7 +2,7 @@
 // or a combination tablet repeating a single one). Pure — see docs/specs/02-duplicate-medicine-warning.md.
 // Contents come only from the built-in list or ingredient names written on the medicine; unknown = never flagged.
 
-import { DRUGS, lookupBrand } from './drugdb.ts';
+import { ALL_DRUGS, lookupBrand } from './drugdb.ts';
 import type { Medication } from './types.ts';
 
 export type OverlapKind = 'same' | 'partial';
@@ -19,7 +19,7 @@ const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 const strengthKey = (s: string) => s.toLowerCase().replace(/mg|mcg|ml/g, '').replace(/\s+/g, '');
 
 // Every ingredient name the app knows, longest first (so "Isosorbide Mononitrate" wins over shorter names).
-const KNOWN = [...new Set(DRUGS.flatMap((d) => d.ingredients))].sort((a, b) => b.length - a.length);
+const KNOWN = [...new Set(ALL_DRUGS.flatMap((d) => d.ingredients))].sort((a, b) => b.length - a.length);
 
 /** The ingredients of a medicine, or [] when unknown. */
 export function contentsOf(m: Pick<Medication, 'name' | 'aliases'>): string[] {

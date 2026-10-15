@@ -3,6 +3,8 @@
 // Every suggestion is shown to a person to confirm. Not a source of dosing or interaction advice.
 // Compiled from general knowledge (mid-2026); brands change — anything not listed is simply not suggested.
 
+import { MEDICINES } from './data/medicines.ts';
+
 export interface DrugEntry {
   brands: string[]; // brand names as printed (first is the main one)
   ingredients: string[]; // generic names, in label order
@@ -88,27 +90,44 @@ export const DRUGS: DrugEntry[] = [
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
+/**
+ * Hand-checked list plus the generated large list (src/data/medicines.ts), hand-checked first.
+ * Generated brands that clash with a hand-checked brand were already left out when the list was built.
+ */
+export const ALL_DRUGS: DrugEntry[] = [
+  ...DRUGS,
+  ...MEDICINES.entries.map(([ingredients, strengths, brands]) => ({ ingredients, strengths, brands })),
+];
+
+// Brand index: normalized brand → entry (first one wins, so the hand-checked list wins).
+const BRAND_INDEX = new Map<string, DrugEntry>();
+for (const e of ALL_DRUGS) for (const b of e.brands) if (!BRAND_INDEX.has(norm(b))) BRAND_INDEX.set(norm(b), e);
+const CONTENTS_INDEX = new Map<string, DrugEntry[]>();
+for (const e of ALL_DRUGS) {
+  const k = e.ingredients.map(norm).sort().join('+');
+  CONTENTS_INDEX.set(k, [...(CONTENTS_INDEX.get(k) ?? []), e]);
+}
+
 /** Finds the entry for a brand name ("NEBICARD", "Cilacar T", "Clopilet / Plavix"). Longest brand wins (Telma H over Telma). */
 export function lookupBrand(name: string): DrugEntry | undefined {
   const n = norm(name);
   if (n.length < 3) return undefined;
-  let best: { e: DrugEntry; len: number } | undefined;
-  for (const e of DRUGS) {
-    for (const b of e.brands) {
-      const nb = norm(b);
-      if (n === nb || (n.startsWith(nb) && nb.length >= 4 && !/^[a-z]/.test(n.slice(nb.length)))) {
-        if (!best || nb.length > best.len) best = { e, len: nb.length };
-      }
-    }
+  const exact = BRAND_INDEX.get(n);
+  if (exact) return exact;
+  // Longest brand that the name starts with, followed by a non-letter ("MONOTRATE10", "Clopilet/Plavix" → "clopiletplavix" won't match).
+  for (let k = n.length - 1; k >= 4; k--) {
+    if (/^[a-z]/.test(n.slice(k))) continue;
+    const e = BRAND_INDEX.get(n.slice(0, k));
+    if (e) return e;
   }
-  return best?.e;
+  return undefined;
 }
 
 /** Entries whose contents are exactly these ingredients (any order). */
 export function lookupIngredients(ingredients: string[]): DrugEntry[] {
   const want = ingredients.map(norm).sort().join('+');
   if (!want) return [];
-  return DRUGS.filter((e) => e.ingredients.map(norm).sort().join('+') === want);
+  return CONTENTS_INDEX.get(want) ?? [];
 }
 
 /** "Clopidogrel 75", "Cilnidipine 10 + Telmisartan 40" from contents and a strength like "10/40". */
