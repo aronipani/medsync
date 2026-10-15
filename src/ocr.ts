@@ -22,6 +22,45 @@ export async function readLines(uri: string): Promise<OcrLine[]> {
   return recognize(uri);
 }
 
+const PAGE_WIDTH = 2000; // enough for prescription print; full 12 MP photos are slow and no more readable
+
+/**
+ * Reads a printed page (prescription, medicine chart) whose rows must be rebuilt from line positions.
+ * Phone photos are often stored sideways with a "rotate when shown" flag; the reader honours the flag for the
+ * words but may give positions sideways, which turns rows into columns. So the photo is first re-saved upright
+ * (flag applied, smaller), and if that reading yields nothing useful the page is tried turned the other ways.
+ * `score` says how useful a reading is (e.g. how many medicines were found); the best one is returned.
+ * See docs/specs/09-prescription-photo-reading.md.
+ */
+export async function readPage(uri: string, score: (lines: OcrLine[]) => number): Promise<{ lines: OcrLine[]; turned: number }> {
+  let base = uri;
+  try {
+    const ref = await ImageManipulator.manipulate(uri).renderAsync();
+    const ctx = ImageManipulator.manipulate(uri);
+    if (ref.width > PAGE_WIDTH) ctx.resize({ width: PAGE_WIDTH });
+    base = (await (await ctx.renderAsync()).saveAsync({ compress: 0.92, format: SaveFormat.JPEG })).uri;
+  } catch {
+    // Use the original photo.
+  }
+  let best = { lines: await recognize(base), turned: 0 };
+  let bestScore = score(best.lines);
+  if (bestScore > 0) return best;
+  for (const turned of [90, 270, 180]) {
+    try {
+      const img = await (await ImageManipulator.manipulate(base).rotate(turned).renderAsync()).saveAsync({ compress: 0.92, format: SaveFormat.JPEG });
+      const lines = await recognize(img.uri);
+      const sc = score(lines);
+      if (sc > bestScore) {
+        best = { lines, turned };
+        bestScore = sc;
+      }
+    } catch {
+      // try the next way round
+    }
+  }
+  return best;
+}
+
 const key = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
 
 // Boxes (on the original photo) for each photo read, kept for training labels.

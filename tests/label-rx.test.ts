@@ -41,7 +41,7 @@ test('syrup bottle sets ml as the unit', () => {
 
 const RX = `Dr. A. Sen MBBS MD
 Reg No 12345
-Patient: Mrs. S. Pani   Age 72
+Patient: Mrs. A. Patient   Age 72
 Rx
 1. Tab. Telma 40 mg   1-0-0  before food  x 30 days
 2. Tab Dolo 650   1-0-1 after food x 5 days
@@ -118,9 +118,9 @@ test('row merge joins table columns back into one line', async () => {
   assert.equal(items[1].doses.length, 1);
 });
 
-// Rows as the phone reads Bijan's "My daily medicines" chart (time column merged with the medicine column).
+// Rows as the phone reads a printed "My daily medicines" chart (time column merged with the medicine column).
 const CHART = `MY DAILY MEDICINES
-Bijan Kumar Pani - from 9 October 2026
+A. Patient - from 9 October 2026
 Date: ___/___/____
 MORNING
 TIME   WHAT TO TAKE   DONE
@@ -187,4 +187,18 @@ test('clock parsing', async () => {
   assert.equal(parseClock('12:30 AM')?.time, '00:30');
   assert.equal(parseClock('9 PM')?.time, '21:00');
   assert.equal(parseClock('20 mg'), undefined);
+});
+
+// A real reading of a printed chart photo, with each line's position (name removed).
+test('chart photo: rows rebuilt from positions give every medicine; sideways positions give none', async () => {
+  const { readFileSync } = await import('node:fs');
+  const { fileURLToPath } = await import('node:url');
+  const { mergeRows } = await import('../src/label.ts');
+  const lines = JSON.parse(readFileSync(fileURLToPath(new URL('./fixtures/daily-chart-lines.json', import.meta.url).href), 'utf8'));
+  const names = parsePrescription(mergeRows(lines), id).map((i) => i.name).sort();
+  assert.deepEqual(names, ['Clopilet', 'Cordarone', 'Ismo', 'Sucrafil', 'Thyroxin', 'Tide', 'Vonasec']);
+  // The same page with positions reported sideways (photo stored rotated): rows become columns, nothing is found.
+  // This is why prescription photos are re-saved upright and tried turned (src/ocr.ts readPage).
+  const side = lines.map((l: { text: string; left: number; top: number; width: number; height: number }) => ({ text: l.text, left: l.top, top: 1500 - l.left - l.width, width: l.height, height: l.width }));
+  assert.equal(parsePrescription(mergeRows(side), id).length, 0);
 });

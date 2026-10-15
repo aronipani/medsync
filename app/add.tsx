@@ -5,7 +5,7 @@ import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../src/components.tsx';
 import { mergeRows } from '../src/label.ts';
-import { isNotLinkedError, readLines } from '../src/ocr.ts';
+import { isNotLinkedError, readPage } from '../src/ocr.ts';
 import { parsePrescription } from '../src/rx.ts';
 import { sameMedicine, strengthKey } from '../src/consolidate.ts';
 import { uid, useStore } from '../src/store.tsx';
@@ -33,12 +33,17 @@ export default function AddMedicine() {
     setBusy(true);
     try {
       const rows: string[] = [];
-      for (const a of res.assets) rows.push(...mergeRows(await readLines(a.uri)));
+      const found = (lines: Parameters<typeof mergeRows>[0]) => parsePrescription(mergeRows(lines), () => 'x').length;
+      for (const a of res.assets) rows.push(...mergeRows((await readPage(a.uri, found)).lines));
       const drafts = parsePrescription(rows, uid);
       if (!drafts.length) {
+        const read = rows.filter((r) => r.trim()).slice(0, 12).join('\n');
         Alert.alert(
           'No medicines found',
-          'The app could not find medicine lines (like "Tab. Dolo 650 1-0-1"). Handwritten prescriptions often can\'t be read — add those medicines with Scan or Type instead.',
+          (read
+            ? 'The app could not find medicine lines (like "Tab. Dolo 650 1-0-1" or "7:00 AM  Thyroxin 50 mcg"). Handwritten prescriptions usually can\'t be read — add those medicines with Scan or Type instead.'
+            : 'No text could be read from this photo. Try again in good light, with the whole page flat and in the frame.') +
+            (read ? `\n\nWhat the phone read:\n${read}` : ''),
         );
         return;
       }

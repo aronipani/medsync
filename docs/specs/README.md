@@ -10,3 +10,4 @@
 | [06](06-voice-fallback.md) | English speech when a language voice is missing | Built |
 | [07](07-photo-sharing-consent.md) | Opt-in sharing of unrecognised strip photos | Record + rules built; hidden until a server exists |
 | [08](08-store-release.md) | Play Store / App Store release checklist | Checklist |
+| [09](09-prescription-photo-reading.md) | Prescription and chart photos read upright (bug fix) | Built |
