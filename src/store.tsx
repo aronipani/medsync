@@ -176,10 +176,13 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if ((old.endDate ?? '') !== (m.endDate ?? '')) d.push(`Until: ${old.endDate ?? 'ongoing'} → ${m.endDate ?? 'ongoing'}`);
             if (d.length) changes.push({ kind: 'edited', medName: label(m), detail: d.join('; ') });
           }
-          // A new name or strength may be a different medicine: earlier "doctor confirmed" pairs no longer apply.
-          if (old && (old.name !== m.name || old.strength !== m.strength) && m.overlapOk?.length) m = { ...m, overlapOk: undefined };
+          // A new name or strength may be a different medicine: earlier "doctor confirmed" pairs no longer apply,
+          // on either side of the pair.
+          const renamed = !!old && (old.name !== m.name || old.strength !== m.strength);
+          if (renamed && m.overlapOk?.length) m = { ...m, overlapOk: undefined };
           const next = withVersion(s, m.memberId, old ? 'Edited by hand' : 'Added by hand', changes);
-          return { ...next, meds: old ? next.meds.map((x) => (x.id === m.id ? m : x)) : [...next.meds, m] };
+          const meds = old ? next.meds.map((x) => (x.id === m.id ? m : x)) : [...next.meds, m];
+          return { ...next, meds: renamed ? meds.map((x) => (x.overlapOk?.includes(m.id) ? { ...x, overlapOk: x.overlapOk.filter((o) => o !== m.id) } : x)) : meds };
         }),
       deleteMed: (id) =>
         update((s) => {

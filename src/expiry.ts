@@ -2,7 +2,7 @@
 
 const MONTHS = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
 
-const KEYWORD = String.raw`(?:exp(?:iry|\.)?|use\s+before)(?:[\s.:]*(?:date|dt))?[\s.:\-]*`;
+const KEYWORD = String.raw`(?:exp(?:iry|ires|\.)?|use\s+before)(?:[\s.:]*(?:date|dt))?[\s.:\-]*`;
 const NUMERIC = new RegExp(String.raw`\b${KEYWORD}(\d{1,2})\s*[/.\-]\s*(\d{4}|\d{2})(?!\d)`, 'gi');
 const NAMED = new RegExp(String.raw`\b${KEYWORD}(${MONTHS.join('|')})[a-z]*\.?[\s/.\-]*(\d{4}|\d{2})(?!\d)`, 'gi');
 

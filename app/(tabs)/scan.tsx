@@ -23,7 +23,7 @@ const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', '
 
 type Result =
   | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean; expiry?: string } // green
-  | { kind: 'check'; occ: Occurrence; method: LogMethod } // amber: name matches, strength unreadable
+  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string } // amber: name matches, strength unreadable
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
   | { kind: 'nomatch'; reason: string; detail?: string; code?: string; say: PhraseKey }; // red
 
@@ -51,7 +51,15 @@ export default function Scan() {
   // What the last strip reading saw (for "Teach this strip" and optional training photos).
   const lastRead = useRef<{ lines: string[]; photos: string[] }>({ lines: [], photos: [] });
 
-  useEffect(() => setResult(null), [memberId]);
+  const forgetRead = () => {
+    lastRead.current = { lines: [], photos: [] };
+  };
+  /** Closes a result and forgets its photo text, so nothing from it reaches the next scan. */
+  const dismiss = () => {
+    forgetRead();
+    setResult(null);
+  };
+  useEffect(dismiss, [memberId]);
 
   const feedback = (ok: boolean) =>
     Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -86,7 +94,10 @@ export default function Scan() {
           (r.expiry && expiryStatus(r.expiry) === 'expired' ? ` ${phrase(lang, 'expired')}` : '')
         );
       case 'check':
-        return phrase(lang, 'checkStrength', { strength: spokenStrength(r.occ.med.strength) });
+        return (
+          phrase(lang, 'checkStrength', { strength: spokenStrength(r.occ.med.strength) }) +
+          (r.expiry && expiryStatus(r.expiry) === 'expired' ? ` ${phrase(lang, 'expired')}` : '')
+        );
       case 'strength':
         return phrase(lang, 'otherStrength');
       case 'nomatch':
@@ -101,8 +112,8 @@ export default function Scan() {
   }, [result]);
 
   const show = (r: Result) => {
-    // The strip's printed expiry, when the photo text has one.
-    if (r.kind === 'match' && r.method !== 'barcode' && r.method !== 'manual') {
+    // The strip's printed expiry, when this read's photo text has one (lastRead is cleared between reads).
+    if ((r.kind === 'match' || r.kind === 'check') && lastRead.current.lines.length) {
       const ym = parseExpiry(lastRead.current.lines.join('\n'));
       if (ym) r = { ...r, expiry: ym };
     }
@@ -112,6 +123,7 @@ export default function Scan() {
 
   const onBarcode = ({ data }: BarcodeScanningResult) => {
     if (result || busy || !due.length) return;
+    forgetRead(); // a barcode result has no photo text
     const t0 = Date.now();
     if (data === lastCode.current.code && t0 - lastCode.current.at < 3000) return;
     lastCode.current = { code: data, at: t0 };
@@ -195,13 +207,12 @@ export default function Scan() {
     }
   };
 
-  const confirm = (occs: Occurrence[], method: LogMethod) => {
+  const confirm = (occs: Occurrence[], method: LogMethod, expiry?: string) => {
     record(occs, 'taken', method);
     // A strip read by camera and confirmed as one medicine: remember it, so it's recognised more easily next time.
     if (occs.length === 1 && lastRead.current.lines.length) {
       teach(occs[0].med.id, lastRead.current.lines);
-      const ym = parseExpiry(lastRead.current.lines.join('\n'));
-      if (ym) setExpiry(occs[0].med.id, ym);
+      if (expiry) setExpiry(occs[0].med.id, expiry);
       keepPhotos(occs[0], 'dose-check');
     }
     lastRead.current = { lines: [], photos: [] };
@@ -378,8 +389,8 @@ export default function Scan() {
                 </View>
               )}
               <View style={[s.row, { gap: 10, marginTop: 14 }]}>
-                <Button title="Mark taken" kind="secondary" onPress={() => confirm(result.occs, result.method)} style={{ flex: 1 }} />
-                <Button title="Cancel" kind="ghost" onPress={() => setResult(null)} />
+                <Button title="Mark taken" kind="secondary" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ flex: 1 }} />
+                <Button title="Cancel" kind="ghost" onPress={dismiss} />
               </View>
             </View>
           )}
@@ -387,6 +398,12 @@ export default function Scan() {
           {result?.kind === 'check' && (
             <View style={{ backgroundColor: t.warn, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>⚠ Check the strength</Text>
+              {result.expiry && expiryStatus(result.expiry) === 'expired' && (
+                <View style={{ backgroundColor: t.bad, borderRadius: 12, padding: 12, marginTop: 10 }}>
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
+                  <Text style={{ color: '#fff', marginTop: 2 }}>Don't take it — use another strip or ask your pharmacist.</Text>
+                </View>
+              )}
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
                 The name matches {result.occ.med.name}, but the strength couldn't be read (torn or shiny).
               </Text>
@@ -396,10 +413,10 @@ export default function Scan() {
                 big
                 title={`It says ${spokenStrength(result.occ.med.strength)} — mark taken`}
                 kind="secondary"
-                onPress={() => confirm([result.occ], 'manual')}
+                onPress={() => confirm([result.occ], 'manual', result.expiry)}
                 style={{ marginTop: 14 }}
               />
-              <Button title="Scan again" kind="ghost" onPress={() => setResult(null)} />
+              <Button title="Scan again" kind="ghost" onPress={dismiss} />
             </View>
           )}
 
@@ -411,7 +428,7 @@ export default function Scan() {
                 {spokenStrength(result.occ.med.strength) && !/[a-z]/i.test(result.occ.med.strength) ? ' mg' : ''}, {qtyLabel(result.occ.dose.qty, result.occ.med.unit)}.
               </Text>
               <Text style={{ color: '#fff', marginTop: 6 }}>Ask the doctor or pharmacist before using a different strength. If the reading is wrong, scan again.</Text>
-              <Button title="Scan next" kind="secondary" big onPress={() => setResult(null)} style={{ marginTop: 14 }} />
+              <Button title="Scan next" kind="secondary" big onPress={dismiss} style={{ marginTop: 14 }} />
             </View>
           )}
 
@@ -420,7 +437,7 @@ export default function Scan() {
               <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✗ No match</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.detail ? <Text style={{ color: '#fffc', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
-              <Button title="Scan next" kind="secondary" big onPress={() => setResult(null)} style={{ marginTop: 14 }} />
+              <Button title="Scan next" kind="secondary" big onPress={dismiss} style={{ marginTop: 14 }} />
               {!result.code && <TeachChips />}
               {result.code && (
                 <>

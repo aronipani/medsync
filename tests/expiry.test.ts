@@ -12,6 +12,7 @@ test('reads the expiry formats printed on real strips', () => {
   assert.equal(parseExpiry('Exp: MAR 2028', NOW), '2028-03');
   assert.equal(parseExpiry('USE BEFORE 3.2029', NOW), '2029-03');
   assert.equal(parseExpiry('exp 11-27', NOW), '2027-11');
+  assert.equal(parseExpiry('EXPIRES 06/2028', NOW), '2028-06');
 });
 
 test('ignores manufacturing dates, misreads and text without an expiry', () => {

@@ -61,7 +61,7 @@ export default function Meds() {
                 <Text style={{ color: t.bad, fontWeight: '800' }}>⚠ Same medicine twice?</Text>
                 <Text style={{ color: t.text, marginTop: 4, lineHeight: 20 }}>{overlapMessage(o)}</Text>
                 <View style={[s.row, { gap: 8, marginTop: 8 }]}>
-                  {o.kind === 'same' && o.sameStrength && mergeable(o.a.id, o.b.id) ? <Button title="Merge into one" kind="secondary" style={{ flex: 1 }} onPress={merge} /> : null}
+                  {mergeable(o.a.id, o.b.id) ? <Button title="Merge into one" kind="secondary" style={{ flex: 1 }} onPress={merge} /> : null}
                   <Button
                     title="Doctor confirmed both"
                     kind="ghost"

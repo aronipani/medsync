@@ -35,6 +35,7 @@ export function contentsOf(m: Pick<Medication, 'name' | 'aliases'>): string[] {
   return found;
 }
 
+const sameNameStrength = (a: Medication, b: Medication) => norm(a.name) === norm(b.name) && strengthKey(a.strength) === strengthKey(b.strength);
 const confirmed = (a: Medication, b: Medication) => !!a.overlapOk?.includes(b.id) || !!b.overlapOk?.includes(a.id);
 
 /** How two medicines overlap, if they do (ignores who they belong to and whether they're active). */
@@ -46,7 +47,7 @@ export function compare(a: Medication, b: Medication): Overlap | undefined {
   const shared = ca.filter((g) => nb.has(norm(g)));
   if (!shared.length) return undefined;
   const kind: OverlapKind = ca.length === cb.length && shared.length === ca.length ? 'same' : 'partial';
-  return { a, b, shared, kind, sameStrength: !!a.strength && strengthKey(a.strength) === strengthKey(b.strength) };
+  return { a, b, shared, kind, sameStrength: strengthKey(a.strength) === strengthKey(b.strength) };
 }
 
 /** Every unconfirmed overlap among each person's active medicines. */
@@ -105,7 +106,9 @@ export function prescriptionOverlaps(
   items.forEach((it, i) => {
     const msgs: string[] = [];
     for (const m of kept) {
-      const o = !confirmed(it.med, m) && compare(it.med, m);
+      const target = it.targetId ? current.find((c) => c.id === it.targetId) : undefined;
+      const ok = confirmed(it.med, m) || (!!target && confirmed(target, m) && sameNameStrength(target, it.med));
+      const o = !ok && compare(it.med, m);
       if (o) msgs.push(overlapMessage(o));
     }
     items.forEach((other, j) => {

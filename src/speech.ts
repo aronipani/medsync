@@ -65,13 +65,12 @@ export async function say(lang: LangCode, text: string, onStatus?: (s: SpeakStat
     if (!language) {
       const latin = /^[\p{Script=Latin}\p{N}\p{P}\p{Zs}]*$/u.test(text);
       language = (await voiceFor('en')) ?? 'en-IN';
-      if (!latin) {
-        if (!english) {
-          onStatus?.('noVoice');
-          return;
-        }
-        text = english;
+      if (english && lang !== 'en') {
+        text = english; // the same message in English (an English voice reading Spanish or Bengali helps no one)
         fellBack = true;
+      } else if (!latin) {
+        onStatus?.('noVoice');
+        return;
       }
     }
     onStatus?.(fellBack ? 'fallback' : 'speaking');

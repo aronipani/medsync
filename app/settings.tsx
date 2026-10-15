@@ -148,7 +148,11 @@ function BackupCard() {
             text: 'Replace',
             style: 'destructive',
             onPress: async () => {
-              await saveSafetyCopy(state);
+              try {
+                await saveSafetyCopy(state);
+              } catch (e) {
+                return Alert.alert('Cannot restore', `Couldn't keep a safety copy of the current data first, so nothing was changed. (${String(e)})`);
+              }
               replaceAll(r.state);
               setSafety(new Date().toISOString());
               Alert.alert('Restored', 'Your medicines and reminders are back.');
@@ -162,9 +166,12 @@ function BackupCard() {
   };
 
   const undo = async () => {
-    const c = await loadSafetyCopy();
+    const c = await loadSafetyCopy().catch(() => undefined);
     if (!c) return setSafety(undefined);
-    Alert.alert('Undo the last restore?', `Puts back what was on this phone before the restore on ${dateText(c.at)}.`, [
+    Alert.alert(
+      'Undo the last restore?',
+      `Puts back what was on this phone before the restore on ${dateText(c.at)}. Anything recorded since then (doses, changes) will be lost.`,
+      [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Undo restore',
@@ -175,7 +182,8 @@ function BackupCard() {
           setSafety(undefined);
         },
       },
-    ]);
+      ],
+    );
   };
 
   return (

@@ -56,3 +56,17 @@ test('prescription check ignores medicines being replaced or stopped', () => {
   assert.match(r.get('i1')![0], /doubles the dose/);
   assert.equal(prescriptionOverlaps([items[0]], [clopilet], [clopilet.id]).size, 0, 'Clopilet is being stopped');
 });
+
+test('exact repeats with no strength written still count as the same dose', () => {
+  const [o] = findOverlaps([med('Clopilet', ''), med('Clopilet', '')]);
+  assert.equal(o.sameStrength, true);
+  assert.match(overlapMessage(o), /doubles the dose/);
+});
+
+test('prescription review respects a pair the doctor confirmed on the medicine being updated', () => {
+  const [clopilet, clopitab] = confirmPair(med('Clopilet', '75'), med('Clopitab', '75'));
+  const update = [{ id: 'i1', med: med('Clopilet', '75'), targetId: clopilet.id }];
+  assert.equal(prescriptionOverlaps(update, [clopilet, clopitab]).size, 0);
+  const changed = [{ id: 'i1', med: med('Clopilet', '150'), targetId: clopilet.id }];
+  assert.equal(prescriptionOverlaps(changed, [clopilet, clopitab]).size, 1, 'a new strength needs a fresh check');
+});
