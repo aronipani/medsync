@@ -5,6 +5,7 @@ import { MemberPicker } from '../../src/components.tsx';
 import { doseTime } from '../../src/schedule.ts';
 import { genericLabel, lookupBrand } from '../../src/drugdb.ts';
 import { reuseDoseIds, sameMedicine } from '../../src/consolidate.ts';
+import { overlapMessage, overlapsFor } from '../../src/overlap.ts';
 import { uid, useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import type { Dose, Meal, MealRelation, Medication } from '../../src/types.ts';
@@ -87,10 +88,12 @@ export default function EditMed() {
       return router.back();
     }
     const dup = !existing && state.meds.find((x) => x.memberId === final.memberId && x.id !== final.id && sameMedicine(x, final));
+    const others = state.meds.filter((x) => x.id !== final.id);
     if (dup) {
+      const same = overlapsFor(final, [dup])[0];
       return Alert.alert(
         `${dup.name} ${dup.strength} is already in the schedule`,
-        'Update that entry with these details instead of adding a second one? (The old version is saved in History.)',
+        `${same ? overlapMessage(same) + '\n\n' : ''}Update that entry with these details instead of adding a second one? (The old version is saved in History.)`,
         [
           { text: 'Cancel', style: 'cancel' },
           { text: 'Add as separate', onPress: () => (saveMed(final), router.back()) },
@@ -114,6 +117,15 @@ export default function EditMed() {
           },
         ],
       );
+    }
+    // Same ingredient as another of this person's medicines (that wasn't already flagged before this edit)?
+    const before = existing ? new Set(overlapsFor(existing, others).map((o) => o.b.id)) : new Set<string>();
+    const fresh = overlapsFor(final, others).filter((o) => !before.has(o.b.id));
+    if (fresh.length) {
+      return Alert.alert('Same medicine twice?', fresh.map(overlapMessage).join('\n\n'), [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Save anyway', style: 'destructive', onPress: () => (saveMed(final), router.back()) },
+      ]);
     }
     saveMed(final);
     router.back();

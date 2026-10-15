@@ -2,6 +2,7 @@ import { router, Stack } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Image, Modal, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { planPrescription } from '../src/consolidate.ts';
+import { prescriptionOverlaps } from '../src/overlap.ts';
 import { describeMedTimes } from '../src/describe.ts';
 import { describeTiming, medLabel, qtyLabel } from '../src/schedule.ts';
 import { useStore } from '../src/store.tsx';
@@ -26,6 +27,13 @@ export default function PrescriptionReview() {
       describe,
     );
   }, [p, state.meds, state.members, state.settings]);
+
+  // Items that would put the same ingredient twice on the schedule.
+  const sameTwice = useMemo(() => {
+    if (!p || !plan) return new Map<string, string[]>();
+    const items = p.items.filter((i) => i.include).map((i) => ({ id: i.id, med: { ...i.med, memberId: p.memberId }, targetId: plan.items.find((x) => x.itemId === i.id)?.targetId }));
+    return prescriptionOverlaps(items, state.meds.filter((m) => m.memberId === p.memberId), p.stopIds);
+  }, [p, plan, state.meds]);
 
   if (!p) {
     return (
@@ -133,6 +141,12 @@ export default function PrescriptionReview() {
               </Text>
             ) : null}
 
+            {i.include &&
+              (sameTwice.get(i.id) ?? []).map((w) => (
+                <Text key={w} style={{ color: t.bad, marginTop: 6, fontWeight: '600' }}>
+                  ⚠ {w}
+                </Text>
+              ))}
             {i.warnings.map((w) => (
               <Text key={w} style={{ color: t.warn, marginTop: 6 }}>
                 ⚠ {w}

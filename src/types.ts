@@ -29,6 +29,7 @@ export interface Medication {
   active: boolean;
   createdAt: string;
   learned?: string[]; // fingerprints of strips a person confirmed ("Teach this strip")
+  overlapOk?: string[]; // ids of medicines a doctor confirmed this one is meant to be taken with (same ingredient)
 }
 
 export interface MealTimes {

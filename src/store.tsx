@@ -5,6 +5,7 @@ import { computeMissed, medLabel } from './schedule.ts';
 import { applyPrescription, duplicateGroups, mergeGroup, planPrescription, remapLogs, type ScheduleChange } from './consolidate.ts';
 import { describeMedTimes } from './describe.ts';
 import { addLearned, fingerprint } from './learn.ts';
+import { confirmPair } from './overlap.ts';
 import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, ScheduleVersion, Settings } from './types.ts';
 
 const KEY = 'medsync:v1';
@@ -84,6 +85,8 @@ interface Store {
   /** Remembers what was read from a strip a person confirmed is this medicine. */
   teach(medId: string, lines: string[]): void;
   forgetLearned(medId: string): void;
+  /** Records that a doctor confirmed two medicines with the same ingredient are both meant to be taken. */
+  confirmOverlap(aId: string, bId: string): void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -171,6 +174,8 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
             if ((old.endDate ?? '') !== (m.endDate ?? '')) d.push(`Until: ${old.endDate ?? 'ongoing'} → ${m.endDate ?? 'ongoing'}`);
             if (d.length) changes.push({ kind: 'edited', medName: label(m), detail: d.join('; ') });
           }
+          // A new name or strength may be a different medicine: earlier "doctor confirmed" pairs no longer apply.
+          if (old && (old.name !== m.name || old.strength !== m.strength) && m.overlapOk?.length) m = { ...m, overlapOk: undefined };
           const next = withVersion(s, m.memberId, old ? 'Edited by hand' : 'Added by hand', changes);
           return { ...next, meds: old ? next.meds.map((x) => (x.id === m.id ? m : x)) : [...next.meds, m] };
         }),
@@ -179,7 +184,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const m = s.meds.find((x) => x.id === id);
           if (!m) return s;
           const next = withVersion(s, m.memberId, 'Deleted by hand', [{ kind: 'removed', medName: label(m) }]);
-          return { ...next, meds: next.meds.filter((x) => x.id !== id) };
+          const meds = next.meds.filter((x) => x.id !== id).map((x) => (x.overlapOk?.includes(id) ? { ...x, overlapOk: x.overlapOk.filter((o) => o !== id) } : x));
+          return { ...next, meds };
+        }),
+      confirmOverlap: (aId, bId) =>
+        update((s) => {
+          const a = s.meds.find((x) => x.id === aId);
+          const b = s.meds.find((x) => x.id === bId);
+          if (!a || !b) return s;
+          const [na, nb] = confirmPair(a, b);
+          const next = withVersion(s, a.memberId, 'Doctor confirmed both', [{ kind: 'edited', medName: label(a), detail: `Confirmed to be taken with ${label(b)}` }]);
+          return { ...next, meds: next.meds.map((x) => (x.id === aId ? na : x.id === bId ? nb : x)) };
         }),
       record: (occs, status, method) =>
         update((s) => {
