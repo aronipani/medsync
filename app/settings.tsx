@@ -1,6 +1,6 @@
 import * as Notifications from 'expo-notifications';
-import { router } from 'expo-router';
-import React, { useEffect, useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { ageText, backupOverdue } from '../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
@@ -24,6 +24,8 @@ export default function SettingsScreen() {
   const t = useTheme();
   const { state, saveSettings } = useStore();
   const [summary, setSummary] = useState(() => trainingSummary());
+  // Scans save photos in the background: recount whenever Settings is opened, not only when it first loads.
+  useFocusEffect(useCallback(() => setSummary(trainingSummary()), []));
 
   const test = async () => {
     const ok = await setupNotifications();

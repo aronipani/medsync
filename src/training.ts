@@ -42,9 +42,34 @@ function readManifest(): TrainingEntry[] {
 }
 
 function writeManifest(entries: TrainingEntry[]) {
+  const root = dir();
+  if (!root.exists) root.create({ intermediates: true });
   const f = manifestFile();
   if (!f.exists) f.create();
   f.write(JSON.stringify(entries, null, 1));
+}
+
+/**
+ * Adds entries to the manifest. Reads and writes in one synchronous step, after all photo work is done: reading
+ * at the start of a save and writing at the end let two saves running together (a failed scan, then a quick
+ * confirmed one) overwrite each other's entries.
+ */
+function appendEntries(added: TrainingEntry[]) {
+  if (!added.length) return;
+  writeManifest([...readManifest(), ...added]);
+}
+
+/** Changes entries in the manifest, again in one synchronous step. */
+function updateEntries(change: (e: TrainingEntry) => TrainingEntry) {
+  writeManifest(readManifest().map(change));
+}
+
+// Saves run one after another, so photo files and their manifest entries never interleave.
+let queue: Promise<unknown> = Promise.resolve();
+function serial<T>(job: () => Promise<T>): Promise<T> {
+  const run = queue.then(job, job);
+  queue = run.catch(() => undefined);
+  return run;
 }
 
 /** Saves photos of a confirmed strip (resized to 1280 px wide JPEG). Returns how many were saved. */
@@ -55,15 +80,18 @@ export async function saveTrainingPhotos(
   ocrText: string,
 ): Promise<number> {
   if (!uris.length) return 0;
+  return serial(() => saveLabelled(uris, label, how, ocrText));
+}
+
+async function saveLabelled(uris: string[], label: { name: string; strength: string; contents?: string }, how: TrainingEntry['how'], ocrText: string): Promise<number> {
+  const added: TrainingEntry[] = [];
   try {
     const root = dir();
     if (!root.exists) root.create({ intermediates: true });
     const medicine = `${label.name} ${label.strength}`.trim();
     const folder = new Directory(root, safe(medicine));
     if (!folder.exists) folder.create({ intermediates: true });
-    const entries = readManifest();
     const at = new Date().toISOString();
-    let saved = 0;
     for (let i = 0; i < uris.length; i++) {
       const ref = await ImageManipulator.manipulate(uris[i]).resize({ width: 1280 }).renderAsync();
       const img = await ref.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
@@ -75,7 +103,7 @@ export async function saveTrainingPhotos(
         ? label.contents.split('+').map((x) => x.replace(/\d.*$/, '').trim())
         : lookupBrand(label.name)?.ingredients;
       const regions = info ? labelRegions(info.boxes, { name: label.name, strength: label.strength, ingredients }) : [];
-      entries.push({
+      added.push({
         file: `${safe(medicine)}/${fileName}`,
         medicine,
         name: label.name,
@@ -89,13 +117,12 @@ export async function saveTrainingPhotos(
         regions: regions.map((r) => ({ cls: r.cls, text: r.text })),
         reader: lastReader(),
       });
-      saved++;
     }
-    writeManifest(entries);
-    return saved;
   } catch {
-    return 0;
+    // keep whatever was saved before the failure
   }
+  appendEntries(added);
+  return added.length;
 }
 
 const UNLABELLED = '_unlabelled';
@@ -106,32 +133,65 @@ const UNLABELLED = '_unlabelled';
  */
 export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add', reason: string, ocrText: string): Promise<number> {
   if (!uris.length) return 0;
+  return serial(async () => {
+    const added: TrainingEntry[] = [];
+    try {
+      const folder = new Directory(dir(), UNLABELLED);
+      if (!folder.exists) folder.create({ intermediates: true });
+      const at = new Date().toISOString();
+      for (let i = 0; i < uris.length; i++) {
+        try {
+          const ref = await ImageManipulator.manipulate(uris[i]).resize({ width: 1280 }).renderAsync();
+          const img = await ref.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
+          const fileName = `${at.replace(/[:.]/g, '-')}-${i + 1}.jpg`;
+          await new File(img.uri).copy(new File(folder, fileName));
+          added.push({ file: `${UNLABELLED}/${fileName}`, medicine: '', name: '', strength: '', how, unlabelled: true, reason, ocrText: ocrText.slice(0, 2000), at, reader: lastReader() });
+        } catch {
+          // The camera's copy may already be gone; keep the others.
+        }
+      }
+    } catch {
+      // keep whatever was saved before the failure
+    }
+    appendEntries(added);
+    return added.length;
+  });
+}
+
+/**
+ * Photos saved on disk but missing from the manifest (lost by the overwrite fixed above) are added back:
+ * those in _unlabelled/ as failed scans, those in a medicine folder under that folder's name, without auto-labels.
+ */
+export function recoverOrphans(): number {
   try {
-    const folder = new Directory(dir(), UNLABELLED);
-    if (!folder.exists) folder.create({ intermediates: true });
-    const entries = readManifest();
-    const at = new Date().toISOString();
-    let saved = 0;
-    for (let i = 0; i < uris.length; i++) {
-      try {
-        const ref = await ImageManipulator.manipulate(uris[i]).resize({ width: 1280 }).renderAsync();
-        const img = await ref.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
-        const fileName = `${at.replace(/[:.]/g, '-')}-${i + 1}.jpg`;
-        await new File(img.uri).copy(new File(folder, fileName));
-        entries.push({ file: `${UNLABELLED}/${fileName}`, medicine: '', name: '', strength: '', how, unlabelled: true, reason, ocrText: ocrText.slice(0, 2000), at, reader: lastReader() });
-        saved++;
-      } catch {
-        // The camera's copy may already be gone; keep the others.
+    const root = dir();
+    if (!root.exists) return 0;
+    const known = new Set(readManifest().map((e) => e.file));
+    const found: TrainingEntry[] = [];
+    for (const item of root.list()) {
+      if (!(item instanceof Directory)) continue;
+      const folder = item.name;
+      for (const f of item.list()) {
+        if (!(f instanceof File) || !/\.jpe?g$/i.test(f.name)) continue;
+        const file = `${folder}/${f.name}`;
+        if (known.has(file)) continue;
+        const at = (f.modificationTime ? new Date(f.modificationTime) : new Date()).toISOString();
+        found.push(
+          folder === UNLABELLED
+            ? { file, medicine: '', name: '', strength: '', how: 'failed-scan', unlabelled: true, reason: 'Recovered: saved from a failed scan, details lost.', ocrText: '', at }
+            : { file, medicine: folder, name: folder, strength: '', how: 'dose-check', ocrText: '', at },
+        );
       }
     }
-    writeManifest(entries);
-    return saved;
+    appendEntries(found);
+    return found.length;
   } catch {
     return 0;
   }
 }
 
 export function trainingSummary(): { photos: number; medicines: number; unlabelled: number; unsent: number } {
+  recoverOrphans();
   const entries = readManifest();
   const labelled = entries.filter((e) => !e.unlabelled);
   return {
@@ -193,6 +253,7 @@ const today = () => new Date().toISOString().slice(0, 10);
 
 /** Shares a .zip of all saved photos with manifest.json (labels + what the phone read). */
 export async function exportTraining(): Promise<boolean> {
+  recoverOrphans();
   const entries = readManifest();
   if (!entries.length) return false;
   const { file } = buildZip(entries, `medsync-training-${today()}.zip`);
@@ -216,8 +277,8 @@ export type SendResult =
  */
 export async function emailTraining(buildLabel: string): Promise<SendResult> {
   if (!(await MailComposer.isAvailableAsync())) return { kind: 'no-mail' };
-  const all = readManifest();
-  const unsent = all.filter((e) => !e.sentAt && new File(dir(), ...e.file.split('/')).exists);
+  recoverOrphans();
+  const unsent = readManifest().filter((e) => !e.sentAt && new File(dir(), ...e.file.split('/')).exists);
   if (!unsent.length) return { kind: 'nothing' };
   const batch: TrainingEntry[] = [];
   let bytes = 0;
@@ -245,7 +306,7 @@ export async function emailTraining(buildLabel: string): Promise<SendResult> {
   if (res.status === MailComposer.MailComposerStatus.CANCELLED) return { kind: 'cancelled' };
   const sentAt = new Date().toISOString();
   const ids = new Set(batch.map((e) => e.file));
-  writeManifest(all.map((e) => (ids.has(e.file) ? { ...e, sentAt } : e)));
+  updateEntries((e) => (ids.has(e.file) ? { ...e, sentAt } : e)); // re-read: photos saved while the email was open stay
   return { kind: res.status === MailComposer.MailComposerStatus.SENT ? 'sent' : 'opened', photos, left };
 }
 
