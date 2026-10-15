@@ -11,7 +11,7 @@ import { useStore } from '../src/store.tsx';
 import type { Settings } from '../src/types.ts';
 import { Button, Card, Label, NumberField, s, useTheme } from '../src/ui.tsx';
 
-const ROWS: { key: Exclude<keyof Settings, 'collectTraining' | 'lastBackupAt'>; label: string; help: string; step: number }[] = [
+const ROWS: { key: Exclude<keyof Settings, 'collectTraining' | 'lastBackupAt' | 'acceptedNotice'>; label: string; help: string; step: number }[] = [
   { key: 'mealOffsetMin', label: 'Before / after meal (min)', help: '"Before breakfast" = breakfast time minus this.', step: 5 },
   { key: 'dueWindowMin', label: 'Can scan early by (min)', help: 'A dose becomes scannable this long before its time.', step: 15 },
   { key: 'missedAfterMin', label: 'Mark missed after (min)', help: 'Not taken this long after its time → logged as missed.', step: 15 },
@@ -99,6 +99,9 @@ export default function SettingsScreen() {
         </View>
         <Button title="Refresh count" kind="ghost" onPress={() => setSummary(trainingSummary())} />
       </Card>
+
+      <Label>About</Label>
+      <Button title="About & safety · privacy" kind="secondary" onPress={() => router.push('/about')} />
 
       <Label>Reminders</Label>
       <Button title="Send a test reminder" kind="secondary" onPress={test} />

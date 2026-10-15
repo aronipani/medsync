@@ -55,6 +55,7 @@ export interface Settings {
   snoozeMin: number;
   collectTraining?: boolean; // save confirmed scan photos for training an image model (off by default)
   lastBackupAt?: string; // ISO time of the last backup the person saved
+  acceptedNotice?: number; // version of the safety & privacy notice the person accepted
 }
 
 export type LogStatus = 'taken' | 'missed' | 'skipped';

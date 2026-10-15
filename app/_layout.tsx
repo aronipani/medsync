@@ -2,7 +2,10 @@ import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useMemo, useRef } from 'react';
+import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { FirstRunNotice } from '../src/components/FirstRunNotice.tsx';
+import { needsNotice } from '../src/legal.ts';
 import { ACTION_SNOOZE, rescheduleAll, setupNotifications, snooze } from '../src/notifications.ts';
 import { StoreProvider, useStore } from '../src/store.tsx';
 import { phrase } from '../src/phrases.ts';
@@ -72,6 +75,9 @@ function Themed() {
 
 function Shell() {
   const t = useTheme();
+  const { state, ready } = useStore();
+  if (!ready) return <View style={{ flex: 1, backgroundColor: t.bg }} />;
+  if (needsNotice(state.settings)) return <FirstRunNotice />;
   return (
     <>
       <StatusBar style={t.isDark ? 'light' : 'dark'} />
@@ -91,6 +97,7 @@ function Shell() {
         <Stack.Screen name="scan-add" options={{ title: 'Scan to add' }} />
         <Stack.Screen name="rx-review" options={{ title: 'Check prescription' }} />
         <Stack.Screen name="history" options={{ title: 'Schedule history' }} />
+        <Stack.Screen name="about" options={{ title: 'About & safety' }} />
       </Stack>
     </>
   );

@@ -345,6 +345,7 @@ export default function Scan() {
                   {o.med.notes ? <Text style={{ color: '#fffd', marginTop: 4 }}>{o.med.notes}</Text> : null}
                 </View>
               ))}
+              <Text style={{ color: '#fffc', marginTop: 10, fontSize: 13 }}>Check the name on the strip too.</Text>
               {result.learned && (
                 <View style={{ backgroundColor: '#0003', borderRadius: 10, padding: 10, marginTop: 12 }}>
                   <Text style={{ color: '#fff', fontWeight: '700' }}>Recognised from a strip you taught the app.</Text>
