@@ -23,7 +23,7 @@ const state = (): AppState => ({
   ],
   logs: [],
   stock: [],
-  settings: { mealOffsetMin: 30, dueWindowMin: 60, missedAfterMin: 120, followUpMin: 30, snoozeMin: 10 },
+  settings: { mealOffsetMin: 30, dueWindowMin: 60, missedAfterMin: 120, followUpMin: 30, snoozeMin: 10, testReminderMin: 60 },
 });
 
 test('meal-linked dose times follow each member', () => {

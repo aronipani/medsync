@@ -33,8 +33,16 @@ detector. Not in backups — it describes this phone's camera and reader, not th
 
 ## Tests
 `tests/testScan.test.ts`: any household medicine is recognised (not only due ones); name-only, other strength and
-unknown; inactive medicines ignored; records per outcome; readiness states including stale after 30 days; upcoming
+unknown; inactive medicines ignored; reminders (timing, skipped passes, reasons, expiry by dose time, off at 0, names with several people); records per outcome; readiness states including stale after 30 days; upcoming
 list in the next 24 hours soonest first, including tomorrow morning when it's late evening.
 
-## Later
-* A "Test before the next dose" reminder an hour before a dose whose medicine is untested or failed.
+## "Test-scan first" reminder
+For each dose time in the next 48 hours, if any medicine in it hasn't passed a test scan that will still count at
+dose time (untested, failed, strength not read, or over a month old by then), one notification
+**"🧪 Test-scan before the 8:00 AM dose"** comes `testReminderMin` minutes before (default 60; Settings →
+"Test-scan reminder (min before)", 0 = off). It lists those medicines and why, e.g. "Ma: Clopilet 75 — not tested yet".
+Tapping it opens Test scan. Reminders whose time has passed are skipped. They're rebuilt with the other reminders,
+and again after every test scan, so a pass removes its reminder and a failure adds one. Capped so dose reminders and
+"not taken yet" follow-ups always fit in iOS's 64 pending notifications.
+
+Code: `testReminders` in `src/testScan.ts` (pure, tested); scheduled in `src/notifications.ts`.

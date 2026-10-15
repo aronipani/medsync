@@ -20,6 +20,12 @@ const ROWS: { key: Exclude<keyof Settings, 'collectTraining' | 'regionDetector' 
   { key: 'missedAfterMin', label: 'Mark missed after (min)', help: 'Not taken this long after its time → logged as missed.', step: 15 },
   { key: 'followUpMin', label: '"Not taken yet" reminder (min)', help: 'Second reminder if the dose is still open. 0 turns it off.', step: 5 },
   { key: 'snoozeMin', label: 'Snooze (min)', help: 'Used by the Snooze button on a reminder.', step: 5 },
+  {
+    key: 'testReminderMin',
+    label: 'Test-scan reminder (min before)',
+    help: 'If a medicine in the next dose hasn\'t passed a test scan, a reminder to test it comes this long before. 0 turns it off.',
+    step: 15,
+  },
 ];
 
 export default function SettingsScreen() {

@@ -20,6 +20,7 @@ export const DEFAULT_SETTINGS: Settings = {
   missedAfterMin: 120,
   followUpMin: 30,
   snoozeMin: 10,
+  testReminderMin: 60,
 };
 
 export function newMember(name: string, index: number): Member {

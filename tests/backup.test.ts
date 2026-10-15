@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { ageText, backupOverdue, makeBackup, parseBackup } from '../src/backup.ts';
 import type { AppState, Medication, Settings } from '../src/types.ts';
 
-const DEFAULTS: Settings = { mealOffsetMin: 30, dueWindowMin: 60, missedAfterMin: 120, followUpMin: 30, snoozeMin: 10 };
+const DEFAULTS: Settings = { mealOffsetMin: 30, dueWindowMin: 60, missedAfterMin: 120, followUpMin: 30, snoozeMin: 10, testReminderMin: 60 };
 
 const med = (id: string, memberId: string, name: string): Medication => ({
   id, memberId, name, strength: '10', aliases: [], barcodes: [], unit: 'tablet', stock: 10, lowStockAt: 5, active: true,

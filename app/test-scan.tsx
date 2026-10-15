@@ -8,7 +8,7 @@ import { Stack, useFocusEffect, useIsFocused } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { expiryStatus, formatExpiry, parseExpiry } from '../src/expiry.ts';
-import { setupNotifications } from '../src/notifications.ts';
+import { rescheduleAll, setupNotifications } from '../src/notifications.ts';
 import { appleVisionAvailable, readBurst, readLinesAnyOrientation, scanDetectorLabel, scanReaderLabel, startScanStats } from '../src/ocr.ts';
 import { detectorState, loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { medLabel } from '../src/schedule.ts';
@@ -105,7 +105,10 @@ export default function TestScan() {
       };
       setRun(r);
       const rec = recordFor(outcome, { seconds: r.seconds, reader: r.reader, detector: r.detector });
-      if (rec) setRecords(await saveTestRecord(rec.medId, rec.record));
+      if (rec) {
+        setRecords(await saveTestRecord(rec.medId, rec.record));
+        rescheduleAll(state); // a passed test removes its "test-scan first" reminder; a failed one adds it
+      }
       if (outcome.kind === 'unknown' && state.settings.collectTraining) {
         saveUnlabelledPhotos(photos, 'test-scan', 'Test scan: no medicine recognised.', text).catch(() => {});
       }
@@ -136,6 +139,7 @@ export default function TestScan() {
     }
     if (!right) {
       setRecords(await saveTestRecord(med.id, { at: new Date().toISOString(), result: 'failed', seconds: run.seconds, reader: run.reader, detector: run.detector }));
+      rescheduleAll(state);
       if (state.settings.collectTraining) {
         saveUnlabelledPhotos(run.photos, 'test-scan', `Test scan read it as ${medLabel(med)}, which was wrong.`, run.text).catch(() => {});
       }

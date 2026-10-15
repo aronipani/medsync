@@ -1,6 +1,8 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
 import { occurrencesForDate, reminderSlots } from './schedule.ts';
+import { testReminders } from './testScan.ts';
+import { loadTestRecords } from './testScanStore.ts';
 import { addDays, atTime, dateKey, fmt12 } from './time.ts';
 import type { AppState } from './types.ts';
 
@@ -55,7 +57,9 @@ let running: Promise<void> = Promise.resolve();
 /**
  * Rebuilds every scheduled reminder from the current schedule:
  *  - one repeating reminder per dose time (grouped across medicines and family members)
+ *  - a one-off "test-scan first" reminder before doses whose medicines haven't passed a test scan (spec 11)
  *  - a one-off "still not taken" follow-up for today's and tomorrow's open slots
+ * Call again after a test scan is saved, so a passed test removes its reminder.
  */
 export function rescheduleAll(state: AppState): Promise<void> {
   running = running.then(() => doReschedule(state)).catch(() => {});
@@ -74,6 +78,22 @@ async function doReschedule(state: AppState) {
         ? { type: Notifications.SchedulableTriggerInputTypes.DAILY, hour, minute, channelId }
         : { type: Notifications.SchedulableTriggerInputTypes.WEEKLY, weekday: slot.weekday + 1, hour, minute, channelId };
     await Notifications.scheduleNotificationAsync({ content: content(title, slot.lines), trigger });
+    count++;
+  }
+
+  const now0 = new Date();
+  const lead = state.settings.testReminderMin ?? 60;
+  for (const r of testReminders(state, await loadTestRecords(), now0, lead, 48)) {
+    if (count >= 50) break; // leave room for "not taken yet" follow-ups (iOS keeps at most 64 pending)
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `🧪 Test-scan before the ${fmt12(r.time)} dose`,
+        body: r.lines.join('\n'),
+        sound: 'default',
+        data: { lines: r.lines, screen: 'test-scan' },
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.when, channelId },
+    });
     count++;
   }
 

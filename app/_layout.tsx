@@ -47,7 +47,8 @@ function ReminderSync() {
         snooze(res.notification.request, snoozeMin.current).catch(() => {});
         return;
       }
-      router.navigate('/scan');
+      // "Test-scan first" reminders open the Test scan screen; dose reminders open Scan.
+      router.navigate(res.notification.request.content.data?.screen === 'test-scan' ? '/test-scan' : '/scan');
     });
     // Reminder arrives while the app is open: say it in the language of whoever has a dose due.
     const received = Notifications.addNotificationReceivedListener(() => {

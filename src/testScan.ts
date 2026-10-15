@@ -102,3 +102,46 @@ export function readinessOf(last: TestRecord | undefined, now = new Date()): Rea
 export function readinessSummary(list: UpcomingMed[]): { ready: number; total: number } {
   return { ready: list.filter((u) => u.readiness === 'ready').length, total: list.length };
 }
+
+const READINESS_TEXT: Record<Exclude<Readiness, 'ready'>, string> = {
+  untested: 'not tested yet',
+  failed: 'last test failed',
+  check: 'strength not read last time',
+  stale: 'tested over a month ago',
+};
+
+export interface TestReminder {
+  when: Date; // when to remind
+  date: string;
+  time: string; // the dose time it's for
+  lines: string[]; // "Ma: Clopilet 75 — not tested yet"
+}
+
+/**
+ * "Test-scan first" reminders (spec 11): for each dose time in the next `hours`, if any medicine in it hasn't
+ * passed a test scan that will still count at dose time, one reminder `leadMin` before it listing those medicines.
+ * Doses whose reminder time has already passed are skipped. Soonest first.
+ */
+export function testReminders(state: AppState, records: TestRecords, now = new Date(), leadMin = 60, hours = 48): TestReminder[] {
+  if (!leadMin) return [];
+  const multi = state.members.length > 1;
+  const slots = new Map<string, TestReminder>();
+  for (let d = 0; d <= Math.ceil(hours / 24); d++) {
+    const date = dateKey(addDays(now, d));
+    for (const o of occurrencesForDate(state, date, now)) {
+      if (o.status !== 'upcoming' && o.status !== 'due') continue;
+      const dose = new Date(`${o.date}T${o.time}:00`);
+      const when = new Date(dose.getTime() - leadMin * 60000);
+      if (when <= now || dose.getTime() > now.getTime() + hours * 3600e3) continue;
+      const r = readinessOf(records[o.med.id], dose); // a test that will have expired by dose time doesn't count
+      if (r === 'ready') continue;
+      const key = `${o.date} ${o.time}`;
+      const slot = slots.get(key) ?? { when, date: o.date, time: o.time, lines: [] };
+      const who = multi ? `${state.members.find((m) => m.id === o.memberId)?.name ?? ''}: ` : '';
+      const line = `${who}${`${o.med.name} ${o.med.strength}`.trim()} — ${READINESS_TEXT[r]}`;
+      if (!slot.lines.includes(line)) slot.lines.push(line);
+      slots.set(key, slot);
+    }
+  }
+  return [...slots.values()].sort((a, b) => a.when.getTime() - b.when.getTime());
+}

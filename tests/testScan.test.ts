@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { classifyTest, readinessOf, readinessSummary, recordFor, upcomingReadiness, TEST_VALID_DAYS } from '../src/testScan.ts';
+import { classifyTest, readinessOf, readinessSummary, recordFor, testReminders, upcomingReadiness, TEST_VALID_DAYS } from '../src/testScan.ts';
 import type { AppState, Medication, Member } from '../src/types.ts';
 
 const ma: Member = { id: 'ma', name: 'Ma', color: '#000', mealTimes: { breakfast: '08:30', lunch: '13:30', dinner: '20:30' } };
@@ -17,7 +17,7 @@ const state = (): AppState => ({
   meds,
   logs: [],
   stock: [],
-  settings: { mealOffsetMin: 30, dueWindowMin: 60, missedAfterMin: 120, followUpMin: 30, snoozeMin: 10 },
+  settings: { mealOffsetMin: 30, dueWindowMin: 60, missedAfterMin: 120, followUpMin: 30, snoozeMin: 10, testReminderMin: 60 },
 });
 
 test('a test scan is checked against every medicine, not only the ones due', () => {
@@ -72,4 +72,47 @@ test('upcoming medicines in the next 24 hours, soonest first, once each, with th
   // Late evening: tomorrow morning's dose is within 24 hours.
   const late = upcomingReadiness(state(), {}, new Date(2026, 9, 15, 23, 0));
   assert.deepEqual(late.map((u) => [u.med.id, u.date]), [['clo', '2026-10-16'], ['cord', '2026-10-16'], ['tide', '2026-10-16']]);
+});
+
+test('test-scan reminders: an hour before each dose time whose medicines are not ready, skipping past ones', () => {
+  const now = new Date('2026-10-15T08:30:00');
+  const r = testReminders(state(), {}, now, 60, 48);
+  // Today's 09:00 reminder (08:00) has passed; the window ends at 08:30 on the 17th.
+  assert.deepEqual(
+    r.map((x) => `${x.date} ${x.time} @${x.when.getHours()}:${String(x.when.getMinutes()).padStart(2, '0')}`),
+    ['2026-10-15 14:00 @13:00', '2026-10-15 20:00 @19:00', '2026-10-16 09:00 @8:00', '2026-10-16 14:00 @13:00', '2026-10-16 20:00 @19:00'],
+  );
+  assert.deepEqual(r[0].lines, ['Cordarone X 200 — not tested yet']);
+});
+
+test('test-scan reminders: passed tests are skipped, failed / unread ones say why, 0 turns them off', () => {
+  const now = new Date('2026-10-15T08:30:00');
+  const recent = new Date('2026-10-14T20:00:00').toISOString();
+  const records = { clo: { at: recent, result: 'ok' as const }, tide: { at: recent, result: 'failed' as const }, cord: { at: recent, result: 'check' as const } };
+  const r = testReminders(state(), records, now, 60, 24);
+  assert.deepEqual(
+    r.map((x) => [x.time, x.lines]),
+    [
+      ['14:00', ['Cordarone X 200 — strength not read last time']],
+      ['20:00', ['Tide 10 — last test failed']],
+    ],
+  );
+  assert.deepEqual(testReminders(state(), {}, now, 0), []);
+});
+
+test('test-scan reminders: a pass that will be over a month old at dose time no longer counts', () => {
+  const now = new Date('2026-10-15T08:30:00');
+  const at = new Date(now.getTime() - 29.5 * 864e5).toISOString();
+  const all = { clo: { at, result: 'ok' as const }, tide: { at, result: 'ok' as const }, cord: { at, result: 'ok' as const } };
+  const r = testReminders(state(), all, now, 60, 48);
+  assert.equal(r[0].date, '2026-10-16'); // nothing today: still valid at 14:00 and 20:00
+  assert.match(r[0].lines[0], /tested over a month ago/);
+});
+
+test('test-scan reminders name the person when there are several', () => {
+  const s = state();
+  s.members = [...s.members, { ...ma, id: 'pa', name: 'Pa' }];
+  s.meds = [...s.meds, med('neb', 'Nebicard', '2.5', at('14:00'), { memberId: 'pa' })];
+  const r = testReminders(s, {}, new Date('2026-10-15T08:30:00'), 60, 12);
+  assert.deepEqual(r[0].lines.sort(), ['Ma: Cordarone X 200 — not tested yet', 'Pa: Nebicard 2.5 — not tested yet']);
 });
