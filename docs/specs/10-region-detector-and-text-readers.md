@@ -78,6 +78,14 @@ misses the line.
 * Android: unchanged ML Kit wording.
 * `src/legal.ts` picks by platform; `PRIVACY.md` describes both. `tests/legal.test.ts` updated.
 
+## Status (15 Oct 2026)
+* **Done:** step 1 in a first form. `modules/apple-text/` (Swift, Apple Vision) reads text on iPhone; `src/ocr.ts`
+  uses it first and falls back to ML Kit if Vision is missing from the build or fails on a photo. ML Kit therefore
+  stays in the iPhone build for now; remove it once Vision has proven itself. Each training photo records
+  `reader` (`apple-vision` / `ml-kit`) so the two can be compared. Privacy text is per platform.
+* **Done:** "Send for training" emails unsent training photos to the developer (the person presses Send).
+* **Next:** steps 2–4 (the detector).
+
 ## Order of work
 1. Text-reader seam + Apple Vision module; ML Kit removed from iOS; privacy text. Check on iPhone that Vision
    readings match the `OcrLine` format (the spec 09 chart fixture must still give all 7 medicines).

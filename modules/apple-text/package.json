@@ -1,0 +1,7 @@
+{
+  "name": "apple-text",
+  "version": "1.0.0",
+  "private": true,
+  "description": "MedSync: on-device text reading with Apple Vision (iPhone only)",
+  "main": "index.ts"
+}

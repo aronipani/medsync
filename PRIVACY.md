@@ -15,9 +15,11 @@ Uninstalling the app deletes all of it. The developer cannot see, recover or del
 your phone.
 
 ## What happens on the phone
-* **Reading text from photos** is done on the phone by Google ML Kit's on-device text recognition. According to
-  Google, ML Kit may send anonymous usage and performance statistics to Google; it does not send your photos or the
-  text read from them.
+* **Reading text from photos** is done on the phone.
+  * **iPhone:** Apple's built-in text reader (Apple Vision, part of iOS). Nothing is sent anywhere. If it can't read
+    a photo, the app uses Google ML Kit instead (below).
+  * **Android:** Google ML Kit's on-device text recognition. According to Google, ML Kit may send anonymous usage
+    and performance statistics to Google; it does not send your photos or the text read from them.
 * **Spoken announcements** use your phone's built-in text-to-speech voices.
 * **Reminders** are scheduled on the phone. There is no push-notification server.
 
@@ -25,10 +27,11 @@ your phone.
 * **Backup file.** "Save a backup" creates a file with your medicines, schedules and history and opens your phone's
   share sheet. Where it goes (Google Drive, email, WhatsApp…) is your choice. It contains health information — keep
   it private. Photos are not included.
-* **Training-photo export.** If you turned on "Save confirmed scan photos", you can export them as a zip, again
-  through the share sheet. Photos may show hands or surroundings.
+* **Training photos.** If you turned on "Save scan photos for training", you can export them as a zip through the
+  share sheet, or tap "Send for training", which opens an email to the app's developer with the photos attached —
+  you see the email and press Send yourself. Photos may show hands or surroundings, and the text read from them.
 
-The app never sends either file anywhere by itself.
+The app never sends any of these anywhere by itself.
 
 ## Permissions
 * **Camera** — to scan strips, bottles, boxes and prescriptions.

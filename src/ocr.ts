@@ -1,11 +1,39 @@
 import TextRecognition from '@react-native-ml-kit/text-recognition';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
+import { Platform } from 'react-native';
+import { AppleText } from '../modules/apple-text/index.ts';
 import type { OcrLine } from './label.ts';
 import { padBox, rereadCandidates, unrotateBox, type Box } from './regions.ts';
 
 const WORK_WIDTH = 1600; // copies are resized to this width before rotating
 
+export type ReaderName = 'apple-vision' | 'ml-kit';
+const appleVision = Platform.OS === 'ios' && AppleText ? AppleText : null;
+let last: ReaderName = appleVision ? 'apple-vision' : 'ml-kit';
+
+/** Which reader read the most recent photo (kept with training photos, to compare the two). */
+export const lastReader = (): ReaderName => last;
+
+/**
+ * Reads one photo. iPhone: Apple Vision (built into iOS, nothing sent anywhere), with Google ML Kit as the backup
+ * if Vision isn't in this build or fails on a photo. Android: ML Kit. Both give lines in upright pixel positions.
+ * See docs/specs/10-region-detector-and-text-readers.md.
+ */
 async function recognize(uri: string): Promise<OcrLine[]> {
+  if (appleVision) {
+    try {
+      const lines = await appleVision.recognize(uri);
+      last = 'apple-vision';
+      return lines.map((l) => ({ text: l.text, height: l.height, top: l.top, left: l.left, width: l.width, corners: l.corners }));
+    } catch {
+      // fall through to ML Kit
+    }
+  }
+  last = 'ml-kit';
+  return recognizeMlKit(uri);
+}
+
+async function recognizeMlKit(uri: string): Promise<OcrLine[]> {
   const res = await TextRecognition.recognize(uri);
   const out: OcrLine[] = [];
   for (const block of res.blocks) {
