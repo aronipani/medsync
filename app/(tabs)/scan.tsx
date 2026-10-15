@@ -7,7 +7,7 @@ import { MemberPicker } from '../../src/components.tsx';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
-import { readBurst, readLinesAnyOrientation } from '../../src/ocr.ts';
+import { readBurst, readLinesAnyOrientation, regionDetectorAvailable, scanReaderLabel, startScanStats } from '../../src/ocr.ts';
 import { bestLearned } from '../../src/learn.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../../src/training.ts';
 import { Alert } from 'react-native';
@@ -50,7 +50,7 @@ export default function Scan() {
   const lastCode = useRef({ code: '', at: 0 });
   // What the last strip reading saw (for "Teach this strip" and optional training photos).
   // `kept`: its photos are already saved for training; `reason`: why the result was red, if it was.
-  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string }>({ lines: [], photos: [] });
+  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string }>({ lines: [], photos: [] });
   const collectTraining = useRef(false);
   collectTraining.current = !!state.settings.collectTraining;
 
@@ -185,6 +185,7 @@ export default function Scan() {
     if (!camera.current || busy) return;
     forgetRead(); // a previous unconfirmed scan's photos are kept before this one replaces them
     setBusy(true);
+    startScanStats();
     const photos: string[] = [];
     try {
       const cam = camera.current;
@@ -200,7 +201,7 @@ export default function Scan() {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }
-      lastRead.current = { lines: text.split('\n'), photos };
+      lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel() };
       checkText(text, 'text');
     } catch (e) {
       lastRead.current = { lines: [], photos };
@@ -252,6 +253,14 @@ export default function Scan() {
         },
       ],
     );
+
+  /** Which text reader (and, once added, the region detector) read this scan — small print under the result. */
+  const ReadBy = () =>
+    lastRead.current.readBy ? (
+      <Text style={{ color: '#fffb', fontSize: 12, marginTop: 10 }}>
+        Read by {lastRead.current.readBy} · region detector: {regionDetectorAvailable() ? 'on' : 'not installed yet'}
+      </Text>
+    ) : null;
 
   const TeachChips = () =>
     lastRead.current.lines.length ? (
@@ -408,6 +417,7 @@ export default function Scan() {
                 <Button title="Mark taken" kind="secondary" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ flex: 1 }} />
                 <Button title="Cancel" kind="ghost" onPress={dismiss} />
               </View>
+              <ReadBy />
             </View>
           )}
 
@@ -433,6 +443,7 @@ export default function Scan() {
                 style={{ marginTop: 14 }}
               />
               <Button title="Scan again" kind="ghost" onPress={dismiss} />
+              <ReadBy />
             </View>
           )}
 
@@ -453,6 +464,7 @@ export default function Scan() {
               <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✗ No match</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.detail ? <Text style={{ color: '#fffc', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
+              <ReadBy />
               <Button title="Scan next" kind="secondary" big onPress={dismiss} style={{ marginTop: 14 }} />
               {!result.code && <TeachChips />}
               {result.code && (

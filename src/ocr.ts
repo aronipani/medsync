@@ -14,6 +14,31 @@ let last: ReaderName = appleVision ? 'apple-vision' : 'ml-kit';
 /** Which reader read the most recent photo (kept with training photos, to compare the two). */
 export const lastReader = (): ReaderName => last;
 
+/** Whether this build has the Apple Vision reader (iPhone builds from ios-21 on). */
+export const appleVisionAvailable = (): boolean => !!appleVision;
+
+/**
+ * The strip-region detector (YOLO, spec 10). Not in the app yet: the trained model file isn't bundled.
+ * When it is, this reports true and scans show "areas found by the region detector".
+ */
+export const regionDetectorAvailable = (): boolean => false;
+
+// Which readers read the photos of the current scan (a scan reads several photos and crops).
+const used = { 'apple-vision': 0, 'ml-kit': 0 };
+export function startScanStats() {
+  used['apple-vision'] = 0;
+  used['ml-kit'] = 0;
+}
+/** "Apple Vision", "Apple Vision (ML Kit for 2 of 9 reads)" or "Google ML Kit" — for the scan result. */
+export function scanReaderLabel(): string {
+  const a = used['apple-vision'];
+  const m = used['ml-kit'];
+  if (a && m) return `Apple Vision (ML Kit for ${m} of ${a + m} reads)`;
+  if (a) return 'Apple Vision';
+  if (m) return 'Google ML Kit';
+  return '';
+}
+
 /**
  * Reads one photo. iPhone: Apple Vision (built into iOS, nothing sent anywhere), with Google ML Kit as the backup
  * if Vision isn't in this build or fails on a photo. Android: ML Kit. Both give lines in upright pixel positions.
@@ -24,12 +49,14 @@ async function recognize(uri: string): Promise<OcrLine[]> {
     try {
       const lines = await appleVision.recognize(uri);
       last = 'apple-vision';
+      used['apple-vision']++;
       return lines.map((l) => ({ text: l.text, height: l.height, top: l.top, left: l.left, width: l.width, corners: l.corners }));
     } catch {
       // fall through to ML Kit
     }
   }
   last = 'ml-kit';
+  used['ml-kit']++;
   return recognizeMlKit(uri);
 }
 

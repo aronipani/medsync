@@ -6,6 +6,7 @@ import { ageText, backupOverdue } from '../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
 import { DEFAULT_SETTINGS } from '../src/store.tsx';
 import { buildLabel } from '../src/buildInfo.ts';
+import { appleVisionAvailable, regionDetectorAvailable } from '../src/ocr.ts';
 import { clearTraining, emailTraining, exportTraining, TRAINING_EMAIL, trainingSummary } from '../src/training.ts';
 import { setupNotifications } from '../src/notifications.ts';
 import { useStore } from '../src/store.tsx';
@@ -130,6 +131,10 @@ export default function SettingsScreen() {
       <Button title="About & safety · privacy" kind="secondary" onPress={() => router.push('/about')} />
       <Text style={{ color: t.sub, textAlign: 'center', marginTop: 8, fontSize: 13 }} selectable>
         Version {buildLabel()}
+      </Text>
+      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 4, fontSize: 13 }}>
+        Text reader: {appleVisionAvailable() ? 'Apple Vision (ML Kit as backup)' : 'Google ML Kit'} · Region detector:{' '}
+        {regionDetectorAvailable() ? 'on' : 'not installed yet'}
       </Text>
 
       <Label>Reminders</Label>
