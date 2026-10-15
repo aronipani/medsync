@@ -84,7 +84,15 @@ misses the line.
   stays in the iPhone build for now; remove it once Vision has proven itself. Each training photo records
   `reader` (`apple-vision` / `ml-kit`) so the two can be compared. Privacy text is per platform.
 * **Done:** "Send for training" emails unsent training photos to the developer (the person presses Send).
-* **Next:** steps 2–4 (the detector).
+* **Done (trial):** steps 2–3. A first model trained on 52 auto-labelled photos of 11 medicines (640 px, 50 epochs,
+  CPU) is in `assets/models/strip-regions.tflite`. Differences from the plan above:
+  * Input is 640 px (960 trained too slowly on CPU for a trial); the model takes channels-first input `[1, 3, 640, 640]`.
+  * No native RGB helper: the photo is shrunk to 640 px with ImageManipulator and decoded in JS (`jpeg-js`).
+  * The detector path reads the upright photo plus up to 6 found areas (2 brand, 2 strength, 1 contents, 1 expiry),
+    each level and upside down. It falls back to the old path when no brand or contents area scores ≥ 0.35.
+  * Settings → Strip reading → "Use the region detector" switches it off to compare. Scan results say what it did.
+* **Next:** step 4. Check the auto-labels by hand (CVAT), collect more photos (strength and expiry boxes are few),
+  retrain at 960 px if small print is missed, and compare scans with the detector on and off.
 
 ## Order of work
 1. Text-reader seam + Apple Vision module; ML Kit removed from iOS; privacy text. Check on iPhone that Vision

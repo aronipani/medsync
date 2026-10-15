@@ -58,7 +58,7 @@ composition lines as `contents`, any "10 mg"-style text as `strength`, and the "
 
 ```bash
 python prepare.py --src ~/medsync-training --out dataset      # burst photos stay on the same side of the split
-python train.py --data dataset/data.yaml --epochs 120 --imgsz 960
+python train.py --data dataset/data.yaml --epochs 120 --imgsz 640   # 960 reads small print better but trains ~2× slower
 ```
 Read the printed scores: **recall** matters most (did it find the name and strength?). As a guide, with ~50 corrected
 photos expect a usable brand/contents detector; strength boxes need more examples because they're small.
@@ -67,11 +67,19 @@ photos expect a usable brand/contents detector; strength boxes need more example
 
 ```bash
 python predict.py --weights runs/obb/strip-regions/weights/best.pt --images some_new_photos/
-python export.py  --weights runs/obb/strip-regions/weights/best.pt --imgsz 960
+python export.py  --weights runs/obb/strip-regions/weights/best.pt --imgsz 640   # same size as training
 ```
-`export.py` writes a TFLite model (Android and iPhone) and, on a Mac, a Core ML model.
-The app currently finds regions from the text reader's own boxes; the next step plugs this model in
-(via `react-native-fast-tflite`) in front of the crop-and-reread step.
+`export.py` writes a LiteRT/TFLite model (float32, no built-in NMS) and copies it to `assets/models/strip-regions.tflite`.
+The app runs it with `react-native-fast-tflite` (`src/regionModel.ts`), decodes the boxes in `src/obb.ts`, crops each found
+area, turns it level and reads it (spec 10). Push to `main` and the next build carries the new model.
+
+### Photos without the app
+A folder with `images/` and a `photos.json` saying which medicines each photo shows (several per photo is fine):
+```bash
+python autolabel.py --photos ~/strips
+python prepare.py --src ~/strips --out dataset
+```
+Photos where no box was found are left out of the dataset (an empty label would teach "nothing here").
 
 ## Files
 | File | Does |
@@ -82,4 +90,4 @@ The app currently finds regions from the text reader's own boxes; the next step 
 | `prepare.py` | Session-aware train/val split → `dataset/` |
 | `train.py` | Fine-tunes YOLO11n-OBB with strip-specific augmentation |
 | `predict.py` | Draws detections on new photos |
-| `export.py` | TFLite / Core ML export |
+| `export.py` | LiteRT/TFLite export for the app (copies into `assets/models/`) |

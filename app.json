@@ -45,7 +45,8 @@
           "photosPermission": "MedSync opens your photos so you can choose a prescription to read.",
           "cameraPermission": "MedSync uses the camera to photograph prescriptions and scan medicine strips."
         }
-      ]
+      ],
+      "react-native-fast-tflite"
     ],
     "experiments": {
       "typedRoutes": false

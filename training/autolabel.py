@@ -3,12 +3,18 @@
 Works on:
   * an unzipped MedSync export (images/ + manifest.json) — labels any photo that has no label file yet
   * a plain folder of photos, with --label "Monotrate 10" (one medicine per folder)
+  * a folder of photos with photos.json saying which medicines each photo shows (several per photo is fine)
 
 Reads every photo upright, upside down and sideways (RapidOCR, CPU), maps the boxes back onto the photo,
 applies the same labelling rules as the app, writes labels/<stem>.txt and a preview with the boxes drawn.
 
   python autolabel.py --export ~/Downloads/medsync-training
   python autolabel.py --folder photos/monotrate --label "Monotrate 10"
+  python autolabel.py --photos ~/strips          # ~/strips/images/*.jpg + ~/strips/photos.json
+
+photos.json:
+  {"_medicines": {"vonzai": {"name": "Vonzai", "strength": "20", "contents": "Vonoprazan 20 mg"}, ...},
+   "IMG_0012.jpg": ["vonzai", "pantodac"], ...}
 """
 from __future__ import annotations
 
@@ -21,7 +27,7 @@ import cv2
 import numpy as np
 from rapidocr_onnxruntime import RapidOCR
 
-from regions import CLASSES, Box, corners_of, label_regions, to_yolo
+from regions import CLASSES, Box, corners_of, dedupe, label_regions, to_yolo
 
 COLORS = {"brand": (40, 160, 40), "contents": (200, 120, 0), "strength": (30, 30, 220), "expiry": (180, 40, 180)}
 _ocr = RapidOCR()
@@ -78,6 +84,11 @@ def parse_label(label: str) -> tuple[str, str]:
 
 
 def label_photo(path: Path, name: str, strength: str, contents: str | None, labels_dir: Path, previews_dir: Path) -> int:
+    return label_photo_multi(path, [(name, strength, contents)], labels_dir, previews_dir)
+
+
+def label_photo_multi(path: Path, meds: list[tuple[str, str, str | None]], labels_dir: Path, previews_dir: Path) -> int:
+    """Labels a photo that may show several medicines: each one's brand, contents and strength, plus expiry dates."""
     img = cv2.imread(str(path))
     if img is None:
         return 0
@@ -88,8 +99,11 @@ def label_photo(path: Path, name: str, strength: str, contents: str | None, labe
         boxes = read_boxes(img)
         cache.parent.mkdir(exist_ok=True)
         cache.write_text(json.dumps([vars(b) for b in boxes]))
-    ingredients = [re.sub(r"\d.*$", "", x).strip() for x in contents.split("+")] if contents else None
-    regions = label_regions(boxes, name, strength, ingredients)
+    regions = []
+    for name, strength, contents in meds:
+        ingredients = [re.sub(r"\d.*$", "", x).strip() for x in contents.split("+")] if contents else None
+        regions += label_regions(boxes, name, strength, ingredients)
+    regions = dedupe(regions)
     h, w = img.shape[:2]
     (labels_dir / f"{path.stem}.txt").write_text(to_yolo(regions, w, h))
     prev = img.copy()
@@ -118,6 +132,7 @@ def main():
     ap.add_argument("--export", type=Path, help="unzipped MedSync export (images/, manifest.json)")
     ap.add_argument("--folder", type=Path, help="folder of photos of one medicine")
     ap.add_argument("--label", help='medicine and strength for --folder, e.g. "Monotrate 10"')
+    ap.add_argument("--photos", type=Path, help="folder with images/ and photos.json (medicines per photo)")
     ap.add_argument("--redo", action="store_true", help="relabel photos that already have a label file")
     a = ap.parse_args()
 
@@ -133,6 +148,18 @@ def main():
             if not img.exists() or ((labels / f"{stem}.txt").exists() and not a.redo):
                 continue
             label_photo(img, e["name"], e["strength"], e.get("contents"), labels, previews)
+    elif a.photos:
+        root = a.photos
+        spec = json.loads((root / "photos.json").read_text())
+        meds = spec.pop("_medicines")
+        labels, previews = root / "labels", root / "previews"
+        labels.mkdir(exist_ok=True)
+        previews.mkdir(exist_ok=True)
+        for file, keys in spec.items():
+            img = root / "images" / file
+            if not img.exists() or ((labels / f"{img.stem}.txt").exists() and not a.redo):
+                continue
+            label_photo_multi(img, [(meds[k]["name"], meds[k]["strength"], meds[k].get("contents")) for k in keys], labels, previews)
     elif a.folder and a.label:
         name, strength = parse_label(a.label)
         labels, previews = a.folder / "labels", a.folder / "previews"

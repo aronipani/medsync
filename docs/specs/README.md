@@ -11,4 +11,4 @@
 | [07](07-photo-sharing-consent.md) | Opt-in sharing of unrecognised strip photos | Record + rules built; hidden until a server exists |
 | [08](08-store-release.md) | Play Store / App Store release checklist | Checklist |
 | [09](09-prescription-photo-reading.md) | Prescription and chart photos read upright (bug fix) | Built |
-| [10](10-region-detector-and-text-readers.md) | Region detector (YOLO) + Apple Vision / ML Kit readers | Apple Vision reader built; detector planned |
+| [10](10-region-detector-and-text-readers.md) | Region detector (YOLO) + Apple Vision / ML Kit readers | Built (trial model) |

@@ -37,7 +37,9 @@ def main():
         img_dir = src / "images" if (src / "images").is_dir() else src
         for img in sorted(p for p in img_dir.iterdir() if p.suffix.lower() in {".jpg", ".jpeg", ".png"}):
             lab = src / "labels" / f"{img.stem}.txt"
-            if lab.exists():
+            # A photo where no box was found is "not labelled yet", not "nothing here": training on an empty label
+            # file would teach the model that the strip has no name, so such photos are left out.
+            if lab.exists() and lab.read_text().strip():
                 pairs.append((img, lab, f"{src.name}__{img.stem}"))
     if not pairs:
         raise SystemExit("No labelled photos found — run autolabel.py first.")

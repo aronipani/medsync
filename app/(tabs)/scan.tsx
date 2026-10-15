@@ -7,7 +7,8 @@ import { MemberPicker } from '../../src/components.tsx';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
-import { readBurst, readLinesAnyOrientation, regionDetectorAvailable, scanReaderLabel, startScanStats } from '../../src/ocr.ts';
+import { readBurst, readLinesAnyOrientation, scanDetectorLabel, scanReaderLabel, startScanStats } from '../../src/ocr.ts';
+import { loadRegionModel, setRegionDetectorEnabled } from '../../src/regionModel.ts';
 import { bestLearned } from '../../src/learn.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../../src/training.ts';
 import { Alert } from 'react-native';
@@ -50,7 +51,11 @@ export default function Scan() {
   const lastCode = useRef({ code: '', at: 0 });
   // What the last strip reading saw (for "Teach this strip" and optional training photos).
   // `kept`: its photos are already saved for training; `reason`: why the result was red, if it was.
-  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string }>({ lines: [], photos: [] });
+  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string; detector?: string }>({ lines: [], photos: [] });
+  useEffect(() => {
+    setRegionDetectorEnabled(state.settings.regionDetector !== false);
+    loadRegionModel(); // load the model before the first scan, not during it
+  }, [state.settings.regionDetector]);
   const collectTraining = useRef(false);
   collectTraining.current = !!state.settings.collectTraining;
 
@@ -201,7 +206,7 @@ export default function Scan() {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }
-      lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel() };
+      lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel(), detector: scanDetectorLabel() };
       checkText(text, 'text');
     } catch (e) {
       lastRead.current = { lines: [], photos };
@@ -258,7 +263,7 @@ export default function Scan() {
   const ReadBy = () =>
     lastRead.current.readBy ? (
       <Text style={{ color: '#fffb', fontSize: 12, marginTop: 10 }}>
-        Read by {lastRead.current.readBy} · region detector: {regionDetectorAvailable() ? 'on' : 'not installed yet'}
+        Read by {lastRead.current.readBy} · region detector: {lastRead.current.detector}
       </Text>
     ) : null;
 

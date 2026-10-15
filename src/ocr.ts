@@ -3,6 +3,8 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import { Platform } from 'react-native';
 import { AppleText } from '../modules/apple-text/index.ts';
 import type { OcrLine } from './label.ts';
+import { cropFor } from './obb.ts';
+import { detectorState, detectRegions, pickRegions, regionDetectorEnabled } from './regionModel.ts';
 import { padBox, rereadCandidates, unrotateBox, type Box } from './regions.ts';
 
 const WORK_WIDTH = 1600; // copies are resized to this width before rotating
@@ -17,17 +19,26 @@ export const lastReader = (): ReaderName => last;
 /** Whether this build has the Apple Vision reader (iPhone builds from ios-21 on). */
 export const appleVisionAvailable = (): boolean => !!appleVision;
 
-/**
- * The strip-region detector (YOLO, spec 10). Not in the app yet: the trained model file isn't bundled.
- * When it is, this reports true and scans show "areas found by the region detector".
- */
-export const regionDetectorAvailable = (): boolean => false;
+/** Whether the strip-region detector (YOLO, spec 10) is loaded and switched on. */
+export const regionDetectorAvailable = (): boolean => detectorState() === 'ready' && regionDetectorEnabled();
 
-// Which readers read the photos of the current scan (a scan reads several photos and crops).
+// Which readers read the photos of the current scan (a scan reads several photos and crops), and on how many
+// photos the region detector found the printed areas.
 const used = { 'apple-vision': 0, 'ml-kit': 0 };
+const detector = { photos: 0, found: 0, areas: 0 };
 export function startScanStats() {
   used['apple-vision'] = 0;
   used['ml-kit'] = 0;
+  detector.photos = detector.found = detector.areas = 0;
+}
+
+/** "found 5 areas on 2 of 3 photos", "found nothing — full reading used", "off", "not in this build". */
+export function scanDetectorLabel(): string {
+  if (!regionDetectorEnabled()) return 'off';
+  if (detectorState() === 'missing') return 'not in this build';
+  if (!detector.photos) return detectorState() === 'loading' ? 'loading' : 'not used';
+  if (!detector.found) return 'found nothing — full reading used';
+  return `found ${detector.areas} area${detector.areas === 1 ? '' : 's'} on ${detector.found} of ${detector.photos} photo${detector.photos === 1 ? '' : 's'}`;
 }
 /** "Apple Vision", "Apple Vision (ML Kit for 2 of 9 reads)" or "Google ML Kit" — for the scan result. */
 export function scanReaderLabel(): string {
@@ -162,6 +173,10 @@ async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[];
   } catch {
     // size unknown: skip rotation mapping and re-reading
   }
+  if (size && (await readFoundAreas(uri, size, set))) {
+    photoInfo.set(uri, { ...size, boxes });
+    return; // name and strength areas were found and read; the slow every-way-up reading isn't needed
+  }
   const turnedText = new Map<Box, number>(); // box -> rotation it was readable at
   for (const degrees of opts.rotations) {
     try {
@@ -199,6 +214,49 @@ async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[];
       }
     }
   }
+}
+
+/**
+ * Region detector path (spec 10): finds the brand / contents / strength / expiry areas, crops each one, turns it
+ * level, enlarges it and reads it — also upside down, since a rotated box can't tell which way up the text is.
+ * Returns true only when both a name (brand or contents) and a strength area were found and read; otherwise the
+ * caller also reads the whole photo every way up, so a weak detector never makes a scan worse — its crops are
+ * then extra readings on top.
+ */
+async function readFoundAreas(uri: string, size: { width: number; height: number }, set: LineSet): Promise<boolean> {
+  if (!regionDetectorEnabled()) return false;
+  let regions;
+  try {
+    regions = await detectRegions(uri, size);
+  } catch {
+    regions = null;
+  }
+  if (!regions) return false;
+  detector.photos++;
+  const picked = pickRegions(regions);
+  if (!picked.length) return false;
+  detector.found++;
+  detector.areas += picked.length;
+  for (const r of picked) {
+    const c = cropFor(r, size);
+    // Enlarge so the text is about 64 px tall: small print on foil reads far better that way.
+    const k = Math.max(1, Math.min(4, 64 / Math.max(1, r.height)));
+    const width = Math.round(Math.min(1800, Math.max(600, c.width * k)));
+    for (const turn of [c.rotate, c.rotate + 180]) {
+      try {
+        const ref = await ImageManipulator.manipulate(uri)
+          .crop({ originX: c.originX, originY: c.originY, width: c.width, height: c.height })
+          .rotate(turn)
+          .resize({ width })
+          .renderAsync();
+        const img = await ref.saveAsync({ compress: 0.95, format: SaveFormat.JPEG });
+        set.add(await recognize(img.uri));
+      } catch {
+        // one area failing to read is fine; the others and the upright reading remain
+      }
+    }
+  }
+  return picked.some((r) => r.cls === 'brand' || r.cls === 'contents') && picked.some((r) => r.cls === 'strength');
 }
 
 /**

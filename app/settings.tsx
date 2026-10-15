@@ -6,14 +6,15 @@ import { ageText, backupOverdue } from '../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
 import { DEFAULT_SETTINGS } from '../src/store.tsx';
 import { buildLabel } from '../src/buildInfo.ts';
-import { appleVisionAvailable, regionDetectorAvailable } from '../src/ocr.ts';
+import { appleVisionAvailable } from '../src/ocr.ts';
+import { detectorState, loadRegionModel } from '../src/regionModel.ts';
 import { clearTraining, emailTraining, exportTraining, TRAINING_EMAIL, trainingSummary } from '../src/training.ts';
 import { setupNotifications } from '../src/notifications.ts';
 import { useStore } from '../src/store.tsx';
 import type { Settings } from '../src/types.ts';
 import { Button, Card, Label, NumberField, s, useTheme } from '../src/ui.tsx';
 
-const ROWS: { key: Exclude<keyof Settings, 'collectTraining' | 'lastBackupAt' | 'acceptedNotice'>; label: string; help: string; step: number }[] = [
+const ROWS: { key: Exclude<keyof Settings, 'collectTraining' | 'regionDetector' | 'lastBackupAt' | 'acceptedNotice'>; label: string; help: string; step: number }[] = [
   { key: 'mealOffsetMin', label: 'Before / after meal (min)', help: '"Before breakfast" = breakfast time minus this.', step: 5 },
   { key: 'dueWindowMin', label: 'Can scan early by (min)', help: 'A dose becomes scannable this long before its time.', step: 15 },
   { key: 'missedAfterMin', label: 'Mark missed after (min)', help: 'Not taken this long after its time → logged as missed.', step: 15 },
@@ -25,6 +26,10 @@ export default function SettingsScreen() {
   const t = useTheme();
   const { state, saveSettings } = useStore();
   const [summary, setSummary] = useState(() => trainingSummary());
+  const [detector, setDetector] = useState(detectorState());
+  useEffect(() => {
+    loadRegionModel().then(() => setDetector(detectorState()));
+  }, []);
   // Scans save photos in the background: recount whenever Settings is opened, not only when it first loads.
   useFocusEffect(useCallback(() => setSummary(trainingSummary()), []));
 
@@ -66,6 +71,18 @@ export default function SettingsScreen() {
           <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>{r.help}</Text>
         </Card>
       ))}
+
+      <Label>Strip reading</Label>
+      <Card>
+        <View style={s.between}>
+          <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>Use the region detector</Text>
+          <Switch value={state.settings.regionDetector !== false} onValueChange={(v) => saveSettings({ ...state.settings, regionDetector: v })} />
+        </View>
+        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
+          Finds the name, strength and expiry on a strip and reads just those parts. Trial model — turn off to compare with the old method
+          (reading the whole photo every way up). If it finds nothing, the old method is used anyway.
+        </Text>
+      </Card>
 
       <Label>Training photos</Label>
       <Card>
@@ -134,7 +151,7 @@ export default function SettingsScreen() {
       </Text>
       <Text style={{ color: t.sub, textAlign: 'center', marginTop: 4, fontSize: 13 }}>
         Text reader: {appleVisionAvailable() ? 'Apple Vision (ML Kit as backup)' : 'Google ML Kit'} · Region detector:{' '}
-        {regionDetectorAvailable() ? 'on' : 'not installed yet'}
+        {detector === 'missing' ? 'not in this build' : state.settings.regionDetector === false ? 'off' : detector === 'ready' ? 'on' : 'loading'}
       </Text>
 
       <Label>Reminders</Label>

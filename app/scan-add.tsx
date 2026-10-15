@@ -7,6 +7,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { parseExpiry } from '../src/expiry.ts';
 import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
 import { isNotLinkedError, readBurst } from '../src/ocr.ts';
+import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { encode, fingerprint } from '../src/learn.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
 import { useStore } from '../src/store.tsx';
@@ -27,6 +28,10 @@ export default function ScanToAdd() {
   const [lines, setLines] = useState<OcrLine[]>([]); // everything read so far, across photos
   const [photos, setPhotos] = useState(0);
   const photoUris = useRef<string[]>([]);
+  useEffect(() => {
+    setRegionDetectorEnabled(state.settings.regionDetector !== false);
+    loadRegionModel();
+  }, [state.settings.regionDetector]);
   // Leaving without "Use this" (unreadable, wrong reading, gave up): keep the photos unlabelled for retraining.
   const leaving = useRef({ collect: false, text: '', error: '' });
   useEffect(
