@@ -53,6 +53,7 @@ export interface Settings {
   followUpMin: number; // "still not taken" reminder after this many minutes (0 = off)
   snoozeMin: number;
   collectTraining?: boolean; // save confirmed scan photos for training an image model (off by default)
+  lastBackupAt?: string; // ISO time of the last backup the person saved
 }
 
 export type LogStatus = 'taken' | 'missed' | 'skipped';

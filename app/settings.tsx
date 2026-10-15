@@ -1,14 +1,17 @@
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { ageText, backupOverdue } from '../src/backup.ts';
+import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
+import { DEFAULT_SETTINGS } from '../src/store.tsx';
 import { clearTraining, exportTraining, trainingSummary } from '../src/training.ts';
 import { setupNotifications } from '../src/notifications.ts';
 import { useStore } from '../src/store.tsx';
 import type { Settings } from '../src/types.ts';
 import { Button, Card, Label, NumberField, s, useTheme } from '../src/ui.tsx';
 
-const ROWS: { key: Exclude<keyof Settings, 'collectTraining'>; label: string; help: string; step: number }[] = [
+const ROWS: { key: Exclude<keyof Settings, 'collectTraining' | 'lastBackupAt'>; label: string; help: string; step: number }[] = [
   { key: 'mealOffsetMin', label: 'Before / after meal (min)', help: '"Before breakfast" = breakfast time minus this.', step: 5 },
   { key: 'dueWindowMin', label: 'Can scan early by (min)', help: 'A dose becomes scannable this long before its time.', step: 15 },
   { key: 'missedAfterMin', label: 'Mark missed after (min)', help: 'Not taken this long after its time → logged as missed.', step: 15 },
@@ -46,6 +49,8 @@ export default function SettingsScreen() {
         ))}
         <Button title="+ Add family member" kind="secondary" onPress={() => router.push('/member/new')} style={{ marginTop: 8 }} />
       </Card>
+
+      <BackupCard />
 
       <Label>Timing</Label>
       {ROWS.map((r) => (
@@ -102,5 +107,92 @@ export default function SettingsScreen() {
         optimisation for MedSync so reminders arrive on time.
       </Text>
     </ScrollView>
+  );
+}
+
+function BackupCard() {
+  const t = useTheme();
+  const { state, saveSettings, replaceAll } = useStore();
+  const [safety, setSafety] = useState<string | undefined>();
+  useEffect(() => {
+    loadSafetyCopy().then((c) => setSafety(c?.at)).catch(() => {});
+  }, []);
+  const overdue = backupOverdue(state);
+  const dateText = (iso: string) => new Date(iso).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' });
+
+  const save = async () => {
+    try {
+      if (await shareBackup(state)) saveSettings({ ...state.settings, lastBackupAt: new Date().toISOString() });
+    } catch (e) {
+      Alert.alert('Backup failed', String(e instanceof Error ? e.message : e));
+    }
+  };
+
+  const restore = async () => {
+    try {
+      const r = await pickBackup(DEFAULT_SETTINGS);
+      if (!r) return;
+      if (!r.ok) return Alert.alert('Cannot restore', r.error);
+      const { members, medicines, logs } = r.summary;
+      const from = r.exportedAt ? `Backup from ${dateText(r.exportedAt)}` : 'This backup';
+      const dropped = r.droppedMeds ? `\n${r.droppedMeds} medicine${r.droppedMeds === 1 ? '' : 's'} without a family member will be left out.` : '';
+      Alert.alert(
+        'Restore this backup?',
+        `${from}: ${members} ${members === 1 ? 'person' : 'people'}, ${medicines} medicine${medicines === 1 ? '' : 's'}, ${logs} dose record${logs === 1 ? '' : 's'}.${dropped}\n\nThis replaces everything on this phone. You can undo it once.`,
+        [
+          { text: 'Cancel', style: 'cancel' },
+          {
+            text: 'Replace',
+            style: 'destructive',
+            onPress: async () => {
+              await saveSafetyCopy(state);
+              replaceAll(r.state);
+              setSafety(new Date().toISOString());
+              Alert.alert('Restored', 'Your medicines and reminders are back.');
+            },
+          },
+        ],
+      );
+    } catch (e) {
+      Alert.alert('Cannot restore', String(e instanceof Error ? e.message : e));
+    }
+  };
+
+  const undo = async () => {
+    const c = await loadSafetyCopy();
+    if (!c) return setSafety(undefined);
+    Alert.alert('Undo the last restore?', `Puts back what was on this phone before the restore on ${dateText(c.at)}.`, [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Undo restore',
+        style: 'destructive',
+        onPress: async () => {
+          replaceAll(c.state);
+          await clearSafetyCopy();
+          setSafety(undefined);
+        },
+      },
+    ]);
+  };
+
+  return (
+    <>
+      <Label>Backup</Label>
+      <Card>
+        <Text style={{ color: overdue ? t.warn : t.text, fontWeight: '600' }}>
+          {overdue ? 'No backup for 30+ days' : 'Last backup: '}
+          {overdue ? '' : ageText(state.settings.lastBackupAt)}
+        </Text>
+        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
+          Saves everyone's medicines, schedules and history to one small file. Keep it in Google Drive, email or WhatsApp to
+          yourself, and restore it on a new phone. Photos are not included. The file contains health information — keep it private.
+        </Text>
+        <View style={[s.row, { gap: 8, marginTop: 10 }]}>
+          <Button title="Save a backup" style={{ flex: 1 }} onPress={save} />
+          <Button title="Restore…" kind="secondary" style={{ flex: 1 }} onPress={restore} />
+        </View>
+        {safety ? <Button title="Undo last restore" kind="ghost" onPress={undo} style={{ marginTop: 4 }} /> : null}
+      </Card>
+    </>
   );
 }
