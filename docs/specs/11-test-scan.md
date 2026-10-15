@@ -17,8 +17,16 @@ that's the worst moment to find out.
    real scan would show at dose time: green, "check the strength", red with a different strength, red because it
    looks like another medicine, or not recognised. Also the expiry read, the text read, the time taken, the reader and
    what the region detector did.
-4. **"Is this strip X?"** — *Yes* keeps the photos as labelled training photos (if training photos are on);
-   *No* marks the test failed and keeps the photos unlabelled with the reason.
+4. **"Is this strip X?"** — *Yes* keeps the photos as labelled training photos (also when only the strength was
+   missed, or a different strength was read: those are the hard examples). *No* marks the test failed and asks
+   **"Which medicine is it?"**.
+5. **Not recognised, or wrong** — "Which medicine is it?" lists the medicines due soonest first, then the rest.
+   Picking one keeps the photos labelled with it (the most useful training photos: the scanner failed and the
+   answer is known) and marks that medicine's test failed. "None of these" keeps them unlabelled.
+
+Every test's photos are kept exactly once when training photos are on (Settings → Training photos): labelled when
+the medicine is known, otherwise unlabelled with what the test read — including when the person leaves or starts
+the next test without answering. They go out with Export or Send for training like other training photos.
 
 Nothing is logged, stock doesn't change, and the app learns nothing (no "teach") from a test scan.
 The Scan tab shows "N of M medicines for the next 24 hours tested" when nothing is due.
