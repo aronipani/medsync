@@ -15,13 +15,14 @@ import { Ionicons } from '@expo/vector-icons';
 import { dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { dateKey, fmt12 } from '../../src/time.ts';
+import { expiryStatus, formatExpiry, parseExpiry } from '../../src/expiry.ts';
 import type { LogMethod, Occurrence } from '../../src/types.ts';
 import { Button, Card, Empty, Field, s, useTheme } from '../../src/ui.tsx';
 
 const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'pdf417', 'itf14'];
 
 type Result =
-  | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean } // green
+  | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean; expiry?: string } // green
   | { kind: 'check'; occ: Occurrence; method: LogMethod } // amber: name matches, strength unreadable
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
   | { kind: 'nomatch'; reason: string; detail?: string; code?: string; say: PhraseKey }; // red
@@ -29,7 +30,7 @@ type Result =
 export default function Scan() {
   const t = useTheme();
   const focused = useIsFocused();
-  const { state, now, record, linkBarcode, teach } = useStore();
+  const { state, now, record, linkBarcode, teach, setExpiry } = useStore();
   const [perm, requestPerm] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
 
@@ -80,7 +81,8 @@ export default function Scan() {
       case 'match':
         return (
           matchAnnouncement(lang, r.occs.map((o) => ({ name: medLabel(o.med), qty: o.dose.qty, unit: o.med.unit }))) +
-          (r.substitute ? ` ${phrase(lang, 'substitute')}` : '')
+          (r.substitute ? ` ${phrase(lang, 'substitute')}` : '') +
+          (r.expiry && expiryStatus(r.expiry) === 'expired' ? ` ${phrase(lang, 'expired')}` : '')
         );
       case 'check':
         return phrase(lang, 'checkStrength', { strength: spokenStrength(r.occ.med.strength) });
@@ -98,6 +100,11 @@ export default function Scan() {
   }, [result]);
 
   const show = (r: Result) => {
+    // The strip's printed expiry, when the photo text has one.
+    if (r.kind === 'match' && r.method !== 'barcode' && r.method !== 'manual') {
+      const ym = parseExpiry(lastRead.current.lines.join('\n'));
+      if (ym) r = { ...r, expiry: ym };
+    }
     setResult(r);
     feedback(r.kind === 'match');
   };
@@ -192,6 +199,8 @@ export default function Scan() {
     // A strip read by camera and confirmed as one medicine: remember it, so it's recognised more easily next time.
     if (occs.length === 1 && lastRead.current.lines.length) {
       teach(occs[0].med.id, lastRead.current.lines);
+      const ym = parseExpiry(lastRead.current.lines.join('\n'));
+      if (ym) setExpiry(occs[0].med.id, ym);
       keepPhotos(occs[0], 'dose-check');
     }
     lastRead.current = { lines: [], photos: [] };
@@ -330,6 +339,15 @@ export default function Scan() {
           {result?.kind === 'match' && (
             <View style={{ backgroundColor: t.ok, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✓ Correct medicine</Text>
+              {result.expiry && expiryStatus(result.expiry) === 'expired' && (
+                <View style={{ backgroundColor: t.bad, borderRadius: 12, padding: 12, marginTop: 10 }}>
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
+                  <Text style={{ color: '#fff', marginTop: 2 }}>Don't take it — use another strip or ask your pharmacist.</Text>
+                </View>
+              )}
+              {result.expiry && expiryStatus(result.expiry) === 'soon' && (
+                <Text style={{ color: '#fffd', marginTop: 6 }}>Strip expires end of {formatExpiry(result.expiry)}.</Text>
+              )}
               {result.occs.map((o) => (
                 <View key={o.key} style={{ marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 30, fontWeight: '900' }}>Take {qtyLabel(o.dose.qty, o.med.unit)}</Text>

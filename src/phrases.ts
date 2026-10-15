@@ -3,7 +3,7 @@
 
 export type LangCode = 'en' | 'hi' | 'bn' | 'pa' | 'te' | 'gu' | 'ta' | 'kn' | 'as' | 'zh' | 'es' | 'fil' | 'ja';
 
-export type PhraseKey = 'correct' | 'take' | 'wrong' | 'notNow' | 'taken' | 'otherStrength' | 'checkStrength' | 'substitute' | 'time';
+export type PhraseKey = 'correct' | 'take' | 'wrong' | 'notNow' | 'taken' | 'otherStrength' | 'checkStrength' | 'substitute' | 'expired' | 'time';
 
 type UnitKey = 'tablet' | 'capsule' | 'ml' | 'drops' | 'puff' | 'sachet' | 'injection';
 
@@ -43,6 +43,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'Different strength. Do not take it. Please ask the doctor or pharmacist.',
       checkStrength: 'The name matches. Check that the strip says {strength}.',
       substitute: 'Same medicine, different brand. Please check before taking.',
+      expired: 'This strip has expired. Do not take it — use another strip.',
       time: 'It is time for your medicine.',
     },
     amount: (q, u) => {
@@ -72,6 +73,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'ताकत अलग है। इसे मत लीजिए। डॉक्टर या फार्मासिस्ट से पूछिए।',
       checkStrength: 'नाम सही है। जाँच लीजिए कि पत्ते पर {strength} लिखा है।',
       substitute: 'यही दवा है, पर कंपनी अलग है। लेने से पहले जाँच लीजिए।',
+      expired: 'इस पत्ते की तारीख निकल चुकी है। इसे न लें — दूसरा पत्ता लीजिए।',
       time: 'दवा लेने का समय हो गया है।',
     },
     amount: simpleAmount({ half: 'आधी', quarter: 'चौथाई', oneHalf: 'डेढ़' }, {
@@ -91,6 +93,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'মাত্রা আলাদা। এটা খাবেন না। ডাক্তার বা ফার্মাসিস্টকে জিজ্ঞেস করুন।',
       checkStrength: 'নাম মিলেছে। পাতায় {strength} লেখা আছে কিনা দেখে নিন।',
       substitute: 'একই ওষুধ, অন্য কোম্পানির। খাওয়ার আগে দেখে নিন।',
+      expired: 'এই স্ট্রিপের মেয়াদ শেষ হয়ে গেছে। এটা খাবেন না — অন্য স্ট্রিপ নিন।',
       time: 'ওষুধ খাওয়ার সময় হয়েছে।',
     },
     amount: simpleAmount({ half: 'আধখানা', quarter: 'সিকি', oneHalf: 'দেড়টা' }, {
@@ -110,6 +113,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'ਤਾਕਤ ਵੱਖਰੀ ਹੈ। ਇਸਨੂੰ ਨਾ ਲਓ। ਡਾਕਟਰ ਜਾਂ ਫਾਰਮਾਸਿਸਟ ਤੋਂ ਪੁੱਛੋ।',
       checkStrength: 'ਨਾਮ ਸਹੀ ਹੈ। ਜਾਂਚ ਕਰੋ ਕਿ ਪੱਤੇ ਉੱਤੇ {strength} ਲਿਖਿਆ ਹੈ।',
       substitute: 'ਇਹੀ ਦਵਾਈ ਹੈ, ਪਰ ਕੰਪਨੀ ਵੱਖਰੀ ਹੈ। ਲੈਣ ਤੋਂ ਪਹਿਲਾਂ ਜਾਂਚ ਕਰੋ।',
+      expired: 'ਇਸ ਪੱਤੇ ਦੀ ਮਿਆਦ ਖਤਮ ਹੋ ਗਈ ਹੈ। ਇਹ ਨਾ ਲਓ — ਦੂਜਾ ਪੱਤਾ ਲਓ।',
       time: 'ਦਵਾਈ ਲੈਣ ਦਾ ਸਮਾਂ ਹੋ ਗਿਆ ਹੈ।',
     },
     amount: simpleAmount({ half: 'ਅੱਧੀ', quarter: 'ਚੌਥਾਈ', oneHalf: 'ਡੇਢ' }, {
@@ -129,6 +133,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'బలం వేరుగా ఉంది. దీన్ని తీసుకోకండి. డాక్టర్‌ను లేదా ఫార్మసిస్ట్‌ను అడగండి.',
       checkStrength: 'పేరు సరిపోయింది. స్ట్రిప్ మీద {strength} ఉందో లేదో చూడండి.',
       substitute: 'ఇదే మందు, వేరే కంపెనీది. తీసుకునే ముందు చూసుకోండి.',
+      expired: 'ఈ స్ట్రిప్ గడువు ముగిసింది. దీన్ని తీసుకోకండి — వేరే స్ట్రిప్ వాడండి.',
       time: 'మందు వేసుకునే సమయం అయింది.',
     },
     amount: simpleAmount({ half: 'సగం', quarter: 'పావు', oneHalf: 'ఒకటిన్నర' }, {
@@ -148,6 +153,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'તાકાત અલગ છે. આ ન લો. ડૉક્ટર અથવા ફાર્માસિસ્ટને પૂછો.',
       checkStrength: 'નામ મળે છે. પટ્ટી પર {strength} લખેલું છે કે નહીં તે તપાસો.',
       substitute: 'આ જ દવા છે, પણ કંપની અલગ છે. લેતા પહેલાં તપાસો.',
+      expired: 'આ પત્તાની મુદત પૂરી થઈ ગઈ છે. તે ન લો — બીજું પત્તું લો.',
       time: 'દવા લેવાનો સમય થઈ ગયો છે.',
     },
     amount: simpleAmount({ half: 'અડધી', quarter: 'પા', oneHalf: 'દોઢ' }, {
@@ -167,6 +173,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'வலிமை வேறுபடுகிறது. இதை எடுக்க வேண்டாம். மருத்துவரிடம் அல்லது மருந்தாளுநரிடம் கேளுங்கள்.',
       checkStrength: 'பெயர் பொருந்துகிறது. அட்டையில் {strength} என்று உள்ளதா எனப் பாருங்கள்.',
       substitute: 'இதே மருந்து, வேறு நிறுவனம். எடுப்பதற்கு முன் சரிபாருங்கள்.',
+      expired: 'இந்த அட்டையின் காலாவதி தேதி முடிந்துவிட்டது. இதை எடுக்காதீர்கள் — வேறு அட்டையைப் பயன்படுத்துங்கள்.',
       time: 'மருந்து எடுக்கும் நேரம் ஆகிவிட்டது.',
     },
     amount: simpleAmount({ half: 'அரை', quarter: 'கால்', oneHalf: 'ஒன்றரை' }, {
@@ -186,6 +193,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'ಶಕ್ತಿ ಬೇರೆಯಾಗಿದೆ. ಇದನ್ನು ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ. ವೈದ್ಯರನ್ನು ಅಥವಾ ಫಾರ್ಮಸಿಸ್ಟ್ ಅವರನ್ನು ಕೇಳಿ.',
       checkStrength: 'ಹೆಸರು ಹೊಂದುತ್ತದೆ. ಸ್ಟ್ರಿಪ್ ಮೇಲೆ {strength} ಇದೆಯೇ ಎಂದು ಪರಿಶೀಲಿಸಿ.',
       substitute: 'ಇದೇ ಔಷಧಿ, ಬೇರೆ ಕಂಪನಿಯದು. ತೆಗೆದುಕೊಳ್ಳುವ ಮೊದಲು ಪರಿಶೀಲಿಸಿ.',
+      expired: 'ಈ ಸ್ಟ್ರಿಪ್\u200cನ ಅವಧಿ ಮುಗಿದಿದೆ. ಇದನ್ನು ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ — ಬೇರೆ ಸ್ಟ್ರಿಪ್ ಬಳಸಿ.',
       time: 'ಔಷಧಿ ತೆಗೆದುಕೊಳ್ಳುವ ಸಮಯವಾಗಿದೆ.',
     },
     amount: simpleAmount({ half: 'ಅರ್ಧ', quarter: 'ಕಾಲು', oneHalf: 'ಒಂದೂವರೆ' }, {
@@ -205,6 +213,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'শক্তি বেলেগ। এইটো নাখাব। ডাক্তৰ বা ফাৰ্মাচিষ্টক সোধক।',
       checkStrength: 'নাম মিলিছে। পাতত {strength} লিখা আছে নে নাই চাওক।',
       substitute: 'একেটা ঔষধ, কিন্তু বেলেগ কোম্পানীৰ। খোৱাৰ আগতে চাই লওক।',
+      expired: 'এই ষ্ট্ৰিপৰ ম্যাদ উকলি গৈছে। এইটো নাখাব — আন এটা ষ্ট্ৰিপ লওক।',
       time: 'ঔষধ খোৱাৰ সময় হৈছে।',
     },
     amount: simpleAmount({ half: 'আধা', quarter: 'এক চতুৰ্থাংশ', oneHalf: 'দেৰ' }, {
@@ -224,6 +233,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: '药的规格不同，请不要服用。请咨询医生或药剂师。',
       checkStrength: '名称相符。请确认药板上写的是{strength}。',
       substitute: '同一种药，但品牌不同。服用前请确认。',
+      expired: '这板药已过期。请不要服用，换一板。',
       time: '该吃药了。',
     },
     amount: (q, u) => {
@@ -250,6 +260,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'La dosis del envase es diferente. No lo tome. Consulte al médico o al farmacéutico.',
       checkStrength: 'El nombre coincide. Compruebe que el blíster diga {strength}.',
       substitute: 'Es el mismo medicamento, de otra marca. Compruébelo antes de tomarlo.',
+      expired: 'Este blíster está caducado. No lo tome; use otro.',
       time: 'Es hora de su medicamento.',
     },
     amount: (q, u) => {
@@ -281,6 +292,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'Iba ang lakas ng gamot. Huwag itong inumin. Magtanong sa doktor o parmasyutiko.',
       checkStrength: 'Tugma ang pangalan. Tingnan kung {strength} ang nakasulat sa strip.',
       substitute: 'Parehong gamot, ibang brand. Suriin muna bago inumin.',
+      expired: 'Expired na ang strip na ito. Huwag itong inumin — gumamit ng ibang strip.',
       time: 'Oras na ng iyong gamot.',
     },
     amount: (q, u) => {
@@ -307,6 +319,7 @@ export const LANGS: Record<LangCode, Lang> = {
       otherStrength: 'お薬の強さが違います。飲まないでください。医師か薬剤師に相談してください。',
       checkStrength: '名前は合っています。シートに{strength}と書いてあるか確認してください。',
       substitute: '同じお薬ですが、別のメーカーです。飲む前に確認してください。',
+      expired: 'このシートは使用期限切れです。飲まずに、別のシートを使ってください。',
       time: 'お薬の時間です。',
     },
     amount: (q, u) => {

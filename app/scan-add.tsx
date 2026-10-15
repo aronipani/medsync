@@ -4,6 +4,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { parseExpiry } from '../src/expiry.ts';
 import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
 import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { encode, fingerprint } from '../src/learn.ts';
@@ -93,6 +94,7 @@ export default function ScanToAdd() {
       barcodes: barcode ? [barcode] : [],
       notes: result.contents ? `Contains ${result.contents}.` : undefined,
       learned: lines.length ? [encode(fingerprint(lines.map((l) => l.text)))] : [],
+      expiry: parseExpiry(lines.map((l) => l.text).join('\n')),
     };
     if (state.settings.collectTraining && photoUris.current.length) {
       saveTrainingPhotos(photoUris.current, { name: prefill.name, strength: prefill.strength, contents: result.contents }, 'scan-to-add', lines.map((l) => l.text).join('\n')).catch(() => {});

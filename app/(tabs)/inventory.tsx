@@ -3,6 +3,7 @@ import * as Sharing from 'expo-sharing';
 import React, { useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberDot, MemberPicker, StatusBadge } from '../../src/components.tsx';
+import { expiryStatus, formatExpiry } from '../../src/expiry.ts';
 import { medLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { dateKey, fmt12, fmtDay } from '../../src/time.ts';
@@ -15,7 +16,7 @@ const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
 
 export default function Inventory() {
   const t = useTheme();
-  const { state, now, adjustStock } = useStore();
+  const { state, now, adjustStock, setExpiry } = useStore();
   const [tab, setTab] = useState<'stock' | 'history'>('stock');
   const [memberId, setMemberId] = useState<string | undefined>();
   const [refill, setRefill] = useState<{ med: Medication; qty: number } | null>(null);
@@ -99,6 +100,18 @@ export default function Inventory() {
                     {low ? 'Low stock — refill soon. ' : ''}
                     {days !== undefined && m.active ? `Lasts about ${days} day${days === 1 ? '' : 's'}.` : ''}
                   </Text>
+                  {m.expiry ? (
+                    <View style={[s.row, { marginTop: 4 }]}>
+                      {(() => {
+                        const st = expiryStatus(m.expiry);
+                        const text = st === 'expired' ? `Strip expired ${formatExpiry(m.expiry)} — replace it` : st === 'soon' ? `Expires soon — end of ${formatExpiry(m.expiry)}` : `Strip expires ${formatExpiry(m.expiry)}`;
+                        return <Text style={{ color: st === 'expired' ? t.bad : st === 'soon' ? t.warn : t.sub, fontWeight: st === 'ok' ? '400' : '700', flex: 1 }}>{text}</Text>;
+                      })()}
+                      <Pressable onPress={() => setExpiry(m.id, undefined)} hitSlop={10}>
+                        <Text style={{ color: t.sub, fontSize: 13 }}>Clear</Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
                   <View style={[s.row, { gap: 8, marginTop: 10 }]}>
                     <Button title="Refill" onPress={() => setRefill({ med: m, qty: 10 })} style={{ flex: 1 }} />
                     <Button

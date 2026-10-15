@@ -29,6 +29,7 @@ export interface Medication {
   active: boolean;
   createdAt: string;
   learned?: string[]; // fingerprints of strips a person confirmed ("Teach this strip")
+  expiry?: string; // YYYY-MM printed on the strip in use (read when a scan is confirmed)
   overlapOk?: string[]; // ids of medicines a doctor confirmed this one is meant to be taken with (same ingredient)
 }
 

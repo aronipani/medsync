@@ -87,6 +87,8 @@ interface Store {
   forgetLearned(medId: string): void;
   /** Records that a doctor confirmed two medicines with the same ingredient are both meant to be taken. */
   confirmOverlap(aId: string, bId: string): void;
+  /** The expiry (YYYY-MM) of the strip in use; undefined clears it. */
+  setExpiry(medId: string, ym: string | undefined): void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -187,6 +189,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const meds = next.meds.filter((x) => x.id !== id).map((x) => (x.overlapOk?.includes(id) ? { ...x, overlapOk: x.overlapOk.filter((o) => o !== id) } : x));
           return { ...next, meds };
         }),
+      setExpiry: (medId, ym) => update((s) => ({ ...s, meds: s.meds.map((m) => (m.id === medId ? { ...m, expiry: ym } : m)) })),
       confirmOverlap: (aId, bId) =>
         update((s) => {
           const a = s.meds.find((x) => x.id === aId);
