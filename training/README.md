@@ -1,12 +1,15 @@
 # Strip-region detector — training
 
-Teaches a small model to **find where the brand, contents and strength are printed** on a strip,
+Teaches a small model to **find where the brand, contents, strength and expiry date are printed** on a strip,
 so the app can crop those areas, enlarge them and read them cleanly — even with glare or torn foil.
 
 Boxes are **rotated** (YOLO-OBB: four corners per box), because strips are photographed at every angle and an
 upright box around slanted print swallows the neighbouring lines.
 
-Classes: `0 brand` (e.g. MONOTRATE®10), `1 contents` (e.g. "Isosorbide Mononitrate … 10 mg"), `2 strength` (e.g. "10 mg").
+Classes: `0 brand` (e.g. MONOTRATE®10), `1 contents` (e.g. "Isosorbide Mononitrate … 10 mg"), `2 strength` (e.g. "10 mg"),
+`3 expiry` (e.g. "EXP. 03/2028" — any line with a readable expiry date).
+
+Models trained before `expiry` was added have 3 classes; retrain once labels include it.
 
 ## 1. Set up (once)
 
@@ -21,6 +24,10 @@ A GPU helps but isn't required: 50–100 photos train in about 30–60 minutes o
 
 In the app: **Settings → Training photos → Export (.zip)**, share it to your computer and unzip it, e.g. to `~/medsync-training`.
 It contains `images/`, `labels/` (boxes the phone labelled automatically), `manifest.json` and `data.yaml`.
+
+`unlabelled/` holds photos of scans nobody confirmed (red result, unreadable, or closed); `reason` in `manifest.json`
+says why. These are the hardest strips, so the most useful to train on: name each one (CVAT, or
+`python autolabel.py --folder unlabelled_monotrate --label "Monotrate 10"` after sorting them into folders), then add them to the dataset.
 
 Loose photos (not from the app) also work: put each medicine's photos in its own folder.
 
@@ -45,7 +52,7 @@ Auto-labels miss print hidden by glare and sometimes mark the wrong line. A miss
   `labels/` and `data.yaml`; export as *YOLOv8 Oriented Bounding Boxes*.
 
 Rules of thumb: turn each box to follow the text line; box **every** readable copy of the brand (strips repeat it), the generic-name heading and
-composition lines as `contents`, and any "10 mg"-style text as `strength`. Skip company, address, price and warnings.
+composition lines as `contents`, any "10 mg"-style text as `strength`, and the "EXP" date as `expiry`. Skip company, address, batch, price and warnings.
 
 ## 5. Build the dataset and train
 

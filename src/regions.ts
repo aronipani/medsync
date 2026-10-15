@@ -3,8 +3,10 @@
 // with rotated boxes (YOLO-OBB), because strips are photographed at any angle.
 // Pure — no React Native — so it can be unit tested.
 
-export type RegionClass = 'brand' | 'contents' | 'strength';
-export const REGION_CLASSES: RegionClass[] = ['brand', 'contents', 'strength']; // YOLO class ids 0, 1, 2
+import { parseExpiry } from './expiry.ts';
+
+export type RegionClass = 'brand' | 'contents' | 'strength' | 'expiry';
+export const REGION_CLASSES: RegionClass[] = ['brand', 'contents', 'strength', 'expiry']; // YOLO class ids 0, 1, 2, 3
 
 export interface Box {
   text: string;
@@ -103,7 +105,8 @@ const SKIP = /\b(caution|schedule|prescription|retail|sold|practitioner|register
 const CONTENTS_HINT = /(\bcontains|\bequivalent|composition|tablets?\s+i\.?p|capsules?\s+i\.?p|tablets?\s+b\.?p|tablets?\s+u\.?s\.?p|hydrochloride|sodium|bisulphate)\b/i;
 
 /**
- * Which OCR lines are the brand, the contents and the strength — given what the strip was confirmed to be.
+ * Which OCR lines are the brand, the contents, the strength and the expiry date — given what the strip was confirmed to be.
+ * The expiry box is any line with a readable "EXP 03/2028"-style date (spec 05); it doesn't depend on the label.
  * A line can be in two classes (e.g. "Isosorbide Mononitrate 10 mg" is contents and strength).
  */
 export function labelRegions(lines: Box[], label: { name: string; strength: string; ingredients?: string[] }): Region[] {
@@ -116,6 +119,8 @@ export function labelRegions(lines: Box[], label: { name: string; strength: stri
   const out: Region[] = [];
   for (const l of lines) {
     if (!l.text.trim() || l.width <= 0 || l.height <= 0) continue;
+    // Checked before SKIP, which drops "Exp"/"Mfg" lines from the other classes.
+    if (parseExpiry(l.text)) out.push({ ...l, cls: 'expiry' });
     if (SKIP.test(l.text)) continue;
     const ws = words(l.text);
     // "MONONITRATE" is close to "MONOTRATE": a word that is (nearly) an ingredient word is not the brand.

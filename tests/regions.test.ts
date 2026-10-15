@@ -91,3 +91,12 @@ test('torn + misread brand, glued generic, and duplicate boxes from rotations', 
   const dup = labelRegions([B('NEBICARD-2.5', 193, 980, 444, 46), B('NEBICARD-2.5', 196, 976, 443, 54)], { name: 'Nebicard', strength: '2.5' });
   assert.equal(dup.length, 1);
 });
+
+test('boxes the expiry date line, even though "Exp"/"Mfg" lines are skipped for the other classes', () => {
+  const year = new Date().getFullYear() + 2;
+  const lines = [B('MONOTRATE®10', 120, 110, 260, 36), B(`MFG.04/2025 EXP.03/${year}`, 100, 600, 300, 20), B('B.No. MT2504', 100, 630, 160, 20), B('EXP.', 100, 660, 40, 20)];
+  const r = labelRegions(lines, { name: 'Monotrate', strength: '10' });
+  assert.deepEqual(r.filter((x) => x.cls === 'expiry').map((x) => x.text), [`MFG.04/2025 EXP.03/${year}`]);
+  assert.deepEqual(r.filter((x) => x.cls === 'brand').map((x) => x.text), ['MONOTRATE®10']);
+  assert.match(toYolo(r.filter((x) => x.cls === 'expiry'), { width: 1000, height: 1000 }), /^3 /);
+});

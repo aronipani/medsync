@@ -23,7 +23,7 @@ from rapidocr_onnxruntime import RapidOCR
 
 from regions import CLASSES, Box, corners_of, label_regions, to_yolo
 
-COLORS = {"brand": (40, 160, 40), "contents": (200, 120, 0), "strength": (30, 30, 220)}
+COLORS = {"brand": (40, 160, 40), "contents": (200, 120, 0), "strength": (30, 30, 220), "expiry": (180, 40, 180)}
 _ocr = RapidOCR()
 TILE = 1100  # photos are read in overlapping tiles so the small print on foil gets enough pixels
 

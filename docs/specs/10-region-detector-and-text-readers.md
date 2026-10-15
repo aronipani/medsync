@@ -3,7 +3,8 @@
 ## Goal
 Read strips faster and more reliably by splitting the job in two:
 
-1. **Find** where the brand, contents and strength are printed — the YOLO11n-OBB model in `training/`.
+1. **Find** where the brand, contents, strength and expiry date are printed — the YOLO11n-OBB model in `training/`
+   (classes `brand`, `contents`, `strength`, `expiry`).
 2. **Read** only those areas — Apple Vision on iPhone, Google ML Kit on Android.
 
 Today `src/ocr.ts` reads the whole photo four times (upright, 180°, 90°, 270°), then guesses the name and strength
@@ -51,14 +52,15 @@ coordinates of the photo as shown** (orientation flag applied), top-left origin,
   native helper (`decodeRGB(uri, size)`); it lives in the same local module, with a Kotlin side for Android.
 * **Export without built-in NMS** (`export.py`: `nms=False`). Decoding the raw output (centre, size, angle, class
   scores) and rotated-box NMS are done in `src/obb.ts` — pure TypeScript, unit-tested, independent of exporter quirks.
-* Output: `Region[]` (`brand | contents | strength`, rotated corners, confidence) mapped back to photo pixels.
+* Output: `Region[]` (`brand | contents | strength | expiry`, rotated corners, confidence) mapped back to photo pixels.
 
 ### 4. New reading path in `readPhoto`
 1. Detect regions on the upright photo.
 2. If at least one `brand` or `contents` box has confidence ≥ 0.35:
    * crop each box (padded), turn it level using the box angle, enlarge to ~900–1800 px wide, read it;
    * also read the crop turned 180° (a rotated box's angle can't tell upside down from upright);
-   * keep the full upright reading too (expiry, batch and anything the detector missed).
+   * an `expiry` box is read the same way and its text goes to `parseExpiry` (spec 05) first;
+   * keep the full upright reading too (batch and anything the detector missed).
    * Skip the 90° / 270° / 180° full-photo reads.
 3. Otherwise, fall back to today's path (all orientations + `rereadCandidates`).
 4. Lines from a `strength` box are tagged so `label.ts` can prefer them over stray "mg" text (small follow-up).
@@ -82,6 +84,13 @@ misses the line.
 2. `obb.ts` decoding + NMS with tests; model export with `nms=False`; `regionModel.ts`; RGB helper.
 3. Crop-and-read path with fallback and the Settings switch.
 4. Compare on real strips; retrain with more `strength` examples (small boxes need more data).
+
+## Training data (done on this branch)
+* The phone's auto-labels and `training/regions.py` now mark an `expiry` box on any line with a readable expiry date.
+* Photos of scans nobody confirmed (red, unreadable, closed — Scan tab and Scan to add) are kept when "Save scan photos
+  for training" is on, without a label, and exported under `unlabelled/` with the reason. Before, only confirmed or
+  taught scans were kept, so the hardest strips never reached training.
+* A photo where no box was found gets no label file (it used to get an empty one, which would teach "nothing here").
 
 ## Needed
 * The trained weights (`best.pt`, or the exported `.tflite`) — not in the repo yet. Add them under

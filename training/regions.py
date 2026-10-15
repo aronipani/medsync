@@ -1,16 +1,35 @@
 """Strip region labelling — the same rules as src/regions.ts in the app.
 
 Given the text lines (with boxes) read from a photo and what the strip was confirmed to be,
-decide which boxes are the brand, the contents and the strength.
+decide which boxes are the brand, the contents, the strength and the expiry date.
 """
 from __future__ import annotations
 
 import json
 import re
 from dataclasses import dataclass, field
+from datetime import date
 from pathlib import Path
 
-CLASSES = ["brand", "contents", "strength"]  # YOLO class ids 0, 1, 2
+CLASSES = ["brand", "contents", "strength", "expiry"]  # YOLO class ids 0, 1, 2, 3
+
+# Expiry dates — same patterns as src/expiry.ts ("EXP 03/2028", "Exp. Date: MAR 2028", "Use before 3-28").
+_MONTHS = ["jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec"]
+_KEYWORD = r"(?:exp(?:iry|ires|\.)?|use\s+before)(?:[\s.:]*(?:date|dt))?[\s.:\-]*"
+_NUMERIC = re.compile(rf"\b{_KEYWORD}(\d{{1,2}})\s*[/.\-]\s*(\d{{4}}|\d{{2}})(?!\d)", re.I)
+_NAMED = re.compile(rf"\b{_KEYWORD}({'|'.join(_MONTHS)})[a-z]*\.?[\s/.\-]*(\d{{4}}|\d{{2}})(?!\d)", re.I)
+
+
+def has_expiry(text: str, today: date | None = None) -> bool:
+    """A line with a readable expiry date (a sensible month and year), like parseExpiry in the app."""
+    y = (today or date.today()).year
+    found = [(int(m[1]), m[2]) for m in _NUMERIC.finditer(text)]
+    found += [(_MONTHS.index(m[1].lower()[:3]) + 1, m[2]) for m in _NAMED.finditer(text)]
+    for month, yt in found:
+        year = 2000 + int(yt) if len(yt) == 2 else int(yt)
+        if 1 <= month <= 12 and y - 3 <= year <= y + 10:
+            return True
+    return False
 
 DRUGS = json.loads((Path(__file__).parent / "drugs.json").read_text())
 
@@ -108,7 +127,12 @@ def label_regions(lines: list[Box], name: str, strength: str, ingredients: list[
     strengths = [re.sub(r"[^\d.]", "", x) for x in strength.split("/") if re.sub(r"[^\d.]", "", x)]
     out: list[Region] = []
     for l in lines:
-        if not l.text.strip() or l.width <= 0 or l.height <= 0 or SKIP.search(l.text):
+        if not l.text.strip() or l.width <= 0 or l.height <= 0:
+            continue
+        # Checked before SKIP, which drops "Exp"/"Mfg" lines from the other classes.
+        if has_expiry(l.text):
+            out.append(Region(**vars(l), cls="expiry"))
+        if SKIP.search(l.text):
             continue
         ws = _words(l.text)
 

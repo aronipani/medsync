@@ -2,13 +2,13 @@ import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } 
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { parseExpiry } from '../src/expiry.ts';
 import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
 import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { encode, fingerprint } from '../src/learn.ts';
-import { saveTrainingPhotos } from '../src/training.ts';
+import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
 import { useStore } from '../src/store.tsx';
 import { Button, Card, Chip, Field, Label, s, useTheme } from '../src/ui.tsx';
 
@@ -27,6 +27,18 @@ export default function ScanToAdd() {
   const [lines, setLines] = useState<OcrLine[]>([]); // everything read so far, across photos
   const [photos, setPhotos] = useState(0);
   const photoUris = useRef<string[]>([]);
+  // Leaving without "Use this" (unreadable, wrong reading, gave up): keep the photos unlabelled for retraining.
+  const leaving = useRef({ collect: false, text: '', error: '' });
+  useEffect(
+    () => () => {
+      const l = leaving.current;
+      if (l.collect && photoUris.current.length) {
+        saveUnlabelledPhotos(photoUris.current, 'failed-add', l.error || 'Left Scan to add without using the reading.', l.text).catch(() => {});
+      }
+    },
+    [],
+  );
+  leaving.current = { collect: !!state.settings.collectTraining, text: lines.map((l) => l.text).join('\n'), error: error ?? '' };
   const [result, setResult] = useState<LabelResult>();
   const [showCamera, setShowCamera] = useState(true);
   const [edited, setEdited] = useState(false);
@@ -99,6 +111,7 @@ export default function ScanToAdd() {
     if (state.settings.collectTraining && photoUris.current.length) {
       saveTrainingPhotos(photoUris.current, { name: prefill.name, strength: prefill.strength, contents: result.contents }, 'scan-to-add', lines.map((l) => l.text).join('\n')).catch(() => {});
     }
+    photoUris.current = []; // saved with their label; nothing left to keep as unlabelled
     router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId: memberId ?? state.members[0]?.id, prefill: JSON.stringify(prefill) } });
   };
 

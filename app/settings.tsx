@@ -66,15 +66,17 @@ export default function SettingsScreen() {
       <Label>Training photos</Label>
       <Card>
         <View style={s.between}>
-          <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>Save confirmed scan photos</Text>
+          <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>Save scan photos for training</Text>
           <Switch value={!!state.settings.collectTraining} onValueChange={(v) => saveSettings({ ...state.settings, collectTraining: v })} />
         </View>
         <Text style={{ color: t.sub, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
           When a scan is confirmed (or taught), its photos are kept on this phone, labelled with the medicine, to train a strip-recognition model later.
+          Scans that end red, can't be read or are closed are kept too, without a label — they are the strips the app finds hardest.
           Nothing is uploaded. Photos may show hands or surroundings.
         </Text>
         <Text style={{ color: t.text, marginTop: 10 }}>
-          {summary.photos} photo{summary.photos === 1 ? '' : 's'} of {summary.medicines} medicine{summary.medicines === 1 ? '' : 's'} saved
+          {summary.photos - summary.unlabelled} photo{summary.photos - summary.unlabelled === 1 ? '' : 's'} of {summary.medicines} medicine{summary.medicines === 1 ? '' : 's'}
+          {summary.unlabelled ? ` · ${summary.unlabelled} from failed scans` : ''} saved
         </Text>
         <View style={[s.row, { gap: 8, marginTop: 10 }]}>
           <Button

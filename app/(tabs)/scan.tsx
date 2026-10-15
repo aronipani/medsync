@@ -9,7 +9,7 @@ import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, t
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
 import { readBurst, readLinesAnyOrientation } from '../../src/ocr.ts';
 import { bestLearned } from '../../src/learn.ts';
-import { saveTrainingPhotos } from '../../src/training.ts';
+import { saveTrainingPhotos, saveUnlabelledPhotos } from '../../src/training.ts';
 import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
@@ -49,9 +49,21 @@ export default function Scan() {
   const [typed, setTyped] = useState('');
   const lastCode = useRef({ code: '', at: 0 });
   // What the last strip reading saw (for "Teach this strip" and optional training photos).
-  const lastRead = useRef<{ lines: string[]; photos: string[] }>({ lines: [], photos: [] });
+  // `kept`: its photos are already saved for training; `reason`: why the result was red, if it was.
+  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string }>({ lines: [], photos: [] });
+  const collectTraining = useRef(false);
+  collectTraining.current = !!state.settings.collectTraining;
+
+  /** Photos of a scan nobody confirmed (red, unreadable, closed) are the hardest strips — keep them, unlabelled, for retraining. */
+  const keepUnconfirmed = (reason?: string) => {
+    const r = lastRead.current;
+    if (!collectTraining.current || r.kept || !r.photos.length) return;
+    r.kept = true;
+    saveUnlabelledPhotos(r.photos, 'failed-scan', reason ?? r.reason ?? 'Closed without confirming.', r.lines.join('\n')).catch(() => {});
+  };
 
   const forgetRead = () => {
+    keepUnconfirmed();
     lastRead.current = { lines: [], photos: [] };
   };
   /** Closes a result and forgets its photo text, so nothing from it reaches the next scan. */
@@ -117,6 +129,7 @@ export default function Scan() {
       const ym = parseExpiry(lastRead.current.lines.join('\n'));
       if (ym) r = { ...r, expiry: ym };
     }
+    if (r.kind === 'nomatch') lastRead.current.reason = [r.reason, r.detail].filter(Boolean).join(' — ');
     setResult(r);
     feedback(r.kind === 'match');
   };
@@ -170,10 +183,11 @@ export default function Scan() {
 
   const readStrip = async () => {
     if (!camera.current || busy) return;
+    forgetRead(); // a previous unconfirmed scan's photos are kept before this one replaces them
     setBusy(true);
+    const photos: string[] = [];
     try {
       const cam = camera.current;
-      const photos: string[] = [];
       const take = async () => {
         const uri = (await cam.takePictureAsync({ quality: 0.9, shutterSound: false })).uri;
         photos.push(uri);
@@ -189,6 +203,7 @@ export default function Scan() {
       lastRead.current = { lines: text.split('\n'), photos };
       checkText(text, 'text');
     } catch (e) {
+      lastRead.current = { lines: [], photos };
       show({
         kind: 'nomatch',
         reason: 'Could not read text.',
@@ -201,8 +216,9 @@ export default function Scan() {
   };
 
   const keepPhotos = (o: Occurrence, how: 'dose-check' | 'taught') => {
-    const { lines, photos } = lastRead.current;
-    if (state.settings.collectTraining && photos.length) {
+    const { lines, photos, kept } = lastRead.current;
+    if (state.settings.collectTraining && photos.length && !kept) {
+      lastRead.current.kept = true; // teaching then confirming the same scan must not save it twice
       saveTrainingPhotos(photos, { name: o.med.name, strength: o.med.strength }, how, lines.join('\n')).catch(() => {});
     }
   };
@@ -214,7 +230,7 @@ export default function Scan() {
       teach(occs[0].med.id, lastRead.current.lines);
       if (expiry) setExpiry(occs[0].med.id, expiry);
       keepPhotos(occs[0], 'dose-check');
-    }
+    } else if (occs.length > 1) keepUnconfirmed('Matched several medicines at once; which one the strip is was not confirmed.');
     lastRead.current = { lines: [], photos: [] };
     setResult(null);
     setTyped('');

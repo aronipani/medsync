@@ -11,7 +11,7 @@ import cv2
 import numpy as np
 from ultralytics import YOLO
 
-COLORS = {"brand": (40, 160, 40), "contents": (200, 120, 0), "strength": (30, 30, 220)}
+COLORS = {"brand": (40, 160, 40), "contents": (200, 120, 0), "strength": (30, 30, 220), "expiry": (180, 40, 180)}
 
 
 def main():
