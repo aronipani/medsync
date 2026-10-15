@@ -53,7 +53,7 @@ function ReminderSync() {
     const received = Notifications.addNotificationReceivedListener(() => {
       const st = latest.current;
       const who = st.members.find((m) => m.voice !== false && dueNow(st, new Date(), m.id).length);
-      if (who) say(who.language ?? 'en', `${who.name}. ${phrase(who.language ?? 'en', 'time')}`);
+      if (who) say(who.language ?? 'en', `${who.name}. ${phrase(who.language ?? 'en', 'time')}`, undefined, `${who.name}. ${phrase('en', 'time')}`);
     });
     return () => {
       sub.remove();

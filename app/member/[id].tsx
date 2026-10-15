@@ -89,13 +89,13 @@ export default function EditMember() {
         style={{ marginTop: 8 }}
         onPress={() => {
           setSpeak('speaking');
-          say(lang, matchAnnouncement(lang, [{ name: 'Clopilet 75', qty: 0.5, unit: 'tablet' }]), (st) => setSpeak(st));
+          say(lang, matchAnnouncement(lang, [{ name: 'Clopilet 75', qty: 0.5, unit: 'tablet' }]), (st) => setSpeak(st), matchAnnouncement('en', [{ name: 'Clopilet 75', qty: 0.5, unit: 'tablet' }]));
         }}
       />
       {speak === 'speaking' && <Text style={{ color: t.sub, marginTop: 6 }}>If you hear nothing, turn the volume up.</Text>}
-      {speak === 'noVoice' && (
+      {(speak === 'noVoice' || speak === 'fallback') && (
         <Text style={{ color: t.warn, marginTop: 6, lineHeight: 19 }}>
-          This phone has no {LANGS[lang].english} voice installed, so it can't speak this language yet. iPhone: Settings → Accessibility → Spoken Content → Voices →{' '}
+          This phone has no {LANGS[lang].english} voice installed{speak === 'fallback' ? ', so announcements are said in English for now' : ", so it can't speak this language yet"}. iPhone: Settings → Accessibility → Spoken Content → Voices →{' '}
           {LANGS[lang].english} → download a voice. Android: Settings → Text-to-speech → Google → Install voice data → {LANGS[lang].english}. Then try again.
         </Text>
       )}

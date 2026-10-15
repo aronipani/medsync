@@ -75,8 +75,9 @@ export default function Scan() {
   // ---- Spoken announcements in the person's language ----
   const member = state.members.find((m) => m.id === memberId);
   const lang: LangCode = member?.language ?? 'en';
+  const memberLang = lang;
   const voiceOn = member?.voice !== false;
-  const announcement = (r: Result): string => {
+  const announcement = (r: Result, lang: LangCode = memberLang): string => {
     switch (r.kind) {
       case 'match':
         return (
@@ -94,7 +95,7 @@ export default function Scan() {
   };
   const [speakStatus, setSpeakStatus] = useState<SpeakStatus>();
   useEffect(() => {
-    if (result && voiceOn) say(lang, announcement(result), setSpeakStatus);
+    if (result && voiceOn) say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'));
     if (!result) stopSpeaking();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
@@ -328,10 +329,10 @@ export default function Scan() {
 
           {/* Result */}
           {result && (
-            <Pressable onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus)} style={{ alignSelf: 'flex-end', marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
+            <Pressable onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'))} style={{ alignSelf: 'flex-end', marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
               <Ionicons name="volume-high-outline" size={20} color={t.brand} />
               <Text style={{ color: t.brand, fontWeight: '700', marginLeft: 6 }}>
-                {!voiceOn ? 'Voice is off for this person' : speakStatus === 'noVoice' ? 'No voice for this language on this phone — see family member settings' : 'Say it again'}
+                {!voiceOn ? 'Voice is off for this person' : speakStatus === 'fallback' ? 'Said in English — no voice for this language on this phone (see family member settings)' : speakStatus === 'noVoice' ? 'No voice for this language on this phone — see family member settings' : 'Say it again'}
               </Text>
             </Pressable>
           )}

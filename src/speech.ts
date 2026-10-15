@@ -49,33 +49,39 @@ export async function hasVoice(lang: LangCode): Promise<boolean> {
   return LANGS[lang].tts.some((code) => list.some((v) => sameLang(v.language, code)));
 }
 
-export type SpeakStatus = 'speaking' | 'done' | 'noVoice' | 'error';
+export type SpeakStatus = 'speaking' | 'done' | 'noVoice' | 'fallback' | 'error';
 
 /**
- * Speaks text in the member's language. If the phone has no voice for that language it uses
- * English for Latin-script text, and reports 'noVoice' for other scripts (an English voice would say nothing).
+ * Speaks text in the member's language. If the phone has no voice for that language it uses English:
+ * the same text when it is in Latin script, else `english` (the same message in English) with status 'fallback'.
+ * Only when neither works does it report 'noVoice' (see docs/specs/06-voice-fallback.md).
  */
-export async function say(lang: LangCode, text: string, onStatus?: (s: SpeakStatus, detail?: string) => void) {
+export async function say(lang: LangCode, text: string, onStatus?: (s: SpeakStatus, detail?: string) => void, english?: string) {
   try {
     await prepareAudio();
     await Speech.stop();
     let language = await voiceFor(lang);
+    let fellBack = false;
     if (!language) {
       const latin = /^[\p{Script=Latin}\p{N}\p{P}\p{Zs}]*$/u.test(text);
-      if (!latin) {
-        onStatus?.('noVoice');
-        return;
-      }
       language = (await voiceFor('en')) ?? 'en-IN';
+      if (!latin) {
+        if (!english) {
+          onStatus?.('noVoice');
+          return;
+        }
+        text = english;
+        fellBack = true;
+      }
     }
-    onStatus?.('speaking');
+    onStatus?.(fellBack ? 'fallback' : 'speaking');
     Speech.speak(text, {
       language,
       rate: 0.9,
       pitch: 1.0,
       useApplicationAudioSession: true,
-      onDone: () => onStatus?.('done'),
-      onStopped: () => onStatus?.('done'),
+      onDone: () => onStatus?.(fellBack ? 'fallback' : 'done'),
+      onStopped: () => onStatus?.(fellBack ? 'fallback' : 'done'),
       onError: (e) => onStatus?.('error', String(e?.message ?? e)),
     });
   } catch (e) {
