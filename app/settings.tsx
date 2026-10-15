@@ -82,6 +82,7 @@ export default function SettingsScreen() {
           Finds the name, strength and expiry on a strip and reads just those parts. Trial model — turn off to compare with the old method
           (reading the whole photo every way up). If it finds nothing, the old method is used anyway.
         </Text>
+        <Button title="Test scan" kind="secondary" onPress={() => router.push('/test-scan')} style={{ marginTop: 10 }} />
       </Card>
 
       <Label>Training photos</Label>

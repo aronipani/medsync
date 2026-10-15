@@ -95,6 +95,7 @@ function Shell() {
         <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="add" options={{ presentation: 'modal', title: 'Add medicine' }} />
         <Stack.Screen name="scan-add" options={{ title: 'Scan to add' }} />
+        <Stack.Screen name="test-scan" options={{ title: 'Test scan' }} />
         <Stack.Screen name="rx-review" options={{ title: 'Check prescription' }} />
         <Stack.Screen name="history" options={{ title: 'Schedule history' }} />
         <Stack.Screen name="about" options={{ title: 'About & safety' }} />

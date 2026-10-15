@@ -12,3 +12,4 @@
 | [08](08-store-release.md) | Play Store / App Store release checklist | Checklist |
 | [09](09-prescription-photo-reading.md) | Prescription and chart photos read upright (bug fix) | Built |
 | [10](10-region-detector-and-text-readers.md) | Region detector (YOLO) + Apple Vision / ML Kit readers | Built (trial model) |
+| [11](11-test-scan.md) | Test scan and readiness check before the reminder | Built |

@@ -16,7 +16,7 @@ export interface TrainingEntry {
   name: string;
   strength: string;
   contents?: string; // "Isosorbide Mononitrate 10 mg"
-  how: 'dose-check' | 'taught' | 'scan-to-add' | 'failed-scan' | 'failed-add';
+  how: 'dose-check' | 'taught' | 'scan-to-add' | 'test-scan' | 'failed-scan' | 'failed-add';
   /** Not confirmed by a person: the scan failed or was closed. Exported under unlabelled/ to be named on a computer. */
   unlabelled?: boolean;
   reason?: string; // why it wasn't confirmed, e.g. the red result's message
@@ -131,7 +131,7 @@ const UNLABELLED = '_unlabelled';
  * Keeps photos of a scan nobody confirmed (red result, unreadable, or closed): the strips the reader finds hardest,
  * so the most useful ones for retraining. No medicine label; exported separately under unlabelled/.
  */
-export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add', reason: string, ocrText: string): Promise<number> {
+export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add' | 'test-scan', reason: string, ocrText: string): Promise<number> {
   if (!uris.length) return 0;
   return serial(async () => {
     const added: TrainingEntry[] = [];

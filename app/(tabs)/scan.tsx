@@ -1,7 +1,7 @@
 import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { useIsFocused } from 'expo-router';
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { router, useFocusEffect, useIsFocused } from 'expo-router';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
@@ -9,6 +9,8 @@ import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, t
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
 import { readBurst, readLinesAnyOrientation, scanDetectorLabel, scanReaderLabel, startScanStats } from '../../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../../src/regionModel.ts';
+import { readinessSummary, upcomingReadiness, type TestRecords } from '../../src/testScan.ts';
+import { loadTestRecords } from '../../src/testScanStore.ts';
 import { bestLearned } from '../../src/learn.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../../src/training.ts';
 import { Alert } from 'react-native';
@@ -43,6 +45,13 @@ export default function Scan() {
   }, [firstDue, memberId, state.members]);
 
   const due = useMemo(() => dueNow(state, now, memberId), [state, now, memberId]);
+  const [testRecords, setTestRecords] = useState<TestRecords>({});
+  useFocusEffect(
+    useCallback(() => {
+      loadTestRecords().then(setTestRecords);
+    }, []),
+  );
+  const ready = useMemo(() => readinessSummary(upcomingReadiness(state, testRecords, now, 24, memberId)), [state, testRecords, now, memberId]);
   const [result, setResult] = useState<Result | null>(null);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
@@ -301,6 +310,14 @@ export default function Scan() {
           <Text style={{ color: t.sub, marginTop: 6 }}>
             {next ? `Next: ${medLabel(next.med)} at ${fmt12(next.time)}` : 'No more doses today.'}
           </Text>
+          {ready.total > 0 && (
+            <Text style={{ color: ready.ready === ready.total ? t.ok : t.sub, marginTop: 6 }}>
+              {ready.ready === ready.total
+                ? `✓ All ${ready.total} medicines for the next 24 hours tested`
+                : `${ready.ready} of ${ready.total} medicines for the next 24 hours tested`}
+            </Text>
+          )}
+          <Button title="Test scan (nothing is logged)" kind="secondary" onPress={() => router.push('/test-scan')} style={{ marginTop: 12 }} />
         </Card>
       ) : (
         <>
