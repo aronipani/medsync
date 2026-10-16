@@ -33,7 +33,7 @@ export async function setupNotifications(): Promise<boolean> {
   }
   await Notifications.setNotificationCategoryAsync(CATEGORY, [
     { identifier: ACTION_SCAN, buttonTitle: 'Scan now', options: { opensAppToForeground: true } },
-    { identifier: ACTION_SNOOZE, buttonTitle: 'Snooze', options: { opensAppToForeground: false } },
+    { identifier: ACTION_SNOOZE, buttonTitle: 'Remind me later', options: { opensAppToForeground: false } },
   ]);
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
@@ -87,7 +87,7 @@ async function doReschedule(state: AppState) {
     if (count >= 50) break; // leave room for "not taken yet" follow-ups (iOS keeps at most 64 pending)
     await Notifications.scheduleNotificationAsync({
       content: {
-        title: `🧪 Test-scan before the ${fmt12(r.time)} dose`,
+        title: `Check the strips for ${fmt12(r.time)}`,
         body: r.lines.join('\n'),
         sound: 'default',
         data: { lines: r.lines, screen: 'test-scan' },
@@ -123,7 +123,7 @@ async function doReschedule(state: AppState) {
 export async function snooze(request: Notifications.NotificationRequest, minutes: number) {
   const c = request.content;
   await Notifications.scheduleNotificationAsync({
-    content: content(`🔁 ${c.title ?? 'Medicine reminder'}`, (c.data?.lines as string[]) ?? [c.body ?? '']),
+    content: content(`Reminder again: ${(c.title ?? 'Medicine time').replace(/^\S*💊\s*/u, '')}`, (c.data?.lines as string[]) ?? [c.body ?? '']),
     trigger: {
       type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL,
       seconds: minutes * 60,

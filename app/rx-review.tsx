@@ -8,7 +8,7 @@ import { describeTiming, medLabel, qtyLabel } from '../src/schedule.ts';
 import { useStore } from '../src/store.tsx';
 import { DAY_LABELS } from '../src/time.ts';
 import type { PendingRxItem } from '../src/types.ts';
-import { Button, Card, Empty, s, useTheme } from '../src/ui.tsx';
+import { Button, Card, Chip, Empty, s, useTheme } from '../src/ui.tsx';
 
 export default function PrescriptionReview() {
   const t = useTheme();
@@ -111,10 +111,10 @@ export default function PrescriptionReview() {
               if (!pi || !i.include) return null;
               const badge =
                 pi.action === 'new'
-                  ? { text: 'NEW — will be added', bg: t.brandSoft, fg: t.brand }
+                  ? { text: 'New — will be added', bg: t.brandSoft, fg: t.brand }
                   : pi.action === 'same'
-                    ? { text: `ALREADY IN SCHEDULE — no change`, bg: t.muted, fg: t.sub }
-                    : { text: `UPDATES ${pi.targetLabel}`, bg: t.warnSoft, fg: t.warn };
+                    ? { text: 'Already on the list — no change', bg: t.muted, fg: t.sub }
+                    : { text: `Changes ${pi.targetLabel}`, bg: t.warnSoft, fg: t.warn };
               return (
                 <View style={{ marginTop: 6 }}>
                   <Text style={{ alignSelf: 'flex-start', backgroundColor: badge.bg, color: badge.fg, fontWeight: '800', fontSize: 14, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' }}>
@@ -131,7 +131,7 @@ export default function PrescriptionReview() {
             <Text style={{ color: t.sub, marginTop: 4 }}>{summary(i)}</Text>
             {i.med.endDate && <Text style={{ color: t.sub, marginTop: 2 }}>Until {i.med.endDate}</Text>}
 
-            <Text style={{ color: t.sub, marginTop: 10, fontSize: 14, fontWeight: '700' }}>READ FROM PRESCRIPTION</Text>
+            <Text style={{ color: t.sub, marginTop: 10, fontSize: 16, fontWeight: '700' }}>Read from the prescription</Text>
             <Text style={{ color: t.text, marginTop: 2, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 15 }}>{i.source}</Text>
 
             {i.med.notes ? (
@@ -184,15 +184,16 @@ export default function PrescriptionReview() {
             {plan.missing.map((m) => (
               <View key={m.id} style={[s.between, { marginTop: 10 }]}>
                 <Text style={{ color: t.text, flex: 1, fontWeight: '600' }}>{medLabel(m)}</Text>
-                <Text style={{ color: stopIds.includes(m.id) ? t.bad : t.ok, fontWeight: '700', marginRight: 8 }}>{stopIds.includes(m.id) ? 'Stop' : 'Keep'}</Text>
-                <Switch value={!stopIds.includes(m.id)} onValueChange={() => toggleStop(m.id)} />
+                {/* Two named choices instead of a switch whose "on" meaning has to be guessed. */}
+                <Chip label="Keep" active={!stopIds.includes(m.id)} color={t.ok} onPress={() => stopIds.includes(m.id) && toggleStop(m.id)} />
+                <Chip label="Stop" active={stopIds.includes(m.id)} color={t.bad} onPress={() => !stopIds.includes(m.id) && toggleStop(m.id)} />
               </View>
             ))}
           </Card>
         )}
 
         <Text style={{ color: t.sub, marginTop: 14, lineHeight: 20 }}>
-          Medicine missing from the list? Add it afterwards from Schedule → Add medicine. Set stock counts later in Inventory.
+          Medicine missing from the list? Add it afterwards from Schedule → Add medicine. Set how many are left later in Stock.
         </Text>
         <Button title="Discard prescription" kind="ghost" onPress={discard} style={{ marginTop: 8 }} />
       </ScrollView>

@@ -40,7 +40,7 @@ export const LANGS: Record<LangCode, Lang> = {
       wrong: 'Wrong medicine. Do not take this one.',
       notNow: 'This medicine is not due now.',
       taken: 'This dose has already been taken.',
-      otherStrength: 'Different strength. Do not take it. Please ask the doctor or pharmacist.',
+      otherStrength: 'Wrong strength on this strip. Do not take it. Please ask the pharmacist.',
       checkStrength: 'The name matches. Check that the strip says {strength}.',
       substitute: 'Same medicine, different brand. Please check before taking.',
       expired: 'This strip has expired. Do not take it — use another strip.',

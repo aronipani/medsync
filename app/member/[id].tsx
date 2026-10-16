@@ -38,13 +38,17 @@ export default function EditMember() {
       <Field value={m.name} onChangeText={(name) => setM({ ...m, name })} placeholder="e.g. Ma, Baba, Aroni" />
 
       <Label>Colour</Label>
-      <View style={s.row}>
+      <View style={s.wrap}>
         {MEMBER_COLORS.map((c) => (
           <Pressable
             key={c}
+            accessibilityRole="button"
+            accessibilityState={{ selected: m.color === c }}
             onPress={() => setM({ ...m, color: c })}
-            style={{ width: 36, height: 36, borderRadius: 18, backgroundColor: c, marginRight: 10, borderWidth: m.color === c ? 3 : 0, borderColor: t.text }}
-          />
+            style={{ width: 48, height: 48, borderRadius: 24, backgroundColor: c, marginRight: 10, marginBottom: 8, borderWidth: m.color === c ? 4 : 0, borderColor: t.text, alignItems: 'center', justifyContent: 'center' }}
+          >
+            {m.color === c ? <Text style={{ color: '#fff', fontSize: 22, fontWeight: '900' }}>✓</Text> : null}
+          </Pressable>
         ))}
       </View>
 
@@ -54,8 +58,8 @@ export default function EditMember() {
           <Chip key={code} label={LANGS[code].label} active={lang === code} onPress={() => setM({ ...m, language: code })} />
         ))}
       </View>
-      <Pressable onPress={() => setShowMore((v) => !v)} style={{ paddingVertical: 6 }}>
-        <Text style={{ color: t.brand, fontWeight: '700' }}>{showMore ? '▾' : '▸'} More languages (not yet checked)</Text>
+      <Pressable accessibilityRole="button" onPress={() => setShowMore((v) => !v)} style={{ minHeight: 44, justifyContent: 'center' }}>
+        <Text style={{ color: t.brand, fontWeight: '700', fontSize: 16 }}>{showMore ? '▾' : '▸'} More languages (not yet checked)</Text>
       </Pressable>
       {showMore && (
         <>

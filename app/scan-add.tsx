@@ -182,7 +182,7 @@ export default function ScanToAdd() {
       {result && !showCamera && (
         <>
           <Card>
-            <Text style={{ color: t.sub, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>MEDICINE INSIDE</Text>
+            <Text style={{ color: t.sub, fontSize: 16, fontWeight: '700' }}>Medicine inside</Text>
             {result.ingredients.length ? (
               <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 4 }}>{result.contents}</Text>
             ) : (

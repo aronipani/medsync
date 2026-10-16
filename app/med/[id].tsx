@@ -9,9 +9,12 @@ import { overlapMessage, overlapsFor } from '../../src/overlap.ts';
 import { uid, useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import type { Dose, Meal, MealRelation, Medication } from '../../src/types.ts';
-import { Button, Card, Chip, Field, Label, NumberField, s, TimeField, useTheme } from '../../src/ui.tsx';
+import { Button, Card, Chip, DateField, Field, Label, More, NumberField, s, TimeField, useTheme } from '../../src/ui.tsx';
 
 const UNITS = ['tablet', 'capsule', 'ml', 'drops', 'puff', 'sachet', 'injection'];
+const UNIT_LABEL: Record<string, string> = { tablet: 'Tablet', capsule: 'Capsule', ml: 'Liquid (ml)', drops: 'Drops', puff: 'Inhaler puff', sachet: 'Sachet', injection: 'Injection' };
+const REL_LABEL: Record<MealRelation, string> = { before: 'Before', with: 'With', after: 'After' };
+const MEAL_LABEL: Record<Meal, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' };
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner'];
 const RELS: MealRelation[] = ['before', 'with', 'after'];
 
@@ -68,7 +71,6 @@ export default function EditMed() {
 
   const save = () => {
     if (!med.name.trim()) return Alert.alert('Name needed', 'Enter the name printed on the strip, e.g. Dolo.');
-    if (med.endDate && !/^\d{4}-\d{2}-\d{2}$/.test(med.endDate)) return Alert.alert('End date', 'Use the format YYYY-MM-DD, or leave it empty.');
     const now = new Date().toISOString();
     // A dose whose time/days changed only counts from now (so it isn't marked missed retroactively).
     const doses = med.doses.map((d) => {
@@ -184,16 +186,10 @@ export default function EditMed() {
         )}
         <Label>Strength</Label>
         <Field value={med.strength} onChangeText={(strength) => set({ strength })} placeholder="e.g. 650 (as printed)" />
-        <Label>Other names on the strip (optional)</Label>
-        <Field value={aliases} onChangeText={setAliases} placeholder="e.g. Paracetamol 650" />
-        <Text style={{ color: t.sub, marginTop: 6, fontSize: 15 }}>
-          The scanner accepts the strip if it reads the name and strength, or any of these names. Separate with commas.
-        </Text>
-
         <Label>Form</Label>
         <View style={s.wrap}>
           {UNITS.map((u) => (
-            <Chip key={u} label={u} active={med.unit === u} onPress={() => set({ unit: u })} />
+            <Chip key={u} label={UNIT_LABEL[u] ?? u} active={med.unit === u} onPress={() => set({ unit: u })} />
           ))}
         </View>
 
@@ -201,13 +197,22 @@ export default function EditMed() {
         {med.doses.map((d, i) => (
           <Card key={d.id} style={{ marginBottom: 10 }}>
             <View style={s.between}>
-              <Text style={{ color: t.text, fontWeight: '700' }}>
-                Dose {i + 1}
+              <Text style={{ color: t.text, fontWeight: '700', fontSize: 17 }}>
+                {med.doses.length > 1 ? `Time ${i + 1}` : 'Time'}
                 {member ? ` · ${fmt12(doseTime(d, member, state.settings))}` : ''}
               </Text>
-              <Pressable onPress={() => set({ doses: med.doses.filter((x) => x.id !== d.id) })} hitSlop={10}>
-                <Text style={{ color: t.bad, fontWeight: '600' }}>Remove</Text>
-              </Pressable>
+              {med.doses.length > 1 && (
+                <Button
+                  title="Remove"
+                  kind="ghost"
+                  onPress={() =>
+                    Alert.alert('Remove this time?', 'The other times stay.', [
+                      { text: 'Keep it', style: 'cancel' },
+                      { text: 'Remove', style: 'destructive', onPress: () => set({ doses: med.doses.filter((x) => x.id !== d.id) }) },
+                    ])
+                  }
+                />
+              )}
             </View>
             <View style={[s.wrap, { marginTop: 10 }]}>
               <Chip label="With a meal" active={d.timing.kind === 'meal'} onPress={() => setDose(d.id, { timing: { kind: 'meal', meal: 'breakfast', relation: 'after' } })} />
@@ -217,24 +222,26 @@ export default function EditMed() {
               <>
                 <View style={s.wrap}>
                   {RELS.map((r) => (
-                    <Chip key={r} label={r} active={d.timing.kind === 'meal' && d.timing.relation === r} onPress={() => d.timing.kind === 'meal' && setDose(d.id, { timing: { ...d.timing, relation: r } })} />
+                    <Chip key={r} label={REL_LABEL[r]} active={d.timing.kind === 'meal' && d.timing.relation === r} onPress={() => d.timing.kind === 'meal' && setDose(d.id, { timing: { ...d.timing, relation: r } })} />
                   ))}
                 </View>
                 <View style={s.wrap}>
                   {MEALS.map((m) => (
-                    <Chip key={m} label={m} active={d.timing.kind === 'meal' && d.timing.meal === m} onPress={() => d.timing.kind === 'meal' && setDose(d.id, { timing: { ...d.timing, meal: m } })} />
+                    <Chip key={m} label={MEAL_LABEL[m]} active={d.timing.kind === 'meal' && d.timing.meal === m} onPress={() => d.timing.kind === 'meal' && setDose(d.id, { timing: { ...d.timing, meal: m } })} />
                   ))}
                 </View>
               </>
             ) : (
               <TimeField value={d.timing.time} onChange={(time) => setDose(d.id, { timing: { kind: 'custom', time } })} />
             )}
-            <Text style={{ color: t.sub, marginTop: 12, marginBottom: 6 }}>Quantity ({med.unit})</Text>
+            <Text style={{ color: t.sub, fontSize: 16, marginTop: 12, marginBottom: 6 }}>How many each time</Text>
             <NumberField value={d.qty} step={0.5} min={0.25} onChange={(qty) => setDose(d.id, { qty })} />
-            <Text style={{ color: t.sub, marginTop: 12, marginBottom: 6 }}>Days</Text>
+            <Text style={{ color: t.sub, fontSize: 16, marginTop: 12, marginBottom: 6 }}>Days</Text>
             <View style={s.wrap}>
               <Chip label="Every day" active={!d.days.length} onPress={() => setDose(d.id, { days: [] })} />
-              {DAY_LABELS.map((lbl, wd) => (
+              {/* Weekday chips only once "Some days" is chosen: most medicines are every day. */}
+              {!d.days.length && <Chip label="Some days only" onPress={() => setDose(d.id, { days: [new Date().getDay()] })} />}
+              {d.days.length > 0 && DAY_LABELS.map((lbl, wd) => (
                 <Chip
                   key={lbl}
                   label={lbl}
@@ -254,33 +261,50 @@ export default function EditMed() {
           onPress={() => set({ doses: [...med.doses, newDose(MEALS[Math.min(med.doses.length, 2)])] })}
         />
 
-        <Label>Stock on hand ({med.unit}s)</Label>
+        <Label>How many are left</Label>
         <NumberField value={med.stock} step={1} onChange={(stock) => set({ stock })} />
-        <Label>Warn when stock reaches</Label>
-        <NumberField value={med.lowStockAt} step={1} onChange={(lowStockAt) => set({ lowStockAt })} />
         {perDay > 0 && (
-          <Text style={{ color: t.sub, marginTop: 6 }}>
-            Uses about {+perDay.toFixed(2)} per day · lasts ~{Math.floor(med.stock / perDay)} days
-          </Text>
+          <Text style={{ color: t.sub, fontSize: 16, marginTop: 6 }}>Lasts about {Math.floor(med.stock / perDay)} days</Text>
         )}
 
-        <Label>Course ends (optional)</Label>
-        <Field value={med.endDate ?? ''} onChangeText={(v) => set({ endDate: v.trim() || undefined })} placeholder="YYYY-MM-DD — leave empty if ongoing" />
-
-        <Label>Notes</Label>
+        <Label>Notes (shown when scanning)</Label>
         <Field value={med.notes ?? ''} onChangeText={(notes) => set({ notes })} placeholder="e.g. empty stomach, prescribed by Dr. Rao" multiline />
+
+        <View style={[s.between, { marginTop: 18 }]}>
+          <Text style={{ color: t.text, fontSize: 17, flex: 1 }}>Remind me about this medicine</Text>
+          <Switch value={med.active} onValueChange={(active) => set({ active })} />
+        </View>
+
+        {/* Rarely needed; sensible defaults, so folded away. */}
+        <More>
+        <Label>Other names on the strip</Label>
+        <Field value={aliases} onChangeText={setAliases} placeholder="e.g. Paracetamol 650" />
+        <Text style={{ color: t.sub, marginTop: 6, fontSize: 15 }}>The scanner also accepts a strip showing any of these. Separate with commas.</Text>
+
+        <Label>Warn me when this many are left</Label>
+        <NumberField value={med.lowStockAt} step={1} onChange={(lowStockAt) => set({ lowStockAt })} />
+
+        <Label>Last day of the course</Label>
+        <DateField value={med.endDate} onChange={(endDate) => set({ endDate })} emptyText="Not set — keeps going" />
 
         {med.barcodes.length > 0 && (
           <>
-            <Label>Linked barcodes</Label>
+            <Label>Barcodes it knows</Label>
             {med.barcodes.map((b) => (
               <View key={b} style={[s.between, { paddingVertical: 6 }]}>
-                <Text style={{ color: t.text, flex: 1 }} numberOfLines={1}>
+                <Text style={{ color: t.text, fontSize: 16, flex: 1 }} numberOfLines={1}>
                   {b}
                 </Text>
-                <Pressable onPress={() => set({ barcodes: med.barcodes.filter((x) => x !== b) })}>
-                  <Text style={{ color: t.bad, fontWeight: '600' }}>Unlink</Text>
-                </Pressable>
+                <Button
+                  title="Forget"
+                  kind="ghost"
+                  onPress={() =>
+                    Alert.alert('Forget this barcode?', 'Scanning it will no longer find this medicine.', [
+                      { text: 'Keep it', style: 'cancel' },
+                      { text: 'Forget', style: 'destructive', onPress: () => set({ barcodes: med.barcodes.filter((x) => x !== b) }) },
+                    ])
+                  }
+                />
               </View>
             ))}
           </>
@@ -288,10 +312,12 @@ export default function EditMed() {
 
         {(med.learned?.length ?? 0) > 0 && (
           <>
-            <Label>Taught strips</Label>
+            <Label>Strips it has learned</Label>
             <View style={s.between}>
-              <Text style={{ color: t.text, flex: 1 }}>Recognises {med.learned!.length} strip reading{med.learned!.length === 1 ? '' : 's'} you confirmed</Text>
+              <Text style={{ color: t.text, fontSize: 16, flex: 1 }}>Knows {med.learned!.length} strip{med.learned!.length === 1 ? '' : 's'} you confirmed</Text>
               <Pressable
+                accessibilityRole="button"
+                style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }}
                 onPress={() =>
                   Alert.alert('Forget taught strips?', 'The app will only use the name, strength and barcode to recognise this medicine.', [
                     { text: 'Cancel', style: 'cancel' },
@@ -306,16 +332,12 @@ export default function EditMed() {
                   ])
                 }
               >
-                <Text style={{ color: t.bad, fontWeight: '600' }}>Forget</Text>
+                <Text style={{ color: t.bad, fontWeight: '700', fontSize: 16 }}>Forget</Text>
               </Pressable>
             </View>
           </>
         )}
-
-        <View style={[s.between, { marginTop: 18 }]}>
-          <Text style={{ color: t.text, fontSize: 16 }}>Active (reminders on)</Text>
-          <Switch value={med.active} onValueChange={(active) => set({ active })} />
-        </View>
+        </More>
 
         <Button big title={pendingItem ? 'Confirm — this matches the prescription' : 'Save'} onPress={save} style={{ marginTop: 24 }} />
         {existing && (

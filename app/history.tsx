@@ -85,7 +85,7 @@ export default function History() {
               <Text style={{ color: t.sub, marginTop: 2 }}>
                 {name(open.memberId)} · saved {when(open.at)}
               </Text>
-              <Text style={{ color: t.sub, marginTop: 14, fontSize: 14, fontWeight: '700' }}>SCHEDULE AT THAT TIME</Text>
+              <Text style={{ color: t.sub, marginTop: 14, fontSize: 16, fontWeight: '700' }}>The list at that time</Text>
               {!open.before.length && <Text style={{ color: t.sub, marginTop: 6 }}>No medicines.</Text>}
               {open.before.map((m) => {
                 const member = state.members.find((x) => x.id === m.memberId);
@@ -101,7 +101,7 @@ export default function History() {
               })}
               {open.source ? (
                 <>
-                  <Text style={{ color: t.sub, marginTop: 14, fontSize: 14, fontWeight: '700' }}>PRESCRIPTION TEXT THAT CAUSED THE CHANGE</Text>
+                  <Text style={{ color: t.sub, marginTop: 14, fontSize: 16, fontWeight: '700' }}>Prescription that made the change</Text>
                   <Text style={{ color: t.text, marginTop: 4, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 14 }}>{open.source}</Text>
                 </>
               ) : null}

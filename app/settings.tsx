@@ -47,7 +47,7 @@ export default function SettingsScreen() {
       {tab === 'everyday' && <Everyday />}
       {tab === 'timing' && <Timing />}
       {tab === 'helper' && <Helper />}
-      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 28, fontSize: 13 }} selectable>
+      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 28, fontSize: 14 }} selectable>
         MedSync {buildLabel()}
       </Text>
     </ScrollView>

@@ -21,7 +21,9 @@ import { useStore } from '../../src/store.tsx';
 import { dateKey, fmt12 } from '../../src/time.ts';
 import { expiryStatus, formatExpiry, parseExpiry } from '../../src/expiry.ts';
 import type { LogMethod, Occurrence } from '../../src/types.ts';
-import { Button, Card, Empty, Field, s, useTheme } from '../../src/ui.tsx';
+import { Button, Card, Empty, Field, More, s, useTheme } from '../../src/ui.tsx';
+
+const whiteChip = { backgroundColor: '#fff3', paddingHorizontal: 16, minHeight: 44, justifyContent: 'center' as const, borderRadius: 999, marginRight: 8, marginBottom: 8 };
 
 const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'pdf417', 'itf14'];
 
@@ -29,7 +31,7 @@ type Result =
   | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean; expiry?: string } // green
   | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string } // amber: name matches, strength unreadable
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
-  | { kind: 'nomatch'; reason: string; detail?: string; code?: string; say: PhraseKey }; // red
+  | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey }; // red; detail = raw text read (helpers only), tip = what to try
 
 export default function Scan() {
   const t = useTheme();
@@ -144,7 +146,7 @@ export default function Scan() {
       const ym = parseExpiry(lastRead.current.lines.join('\n'));
       if (ym) r = { ...r, expiry: ym };
     }
-    if (r.kind === 'nomatch') lastRead.current.reason = [r.reason, r.detail].filter(Boolean).join(' — ');
+    if (r.kind === 'nomatch') lastRead.current.reason = [r.reason, r.detail ?? r.tip].filter(Boolean).join(' — ');
     setResult(r);
     feedback(r.kind === 'match');
   };
@@ -191,7 +193,8 @@ export default function Scan() {
     show({
       kind: 'nomatch',
       reason: why?.text ?? 'No medicine due now matches this strip.',
-      detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || 'No readable text found — move closer, and tilt the strip away from lights to cut the shine.',
+      detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || undefined,
+      tip: text.trim() ? undefined : 'Nothing could be read. Hold the strip closer, and tilt it away from lights.',
       say: why?.say ?? 'wrong',
     });
   };
@@ -213,7 +216,7 @@ export default function Scan() {
       let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
       // Nothing matched? Glare may be hiding letters — take two more photos at slightly different angles.
       if (!due.some((o) => ['match', 'substitute', 'conflict'].includes(matchDetail(text, o.med, state.meds).level))) {
-        const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
+        const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Taking another photo (${n} of 2) — tilt the strip a little`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }
       lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel(), detector: scanDetectorLabel() };
@@ -223,7 +226,7 @@ export default function Scan() {
       show({
         kind: 'nomatch',
         reason: 'Could not read text.',
-        detail: String(e).includes('linked') ? 'Text reading needs the installed app build (not Expo Go). Barcode scanning still works.' : 'Try again, closer and with less shine.',
+        tip: String(e).includes('linked') ? 'Reading printed names does not work in this version of the app. Barcodes still work.' : 'Try again, closer and with less shine.',
         say: 'wrong',
       });
     } finally {
@@ -272,27 +275,27 @@ export default function Scan() {
   /** Which text reader (and, once added, the region detector) read this scan — small print under the result. */
   const ReadBy = () =>
     state.settings.showScanDetails && lastRead.current.readBy ? (
-      <Text style={{ color: '#fffb', fontSize: 12, marginTop: 10 }}>
+      <Text style={{ color: '#fff', fontSize: 14, marginTop: 10 }}>
         Read by {lastRead.current.readBy} · strip area finder: {lastRead.current.detector}
       </Text>
     ) : null;
 
   const TeachChips = () =>
     lastRead.current.lines.length ? (
-      <>
-        <Text style={{ color: '#fff', marginTop: 14, fontWeight: '600' }}>Is it one of these? Teach the app this strip:</Text>
-        <View style={[s.wrap, { marginTop: 8 }]}>
+        <More title="Helper: it is the right medicine" color="#fff">
+        <Text style={{ color: '#fff', fontSize: 16 }}>Checked the strip yourself? Tap its name so the app knows it next time:</Text>
+        <View style={s.wrap}>
           {due.map((o) => (
             <Pressable
               key={o.key}
               onPress={() => teachAs(o)}
-              style={{ backgroundColor: '#fff3', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 }}
+              style={whiteChip}
             >
-              <Text style={{ color: '#fff', fontWeight: '700' }}>{medLabel(o.med)}</Text>
+              <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{medLabel(o.med)}</Text>
             </Pressable>
           ))}
         </View>
-      </>
+        </More>
     ) : null;
 
   if (!state.meds.length)
@@ -368,9 +371,9 @@ export default function Scan() {
               <Pressable
                 onPress={() => setTorch((v) => !v)}
                 accessibilityLabel={torch ? 'Turn light off' : 'Turn light on'}
-                style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 20, padding: 8 }}
+                style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 26, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={22} color="#fff" />
+                <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={26} color="#fff" />
               </Pressable>
             )}
             {busy && (
@@ -381,8 +384,8 @@ export default function Scan() {
             )}
             {!result && !busy && (
               <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, alignItems: 'center' }}>
-                <Text style={{ color: '#fff', backgroundColor: '#0008', paddingHorizontal: 10, paddingVertical: 4, borderRadius: 8, overflow: 'hidden' }}>
-                  Barcodes scan automatically · tap below for printed names
+                <Text style={{ color: '#fff', fontSize: 16, backgroundColor: '#0009', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' }}>
+                  Hold the strip in view, then press the button
                 </Text>
               </View>
             )}
@@ -391,12 +394,11 @@ export default function Scan() {
           {!result && <Button big title="Read strip name" onPress={readStrip} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />}
 
           {/* Result */}
-          {result && (
-            <Pressable onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'))} style={{ alignSelf: 'flex-end', marginTop: 10, flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="volume-high-outline" size={20} color={t.brand} />
-              <Text style={{ color: t.brand, fontWeight: '700', marginLeft: 6 }}>
-                {!voiceOn ? 'Voice is off for this person' : speakStatus === 'fallback' ? 'Said in English — no voice for this language on this phone (see family member settings)' : speakStatus === 'noVoice' ? 'No voice for this language on this phone — see family member settings' : 'Say it again'}
-              </Text>
+          {result && voiceOn && (
+            <Pressable accessibilityRole="button" onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'))} style={{ alignSelf: 'flex-end', marginTop: 8, minHeight: 44, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="volume-high-outline" size={24} color={t.brand} />
+              {/* Why a voice is missing is explained on the family member's screen, not here. */}
+              <Text style={{ color: t.brand, fontWeight: '700', fontSize: 17, marginLeft: 6 }}>Say it again</Text>
             </Pressable>
           )}
 
@@ -410,7 +412,7 @@ export default function Scan() {
                 </View>
               )}
               {result.expiry && expiryStatus(result.expiry) === 'soon' && (
-                <Text style={{ color: '#fffd', marginTop: 6 }}>Strip expires end of {formatExpiry(result.expiry)}.</Text>
+                <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>Strip expires end of {formatExpiry(result.expiry)}.</Text>
               )}
               {result.occs.map((o) => (
                 <View key={o.key} style={{ marginTop: 10 }}>
@@ -420,30 +422,26 @@ export default function Scan() {
                     {lang !== 'en' ? `  ·  ${amountText(lang, o.dose.qty, o.med.unit)}` : ''}
                   </Text>
                   {o.dose.qty !== 1 && o.med.unit === 'tablet' && (
-                    <Text style={{ color: '#fff', marginTop: 2 }}>
+                    <Text style={{ color: '#fff', fontSize: 16, marginTop: 2 }}>
                       {o.dose.qty < 1 ? 'Break the tablet along the line.' : 'More than one tablet — count carefully.'}
                     </Text>
                   )}
-                  {o.med.notes ? <Text style={{ color: '#fffd', marginTop: 4 }}>{o.med.notes}</Text> : null}
+                  {o.med.notes ? <Text style={{ color: '#fff', fontSize: 16, marginTop: 4 }}>{o.med.notes}</Text> : null}
                 </View>
               ))}
-              <Text style={{ color: '#fffc', marginTop: 10, fontSize: 16 }}>Check the name on the strip too.</Text>
-              {result.learned && (
+              {/* One reminder line; the two special cases replace it rather than adding to it. */}
+              {result.substitute || result.learned ? (
                 <View style={{ backgroundColor: '#0003', borderRadius: 10, padding: 10, marginTop: 12 }}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Recognised from a strip you taught the app.</Text>
-                  <Text style={{ color: '#fff' }}>Glance at the name and strength before taking.</Text>
+                  <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>
+                    {result.substitute ? `Different brand: ${result.substitute}` : 'Known from a strip you showed the app before.'}
+                  </Text>
+                  <Text style={{ color: '#fff', fontSize: 16 }}>Check the name and strength on the strip before taking.</Text>
                 </View>
+              ) : (
+                <Text style={{ color: '#fff', marginTop: 10, fontSize: 16 }}>Check the name on the strip too.</Text>
               )}
-              {result.substitute && (
-                <View style={{ backgroundColor: '#0003', borderRadius: 10, padding: 10, marginTop: 12 }}>
-                  <Text style={{ color: '#fff', fontWeight: '700' }}>Same medicine, different brand: {result.substitute}</Text>
-                  <Text style={{ color: '#fff' }}>Check it's the one you bought for this before taking.</Text>
-                </View>
-              )}
-              <View style={[s.row, { gap: 10, marginTop: 14 }]}>
-                <Button title="Mark taken" kind="secondary" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ flex: 1 }} />
-                <Button title="Cancel" kind="ghost" onPress={dismiss} />
-              </View>
+              <Button big title="I took it" kind="secondary" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 16 }} />
+              <Button title="Not now" kind="ghost" onPress={dismiss} style={{ marginTop: 4 }} />
               <ReadBy />
             </View>
           )}
@@ -464,7 +462,7 @@ export default function Scan() {
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 4 }}>Then take {qtyLabel(result.occ.dose.qty, result.occ.med.unit)}.</Text>
               <Button
                 big
-                title={`It says ${spokenStrength(result.occ.med.strength)} — mark taken`}
+                title={`It says ${spokenStrength(result.occ.med.strength)} — I took it`}
                 kind="secondary"
                 onPress={() => confirm([result.occ], 'manual', result.expiry)}
                 style={{ marginTop: 14 }}
@@ -478,10 +476,12 @@ export default function Scan() {
             <View style={{ backgroundColor: '#B91C1C', borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✋ Different strength — don't take</Text>
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
-                This is {result.occ.med.name} {result.found.map((f) => `${f} mg`).join(' / ')}. The prescription is {medLabel(result.occ.med)}
-                {spokenStrength(result.occ.med.strength) && !/[a-z]/i.test(result.occ.med.strength) ? ' mg' : ''}, {qtyLabel(result.occ.dose.qty, result.occ.med.unit)}.
+                This strip says {result.found.map((f) => `${f} mg`).join(' / ')}.
               </Text>
-              <Text style={{ color: '#fff', marginTop: 6 }}>Ask the doctor or pharmacist before using a different strength. If the reading is wrong, scan again.</Text>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }}>
+                You need {result.occ.med.name} {spokenStrength(result.occ.med.strength) || result.occ.med.strength}.
+              </Text>
+              <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>Ask the pharmacist before using a different strength.</Text>
               <Button title="Scan next" kind="secondary" big onPress={dismiss} style={{ marginTop: 14 }} />
             </View>
           )}
@@ -490,14 +490,16 @@ export default function Scan() {
             <View style={{ backgroundColor: t.bad, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✗ No match</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
-              {result.detail ? <Text style={{ color: '#fffc', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
+              {result.tip ? <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.tip}</Text> : null}
+              {/* The raw text read is for helpers only. */}
+              {result.detail && state.settings.showScanDetails ? <Text style={{ color: '#fff', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
               <ReadBy />
               <Button title="Scan next" kind="secondary" big onPress={dismiss} style={{ marginTop: 14 }} />
               {!result.code && <TeachChips />}
               {result.code && (
-                <>
-                  <Text style={{ color: '#fff', marginTop: 14, fontWeight: '600' }}>Is this one of these? Link the code once:</Text>
-                  <View style={[s.wrap, { marginTop: 8 }]}>
+                <More title="Helper: it is the right medicine" color="#fff">
+                  <Text style={{ color: '#fff', fontSize: 16 }}>Checked the strip yourself? Tap its name so this barcode is known next time:</Text>
+                  <View style={s.wrap}>
                     {due.map((o) => (
                       <Pressable
                         key={o.key}
@@ -505,26 +507,25 @@ export default function Scan() {
                           linkBarcode(o.med.id, result.code!);
                           show({ kind: 'match', occs: [o], method: 'barcode' });
                         }}
-                        style={{ backgroundColor: '#fff3', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 }}
+                        style={whiteChip}
                       >
-                        <Text style={{ color: '#fff', fontWeight: '700' }}>{medLabel(o.med)}</Text>
+                        <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{medLabel(o.med)}</Text>
                       </Pressable>
                     ))}
                   </View>
-                </>
+                </More>
               )}
             </View>
           )}
 
           {/* Fallback */}
           {!result && (
-            <Card style={{ marginTop: 16 }}>
-              <Text style={{ color: t.sub, fontWeight: '700', marginBottom: 8 }}>Can't scan? Type the name on the strip</Text>
+            <More title="Can't scan? Type the name instead">
               <View style={[s.row, { gap: 8 }]}>
                 <Field value={typed} onChangeText={setTyped} placeholder="e.g. Dolo 650" autoCapitalize="characters" style={{ flex: 1 }} />
                 <Button title="Check" onPress={() => typed.trim() && ((lastRead.current = { lines: [], photos: [] }), checkText(typed, 'manual'))} />
               </View>
-            </Card>
+            </More>
           )}
         </>
       )}

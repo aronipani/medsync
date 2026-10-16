@@ -11,7 +11,7 @@ import { sameMedicine, strengthKey } from '../src/consolidate.ts';
 import { uid, useStore } from '../src/store.tsx';
 import { addDays, dateKey } from '../src/time.ts';
 import type { Medication, PendingRxItem } from '../src/types.ts';
-import { Card, Label, s, useTheme } from '../src/ui.tsx';
+import { Button, Card, Label, More, s, useTheme } from '../src/ui.tsx';
 
 export default function AddMedicine() {
   const t = useTheme();
@@ -41,9 +41,9 @@ export default function AddMedicine() {
         Alert.alert(
           'No medicines found',
           (read
-            ? 'The app could not find medicine lines (like "Tab. Dolo 650 1-0-1" or "7:00 AM  Thyroxin 50 mcg"). Handwritten prescriptions usually can\'t be read — add those medicines with Scan or Type instead.'
+            ? 'The app could not find any medicines on this page. Handwriting usually can\'t be read — add those medicines one at a time instead.'
             : 'No text could be read from this photo. Try again in good light, with the whole page flat and in the frame.') +
-            (read ? `\n\nWhat the phone read:\n${read}` : ''),
+            (read && state.settings.showScanDetails ? `\n\nWhat the phone read:\n${read}` : ''),
         );
         return;
       }
@@ -90,7 +90,7 @@ export default function AddMedicine() {
     } catch (e) {
       Alert.alert(
         'Could not read the prescription',
-        isNotLinkedError(e) ? 'Reading text needs the installed app build (not Expo Go).' : 'Try a clearer, well-lit photo taken straight on.',
+        isNotLinkedError(e) ? 'Reading prescriptions does not work in this version of the app.' : 'Try a clearer, well-lit photo taken straight on.',
       );
     } finally {
       setBusy(false);
@@ -105,7 +105,7 @@ export default function AddMedicine() {
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>{title}</Text>
-          <Text style={{ color: t.sub, marginTop: 2 }}>{body}</Text>
+          {body ? <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>{body}</Text> : null}
         </View>
         <Ionicons name="chevron-forward" size={20} color={t.sub} />
       </Card>
@@ -122,26 +122,21 @@ export default function AddMedicine() {
         </>
       )}
 
-      <Label>One medicine</Label>
-      <Option
-        icon="scan-outline"
-        title="Scan strip, bottle or box"
-        body="Reads the name, strength and barcode. You then set when to take it."
-        onPress={() => router.replace({ pathname: '/scan-add', params: { memberId } })}
-      />
-      <Option
-        icon="create-outline"
-        title="Type it in"
-        body="Enter the name and times yourself."
-        onPress={() => router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId } })}
-      />
+      {/* One obvious way; the others folded away. */}
+      <Text style={{ color: t.text, fontSize: 17, marginTop: 8, marginBottom: 12 }}>Hold the medicine strip, bottle or box up to the camera.</Text>
+      <Button big title="Scan the medicine" onPress={() => router.replace({ pathname: '/scan-add', params: { memberId } })} />
 
-      <Label>Whole prescription</Label>
-      <Option icon="camera-outline" title="Photograph prescription" body="Drafts the schedule. You check every medicine before it's added." onPress={() => readPrescription('camera')} />
-      <Option icon="images-outline" title="Choose prescription photo" body="From your photos — up to 4 pages." onPress={() => readPrescription('library')} />
-      <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21, marginTop: 4 }}>
-        Works best with printed prescriptions. Text is read on this phone — nothing is uploaded. Handwriting often can't be read; add those medicines one at a time.
-      </Text>
+      <More title="Other ways to add">
+        <Option
+          icon="create-outline"
+          title="Type it in"
+          body="Enter the name and times yourself."
+          onPress={() => router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId } })}
+        />
+        <Option icon="camera-outline" title="Photograph a prescription" body="Makes a list for you to check. Printed prescriptions work best." onPress={() => readPrescription('camera')} />
+        <Option icon="images-outline" title="Prescription from your photos" body="Up to 4 pages." onPress={() => readPrescription('library')} />
+        <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21 }}>Everything is read on this phone — nothing is uploaded.</Text>
+      </More>
 
       {busy && (
         <View style={[s.row, { marginTop: 20, justifyContent: 'center' }]}>

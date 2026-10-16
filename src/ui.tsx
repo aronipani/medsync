@@ -163,13 +163,13 @@ export function SegmentTabs<T extends string>({ tabs, value, onChange }: { tabs:
 }
 
 /** "More options" fold: keeps rarely used choices out of sight until asked for (less to read at once). */
-export function More({ title = 'More options', children }: { title?: string; children: React.ReactNode }) {
+export function More({ title = 'More options', color, children }: { title?: string; color?: string; children: React.ReactNode }) {
   const t = useTheme();
   const [open, setOpen] = React.useState(false);
   return (
     <View style={{ marginTop: 10 }}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)} style={{ minHeight: 44, justifyContent: 'center' }}>
-        <Text style={{ color: t.brand, fontWeight: '700', fontSize: 16 }}>{open ? `▾ ${title}` : `▸ ${title}`}</Text>
+        <Text style={{ color: color ?? t.brand, fontWeight: '700', fontSize: 16 }}>{open ? `▾ ${title}` : `▸ ${title}`}</Text>
       </Pressable>
       {open ? <View style={{ gap: 8 }}>{children}</View> : null}
     </View>
@@ -229,8 +229,8 @@ export function TimeField({ value, onChange }: { value: string; onChange: (v: st
   const apply = (d?: Date) => d && onChange(`${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`);
   return (
     <>
-      <Pressable onPress={() => setOpen(true)} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 12, minWidth: 110 }}>
-        <Text style={{ color: t.text, fontSize: 16, fontWeight: '600' }}>{fmt12(value)}</Text>
+      <Pressable accessibilityRole="button" onPress={() => setOpen(true)} style={{ backgroundColor: t.card, borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 12, minWidth: 120, minHeight: 50, justifyContent: 'center' }}>
+        <Text style={{ color: t.text, fontSize: 18, fontWeight: '600' }}>{fmt12(value)}</Text>
       </Pressable>
       {open && Platform.OS === 'android' && (
         <DateTimePicker
@@ -255,12 +255,55 @@ export function TimeField({ value, onChange }: { value: string; onChange: (v: st
   );
 }
 
+/** Optional date picker (native calendar). Value is "YYYY-MM-DD" or undefined; no typing of date formats. */
+export function DateField({ value, onChange, emptyText = 'Not set' }: { value?: string; onChange: (v: string | undefined) => void; emptyText?: string }) {
+  const t = useTheme();
+  const [open, setOpen] = useState(false);
+  const date = value ? new Date(`${value}T12:00:00`) : new Date();
+  const apply = (d?: Date) =>
+    d && onChange(`${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`);
+  const shown = value ? date.toLocaleDateString([], { day: 'numeric', month: 'long', year: 'numeric' }) : emptyText;
+  return (
+    <>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => setOpen(true)}
+          style={{ flex: 1, backgroundColor: t.card, borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 14, minHeight: 52, justifyContent: 'center' }}
+        >
+          <Text style={{ color: value ? t.text : t.sub, fontSize: 17, fontWeight: '600' }}>{shown}</Text>
+        </Pressable>
+        {value ? <Button title="Clear" kind="ghost" onPress={() => onChange(undefined)} /> : null}
+      </View>
+      {open && Platform.OS === 'android' && (
+        <DateTimePicker
+          value={date}
+          mode="date"
+          onChange={(e, d) => {
+            setOpen(false);
+            if (e.type === 'set') apply(d);
+          }}
+        />
+      )}
+      {Platform.OS === 'ios' && (
+        <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
+          <Pressable style={{ flex: 1, backgroundColor: '#0006' }} onPress={() => setOpen(false)} />
+          <View style={{ backgroundColor: t.card, paddingBottom: 30 }}>
+            <DateTimePicker value={date} mode="date" display="inline" onChange={(_, d) => apply(d)} />
+            <Button title="Done" onPress={() => setOpen(false)} style={{ marginHorizontal: 16 }} />
+          </View>
+        </Modal>
+      )}
+    </>
+  );
+}
+
 export function Empty({ title, body }: { title: string; body?: string }) {
   const t = useTheme();
   return (
     <View style={{ alignItems: 'center', padding: 32 }}>
       <Text style={{ color: t.text, fontSize: 17, fontWeight: '700', textAlign: 'center' }}>{title}</Text>
-      {body ? <Text style={{ color: t.sub, marginTop: 6, textAlign: 'center', lineHeight: 20 }}>{body}</Text> : null}
+      {body ? <Text style={{ color: t.sub, marginTop: 6, textAlign: 'center', fontSize: 16, lineHeight: 22 }}>{body}</Text> : null}
     </View>
   );
 }

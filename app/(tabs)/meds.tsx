@@ -7,7 +7,7 @@ import { findOverlaps, overlapMessage } from '../../src/overlap.ts';
 import { describeTiming, doseTime, medLabel, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
-import { Button, Card, s, useTheme } from '../../src/ui.tsx';
+import { Button, Card, More, s, useTheme } from '../../src/ui.tsx';
 
 export default function Meds() {
   const t = useTheme();
@@ -18,8 +18,8 @@ export default function Meds() {
       {state.pending && (
         <Pressable onPress={() => router.push('/rx-review')}>
           <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warn, marginBottom: 16 }}>
-            <Text style={{ color: t.warn, fontWeight: '700' }}>
-              Prescription waiting to be checked ({state.pending.items.filter((i) => i.checked).length}/{state.pending.items.length}) ›
+            <Text style={{ color: t.warn, fontWeight: '700', fontSize: 17 }}>
+              A prescription is waiting to be checked ›
             </Text>
           </Card>
         </Pressable>
@@ -43,19 +43,22 @@ export default function Meds() {
           ]);
         return (
           <View key={member.id} style={{ marginBottom: 22 }}>
+            {/* Meal times live on the person's own screen; only the name and an edit button here. */}
             <View style={[s.between, { marginBottom: 8 }]}>
-              <Pressable onPress={() => router.push(`/member/${member.id}`)} style={s.row}>
-                <View style={{ width: 12, height: 12, borderRadius: 6, backgroundColor: member.color, marginRight: 8 }} />
-                <Text style={[s.h2, { color: t.text }]}>{member.name}</Text>
-                <Ionicons name="create-outline" size={18} color={t.sub} style={{ marginLeft: 6 }} />
-              </Pressable>
-              <Pressable onPress={() => router.push({ pathname: '/add', params: { memberId: member.id } })} hitSlop={10}>
-                <Text style={{ color: t.brand, fontWeight: '700', fontSize: 15 }}>+ Add medicine</Text>
+              <View style={[s.row, { flex: 1 }]}>
+                <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: member.color, marginRight: 8 }} />
+                <Text style={[s.h2, { color: t.text, fontSize: 20 }]}>{member.name}</Text>
+              </View>
+              <Pressable
+                onPress={() => router.push(`/member/${member.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Edit ${member.name}, meal times and voice`}
+                style={{ minHeight: 44, paddingHorizontal: 12, borderRadius: 12, backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center' }}
+              >
+                <Ionicons name="create-outline" size={20} color={t.text} />
+                <Text style={{ color: t.text, fontWeight: '700', fontSize: 16, marginLeft: 6 }}>Edit</Text>
               </Pressable>
             </View>
-            <Text style={{ color: t.sub, marginBottom: 8 }}>
-              Meals: breakfast {fmt12(member.mealTimes.breakfast)} · lunch {fmt12(member.mealTimes.lunch)} · dinner {fmt12(member.mealTimes.dinner)}
-            </Text>
             {overlaps.map((o) => (
               <Card key={`${o.a.id}|${o.b.id}`} style={{ backgroundColor: t.badSoft, borderColor: t.bad, marginBottom: 10 }}>
                 <Text style={{ color: t.bad, fontWeight: '800' }}>⚠ Same medicine twice?</Text>
@@ -84,17 +87,21 @@ export default function Meds() {
                 <Button title="Merge into one" kind="secondary" style={{ marginTop: 8 }} onPress={merge} />
               </Card>
             )}
-            {!meds.length && <Text style={{ color: t.sub, fontStyle: 'italic' }}>No medicines yet.</Text>}
+            {!meds.length && <Text style={{ color: t.sub, fontSize: 16, marginBottom: 8 }}>No medicines yet.</Text>}
             {meds.map((med) => (
               <Pressable key={med.id} onPress={() => router.push(`/med/${med.id}`)}>
-                <Card style={{ marginBottom: 8, opacity: med.active ? 1 : 0.5 }}>
+                <Card style={{ marginBottom: 8, backgroundColor: med.active ? t.card : t.muted }}>
                   <View style={s.between}>
-                    <Text style={{ color: t.text, fontSize: 17, fontWeight: '700', flex: 1 }}>{medLabel(med)}</Text>
-                    {!med.active && <Text style={{ color: t.sub }}>Paused</Text>}
-                    {med.endDate && <Text style={{ color: t.sub, fontSize: 14 }}>until {med.endDate}</Text>}
+                    <Text style={{ color: t.text, fontSize: 18, fontWeight: '700', flex: 1 }}>{medLabel(med)}</Text>
+                    {!med.active && <Text style={{ color: t.sub, fontSize: 16, fontWeight: '700' }}>No reminders</Text>}
                   </View>
+                  {med.endDate && (
+                    <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>
+                      Until {new Date(`${med.endDate}T12:00:00`).toLocaleDateString([], { day: 'numeric', month: 'long' })}
+                    </Text>
+                  )}
                   {[...med.doses].sort((a, b) => doseTime(a, member, state.settings).localeCompare(doseTime(b, member, state.settings))).map((d) => (
-                    <Text key={d.id} style={{ color: t.sub, marginTop: 4 }}>
+                    <Text key={d.id} style={{ color: t.sub, fontSize: 16, marginTop: 4 }}>
                       {fmt12(doseTime(d, member, state.settings))} · {describeTiming(d)} · {qtyLabel(d.qty, med.unit)}
                       {d.days.length ? ` · ${d.days.map((x) => DAY_LABELS[x]).join(', ')}` : ''}
                     </Text>
@@ -103,11 +110,14 @@ export default function Meds() {
                 </Card>
               </Pressable>
             ))}
+            <Button title={state.members.length > 1 ? `+ Add a medicine for ${member.name}` : '+ Add a medicine'} kind="secondary" onPress={() => router.push({ pathname: '/add', params: { memberId: member.id } })} />
           </View>
         );
       })}
-      <Button title="+ Add family member" kind="secondary" onPress={() => router.push('/member/new')} />
-      <Button title={`Schedule history (${state.history?.length ?? 0})`} kind="ghost" onPress={() => router.push('/history')} style={{ marginTop: 8 }} />
+      <More>
+        <Button title="+ Add a family member" kind="secondary" onPress={() => router.push('/member/new')} />
+        <Button title="Earlier versions of the list" kind="secondary" onPress={() => router.push('/history')} />
+      </More>
     </ScrollView>
   );
 }

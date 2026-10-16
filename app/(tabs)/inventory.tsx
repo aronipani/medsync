@@ -8,7 +8,7 @@ import { medLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { dateKey, fmt12, fmtDay } from '../../src/time.ts';
 import type { Medication } from '../../src/types.ts';
-import { Button, Card, Chip, Empty, NumberField, s, useTheme } from '../../src/ui.tsx';
+import { Button, Card, Chip, Empty, NumberField, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
 const perDay = (m: Medication) => m.doses.reduce((a, d) => a + d.qty * (d.days.length ? d.days.length / 7 : 1), 0);
 const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
@@ -23,6 +23,11 @@ export default function Inventory() {
   const today = dateKey(now);
   const memberName = (id: string) => state.members.find((m) => m.id === id)?.name ?? '—';
 
+  // Refill box starts at the amount added last time for this medicine (a strip or box is usually the same size).
+  const lastRefill = (medId: string) => {
+    const e = [...state.stock].reverse().find((x) => x.medId === medId && x.reason === 'refill' && x.delta > 0);
+    return e?.delta ?? 10;
+  };
   const meds = state.meds.filter((m) => !memberId || m.memberId === memberId);
 
   // History: dose logs + refills, newest first, grouped by day.
@@ -62,16 +67,15 @@ export default function Inventory() {
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-        <View style={s.row}>
-          <Chip label="Stock" active={tab === 'stock'} onPress={() => setTab('stock')} />
-          <Chip label="History" active={tab === 'history'} onPress={() => setTab('history')} />
-          <View style={{ flex: 1 }} />
-          {tab === 'history' && (
-            <Pressable onPress={exportCsv} hitSlop={10}>
-              <Text style={{ color: t.brand, fontWeight: '700' }}>Export CSV</Text>
-            </Pressable>
-          )}
-        </View>
+        <SegmentTabs
+          tabs={[
+            { key: 'stock', label: 'How many left' },
+            { key: 'history', label: 'What was taken' },
+          ]}
+          value={tab}
+          onChange={setTab}
+        />
+        <View style={{ height: 8 }} />
         <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
       </View>
 
@@ -96,7 +100,7 @@ export default function Inventory() {
                       <Text style={{ color: t.sub, fontSize: 14 }}>{m.unit}s left</Text>
                     </View>
                   </View>
-                  <Text style={{ color: low ? t.warn : t.sub, marginTop: 6 }}>
+                  <Text style={{ color: low ? t.warn : t.sub, fontSize: 16, marginTop: 6 }}>
                     {low ? 'Low stock — refill soon. ' : ''}
                     {days !== undefined && m.active ? `Lasts about ${days} day${days === 1 ? '' : 's'}.` : ''}
                   </Text>
@@ -105,17 +109,26 @@ export default function Inventory() {
                       {(() => {
                         const st = expiryStatus(m.expiry);
                         const text = st === 'expired' ? `Strip expired ${formatExpiry(m.expiry)} — replace it` : st === 'soon' ? `Expires soon — end of ${formatExpiry(m.expiry)}` : `Strip expires ${formatExpiry(m.expiry)}`;
-                        return <Text style={{ color: st === 'expired' ? t.bad : st === 'soon' ? t.warn : t.sub, fontWeight: st === 'ok' ? '400' : '700', flex: 1 }}>{text}</Text>;
+                        return <Text style={{ color: st === 'expired' ? t.bad : st === 'soon' ? t.warn : t.sub, fontSize: 16, fontWeight: st === 'ok' ? '400' : '700', flex: 1 }}>{text}</Text>;
                       })()}
-                      <Pressable onPress={() => setExpiry(m.id, undefined)} hitSlop={10}>
-                        <Text style={{ color: t.sub, fontSize: 15 }}>Clear</Text>
+                      <Pressable
+                        accessibilityRole="button"
+                        style={{ minHeight: 44, justifyContent: 'center', paddingHorizontal: 8 }}
+                        onPress={() =>
+                          Alert.alert('New strip?', 'Forget this expiry date? The next scan reads the new one.', [
+                            { text: 'Keep it', style: 'cancel' },
+                            { text: 'Forget date', onPress: () => setExpiry(m.id, undefined) },
+                          ])
+                        }
+                      >
+                        <Text style={{ color: t.brand, fontWeight: '700', fontSize: 16 }}>New strip</Text>
                       </Pressable>
                     </View>
                   ) : null}
                   <View style={[s.row, { gap: 8, marginTop: 10 }]}>
-                    <Button title="Refill" onPress={() => setRefill({ med: m, qty: 10 })} style={{ flex: 1 }} />
+                    <Button title="Refill" onPress={() => setRefill({ med: m, qty: lastRefill(m.id) })} style={{ flex: 1 }} />
                     <Button
-                      title="Correct count"
+                      title="Fix the count"
                       kind="secondary"
                       style={{ flex: 1 }}
                       onPress={() => setRefill({ med: m, qty: -1 })}
@@ -133,7 +146,7 @@ export default function Inventory() {
             history.map((row, i) => {
               const showDay = i === 0 || history[i - 1].day !== row.day;
               const header = showDay ? (
-                <Text style={{ color: t.sub, fontWeight: '700', marginTop: i ? 16 : 4, marginBottom: 6 }}>{fmtDay(row.day, today)}</Text>
+                <Text style={{ color: t.sub, fontWeight: '700', fontSize: 16, marginTop: i ? 16 : 4, marginBottom: 6 }}>{fmtDay(row.day, today)}</Text>
               ) : null;
               if (row.kind === 'stock') {
                 const e = state.stock.find((x) => x.id === row.id)!;
@@ -150,7 +163,7 @@ export default function Inventory() {
                           {e.delta}
                         </Text>
                       </View>
-                      <Text style={{ color: t.sub, marginTop: 2 }}>{timeOf(e.at)} · {memberName(e.memberId)}</Text>
+                      <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>{timeOf(e.at)} · {memberName(e.memberId)}</Text>
                     </Card>
                   </View>
                 );
@@ -161,12 +174,12 @@ export default function Inventory() {
                   {header}
                   <Card style={{ marginBottom: 6, paddingVertical: 10 }}>
                     <View style={s.between}>
-                      <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>{l.medName}</Text>
+                      <Text style={{ color: t.text, fontWeight: '600', fontSize: 17, flex: 1 }}>{l.medName}</Text>
                       <StatusBadge status={l.status} />
                     </View>
-                    <Text style={{ color: t.sub, marginTop: 2 }}>
+                    <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>
                       Due {fmt12(l.time)}
-                      {l.status === 'taken' ? ` · taken ${timeOf(l.at)} · ${l.qty} via ${l.method === 'text' ? 'strip name' : l.method}` : ''}
+                      {l.status === 'taken' ? ` · taken ${timeOf(l.at)}` : ''}
                       {state.members.length > 1 ? ` · ${memberName(l.memberId)}` : ''}
                     </Text>
                   </Card>
@@ -174,14 +187,17 @@ export default function Inventory() {
               );
             })
           ))}
+        {tab === 'history' && history.length > 0 && (
+          <Button title="Save history as a file (for the doctor)" kind="ghost" onPress={exportCsv} style={{ marginTop: 12 }} />
+        )}
       </ScrollView>
 
       <Modal visible={!!refill} transparent animationType="fade" onRequestClose={() => setRefill(null)}>
         <View style={{ flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 24 }}>
           {refill && (
             <Card>
-              <Text style={[s.h2, { color: t.text }]}>{refill.qty < 0 ? 'Correct count' : 'Refill'} · {medLabel(refill.med)}</Text>
-              <Text style={{ color: t.sub, marginTop: 6, marginBottom: 12 }}>
+              <Text style={[s.h2, { color: t.text }]}>{refill.qty < 0 ? 'Fix the count' : 'Refill'} · {medLabel(refill.med)}</Text>
+              <Text style={{ color: t.sub, fontSize: 16, marginTop: 6, marginBottom: 12 }}>
                 {refill.qty < 0 ? `How many ${refill.med.unit}s are actually left?` : `How many ${refill.med.unit}s did you add?`}
               </Text>
               <RefillInput

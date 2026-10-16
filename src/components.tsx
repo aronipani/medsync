@@ -20,28 +20,30 @@ export function MemberPicker({ value, onChange, allowAll }: { value: string | un
 export function StatusBadge({ status }: { status: OccurrenceStatus }) {
   const t = useTheme();
   const map: Record<OccurrenceStatus, [string, string, string]> = {
-    taken: ['Taken', t.okSoft, t.ok],
-    missed: ['Missed', t.badSoft, t.bad],
-    skipped: ['Skipped', t.muted, t.sub],
-    due: ['Due now', t.warnSoft, t.warn],
-    upcoming: ['Upcoming', t.muted, t.sub],
+    // A symbol as well as a colour, so the status reads without telling colours apart.
+    taken: ['✓ Taken', t.okSoft, t.ok],
+    missed: ['! Missed', t.badSoft, t.bad],
+    skipped: ['– Skipped', t.muted, t.sub],
+    due: ['⏰ Due now', t.warnSoft, t.warn],
+    upcoming: ['Later', t.muted, t.sub],
   };
   const [label, bg, fg] = map[status];
   return (
-    <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 4 }}>
-      <Text style={{ color: fg, fontWeight: '700', fontSize: 12 }}>{label}</Text>
+    <View style={{ backgroundColor: bg, borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 }}>
+      <Text style={{ color: fg, fontWeight: '800', fontSize: 15 }}>{label}</Text>
     </View>
   );
 }
 
 export function MemberDot({ memberId }: { memberId: string }) {
   const { state } = useStore();
+  const t = useTheme();
   const m = state.members.find((x) => x.id === memberId);
   if (!m || state.members.length < 2) return null;
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 2 }}>
-      <View style={{ width: 8, height: 8, borderRadius: 4, backgroundColor: m.color, marginRight: 6 }} />
-      <Text style={{ color: m.color, fontWeight: '600', fontSize: 13 }}>{m.name}</Text>
+      <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: m.color, marginRight: 6 }} />
+      <Text style={{ color: t.text, fontWeight: '600', fontSize: 15 }}>{m.name}</Text>
     </View>
   );
 }
