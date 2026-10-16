@@ -236,7 +236,7 @@ export default function ImportPhotos() {
                   {!d.label && d.guess && !d.answered && (
                     <View style={[s.row, { marginTop: 6, gap: 8, flexWrap: 'wrap' }]}>
                       <Text style={{ color: t.text, fontWeight: '600' }}>Looks like {`${d.guess.name} ${d.guess.strength}`.trim()}?</Text>
-                      <Pressable onPress={() => answerGuess(d, true)} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: t.ok }}>
+                      <Pressable onPress={() => answerGuess(d, true)} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: t.okFill }}>
                         <Text style={{ color: '#fff', fontWeight: '700' }}>Yes</Text>
                       </Pressable>
                       <Pressable onPress={() => answerGuess(d, false)} style={{ paddingHorizontal: 10, paddingVertical: 4 }}>

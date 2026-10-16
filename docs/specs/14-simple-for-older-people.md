@@ -75,6 +75,18 @@ understand at a glance and should never make the person read or decide more than
   open (`src/components/freshOnFocus.tsx`). Focused one-job screens — the camera ones (Scan to add, Test scan, Collect
   strip photos) and the add/edit medicine sheets — stay full screen.
 
+## Colours (Oct 2026)
+* **Measured, not guessed:** every text/background pair (light, dark, and each time-of-day theme) is at least 4.5:1
+  contrast. Before this, at night (21:00–05:00, which switches to light-on-dark) and in dark mode, scan result cards and
+  main buttons put white text on bright pastel green/amber/teal — about 1.5–1.9:1, unreadable.
+* **Deep fills for white text:** `brandFill`, `okFill`, `warnFill`, `badFill` in `src/ui.tsx` — the same in every theme;
+  the bright dark-mode colours are for text and icons only.
+* **Main action on a coloured card is a white button** (`kind="light"`), e.g. *I took it* on green.
+* **Ghost buttons look like buttons:** link colour plus a thin outline (white on coloured cards, `onColor`).
+* **Meaning is never colour alone:** green ✓ "Correct medicine", amber ⚠ "Check the strength", red ✗/✋ with words,
+  badges with symbols. Same three meanings everywhere: green = go, amber = check, red = stop.
+* Darker light-mode red (#B91C1C), grey text (#4F5F5B) and afternoon/evening headings.
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".

@@ -403,10 +403,10 @@ export default function Scan() {
           )}
 
           {result?.kind === 'match' && (
-            <View style={{ backgroundColor: t.ok, borderRadius: 18, padding: 18, marginTop: 8 }}>
+            <View style={{ backgroundColor: t.okFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✓ Correct medicine</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
-                <View style={{ backgroundColor: t.bad, borderRadius: 12, padding: 12, marginTop: 10 }}>
+                <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
                   <Text style={{ color: '#fff', marginTop: 2 }}>Don't take it — use another strip or ask your pharmacist.</Text>
                 </View>
@@ -440,17 +440,17 @@ export default function Scan() {
               ) : (
                 <Text style={{ color: '#fff', marginTop: 10, fontSize: 16 }}>Check the name on the strip too.</Text>
               )}
-              <Button big title="I took it" kind="secondary" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 16 }} />
-              <Button title="Not now" kind="ghost" onPress={dismiss} style={{ marginTop: 4 }} />
+              <Button big title="I took it" kind="light" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 16 }} />
+              <Button title="Not now" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 4 }} />
               <ReadBy />
             </View>
           )}
 
           {result?.kind === 'check' && (
-            <View style={{ backgroundColor: t.warn, borderRadius: 18, padding: 18, marginTop: 8 }}>
+            <View style={{ backgroundColor: t.warnFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>⚠ Check the strength</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
-                <View style={{ backgroundColor: t.bad, borderRadius: 12, padding: 12, marginTop: 10 }}>
+                <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
                   <Text style={{ color: '#fff', marginTop: 2 }}>Don't take it — use another strip or ask your pharmacist.</Text>
                 </View>
@@ -463,17 +463,17 @@ export default function Scan() {
               <Button
                 big
                 title={`It says ${spokenStrength(result.occ.med.strength)} — I took it`}
-                kind="secondary"
+                kind="light"
                 onPress={() => confirm([result.occ], 'manual', result.expiry)}
                 style={{ marginTop: 14 }}
               />
-              <Button title="Scan again" kind="ghost" onPress={dismiss} />
+              <Button title="Scan again" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 8 }} />
               <ReadBy />
             </View>
           )}
 
           {result?.kind === 'strength' && (
-            <View style={{ backgroundColor: '#B91C1C', borderRadius: 18, padding: 18, marginTop: 8 }}>
+            <View style={{ backgroundColor: t.badFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✋ Different strength — don't take</Text>
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
                 This strip says {result.found.map((f) => `${f} mg`).join(' / ')}.
@@ -482,19 +482,19 @@ export default function Scan() {
                 You need {result.occ.med.name} {spokenStrength(result.occ.med.strength) || result.occ.med.strength}.
               </Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>Ask the pharmacist before using a different strength.</Text>
-              <Button title="Scan next" kind="secondary" big onPress={dismiss} style={{ marginTop: 14 }} />
+              <Button title="Scan next" kind="light" big onPress={dismiss} style={{ marginTop: 14 }} />
             </View>
           )}
 
           {result?.kind === 'nomatch' && (
-            <View style={{ backgroundColor: t.bad, borderRadius: 18, padding: 18, marginTop: 8 }}>
+            <View style={{ backgroundColor: t.badFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
               <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✗ No match</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.tip ? <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.tip}</Text> : null}
               {/* The raw text read is for helpers only. */}
               {result.detail && state.settings.showScanDetails ? <Text style={{ color: '#fff', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
               <ReadBy />
-              <Button title="Scan next" kind="secondary" big onPress={dismiss} style={{ marginTop: 14 }} />
+              <Button title="Scan next" kind="light" big onPress={dismiss} style={{ marginTop: 14 }} />
               {!result.code && <TeachChips />}
               {result.code && (
                 <More title="Helper: it is the right medicine" color="#fff">

@@ -19,17 +19,23 @@ const light = {
   bg: '#F6F7F5',
   card: '#FFFFFF',
   text: '#16211F',
-  sub: '#5B6B67',
+  sub: '#4F5F5B',
   line: '#E2E7E5',
   brand: '#0F766E',
   brandSoft: '#D9F0EC',
   ok: '#15803D',
   okSoft: '#DCFCE7',
-  bad: '#DC2626',
+  bad: '#B91C1C',
   badSoft: '#FEE2E2',
   warn: '#B45309',
   warnSoft: '#FEF3C7',
   muted: '#EEF1F0',
+  // Deep fills for anything with white text on it (buttons, scan result cards). The same in light, dark and at
+  // night: the bright dark-mode greens/ambers above are for text and icons only — white on them is unreadable.
+  brandFill: '#0F766E',
+  okFill: '#15803D',
+  warnFill: '#B45309',
+  badFill: '#B91C1C',
 };
 const dark: typeof light = {
   bg: '#0E1513',
@@ -46,6 +52,10 @@ const dark: typeof light = {
   warn: '#FBBF24',
   warnSoft: '#43320C',
   muted: '#1F2A27',
+  brandFill: '#0F766E',
+  okFill: '#15803D',
+  warnFill: '#B45309',
+  badFill: '#B91C1C',
 };
 export type Theme = typeof light & { period: Period; isDark: boolean; periods: Record<Period, PeriodColors> };
 
@@ -74,7 +84,8 @@ export function Card({ children, style }: { children: React.ReactNode; style?: V
   return <View style={[{ backgroundColor: t.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.line }, style]}>{children}</View>;
 }
 
-type BtnKind = 'primary' | 'secondary' | 'danger' | 'ok' | 'ghost';
+/** light = white button for the main action on a coloured card (scan results). */
+type BtnKind = 'primary' | 'secondary' | 'danger' | 'ok' | 'ghost' | 'light';
 export function Button({
   title,
   onPress,
@@ -82,7 +93,10 @@ export function Button({
   disabled,
   style,
   big,
+  onColor,
 }: {
+  /** On a coloured card: ghost buttons get white text and outline. */
+  onColor?: boolean;
   title: string;
   onPress: () => void;
   kind?: BtnKind;
@@ -91,8 +105,10 @@ export function Button({
   big?: boolean;
 }) {
   const t = useTheme();
-  const bg = { primary: t.brand, secondary: t.muted, danger: t.bad, ok: t.ok, ghost: 'transparent' }[kind];
-  const fg = kind === 'secondary' || kind === 'ghost' ? t.text : '#FFFFFF';
+  const bg = { primary: t.brandFill, secondary: t.muted, danger: t.badFill, ok: t.okFill, ghost: 'transparent', light: '#FFFFFF' }[kind];
+  // Ghost buttons use the link colour and a thin outline so they still look tappable.
+  const fg = kind === 'secondary' ? t.text : kind === 'light' ? '#16211F' : kind === 'ghost' ? (onColor ? '#FFFFFF' : t.brand) : '#FFFFFF';
+  const border = kind === 'ghost' ? (onColor ? '#FFFFFFAA' : t.line) : 'transparent';
   return (
     <Pressable
       accessibilityRole="button"
@@ -101,6 +117,8 @@ export function Button({
       style={({ pressed }) => [
         {
           backgroundColor: bg,
+          borderWidth: kind === 'ghost' ? 1.5 : 0,
+          borderColor: border,
           paddingVertical: big ? 18 : 13,
           paddingHorizontal: 16,
           minHeight: big ? 62 : 50, // easy to hit for shaky hands (older users)
@@ -119,7 +137,7 @@ export function Button({
 
 export function Chip({ label, active, color, onPress }: { label: string; active?: boolean; color?: string; onPress?: () => void }) {
   const t = useTheme();
-  const c = color ?? t.brand;
+  const c = color ?? t.brandFill;
   return (
     <Pressable
       onPress={onPress}

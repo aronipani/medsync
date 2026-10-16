@@ -185,8 +185,8 @@ export default function PrescriptionReview() {
               <View key={m.id} style={[s.between, { marginTop: 10 }]}>
                 <Text style={{ color: t.text, flex: 1, fontWeight: '600' }}>{medLabel(m)}</Text>
                 {/* Two named choices instead of a switch whose "on" meaning has to be guessed. */}
-                <Chip label="Keep" active={!stopIds.includes(m.id)} color={t.ok} onPress={() => stopIds.includes(m.id) && toggleStop(m.id)} />
-                <Chip label="Stop" active={stopIds.includes(m.id)} color={t.bad} onPress={() => !stopIds.includes(m.id) && toggleStop(m.id)} />
+                <Chip label="Keep" active={!stopIds.includes(m.id)} color={t.okFill} onPress={() => stopIds.includes(m.id) && toggleStop(m.id)} />
+                <Chip label="Stop" active={stopIds.includes(m.id)} color={t.badFill} onPress={() => !stopIds.includes(m.id) && toggleStop(m.id)} />
               </View>
             ))}
           </Card>

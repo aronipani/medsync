@@ -45,8 +45,8 @@ export interface PeriodColors {
 /** Light-mode colours. Night uses a deep navy with light text. */
 export const PERIOD_LIGHT: Record<Period, PeriodColors> = {
   morning: { bg: '#E6F2FB', card: '#FFFFFF', line: '#CFE2F1', muted: '#D9EAF7', tint: '#D3E8F8', accent: '#0369A1' },
-  afternoon: { bg: '#FFF4E0', card: '#FFFFFF', line: '#F2E2C4', muted: '#FBEBCB', tint: '#FFE9C2', accent: '#B45309' },
-  evening: { bg: '#FBEAE4', card: '#FFFFFF', line: '#F1D3C8', muted: '#F7DDD3', tint: '#F8D9CC', accent: '#C2410C' },
+  afternoon: { bg: '#FFF4E0', card: '#FFFFFF', line: '#F2E2C4', muted: '#FBEBCB', tint: '#FFE9C2', accent: '#92400E' },
+  evening: { bg: '#FBEAE4', card: '#FFFFFF', line: '#F1D3C8', muted: '#F7DDD3', tint: '#F8D9CC', accent: '#9A3412' },
   night: { bg: '#121A33', card: '#1B2546', line: '#2A3660', muted: '#243056', tint: '#25325C', accent: '#A5B4FC' },
 };
 
