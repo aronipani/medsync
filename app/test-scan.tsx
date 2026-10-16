@@ -10,7 +10,8 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { expiryStatus, formatExpiry, parseExpiry } from '../src/expiry.ts';
 import { rescheduleAll, setupNotifications } from '../src/notifications.ts';
 import { sendForTraining } from '../src/sendForTraining.tsx';
-import { appleVisionAvailable, readBurst, readLinesAnyOrientation, scanDetectorLabel, scanReaderLabel, startScanStats } from '../src/ocr.ts';
+import { householdWords } from '../src/household.ts';
+import { appleVisionAvailable, readBurst, readLinesAnyOrientation, readSecondLook, scanDetectorLabel, scanHints, scanReaderLabel, setHouseholdWords, startScanStats } from '../src/ocr.ts';
 import { detectorState, loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { medLabel } from '../src/schedule.ts';
 import type { Medication } from '../src/types.ts';
@@ -114,13 +115,21 @@ export default function TestScan() {
         return uri;
       };
       setProgress('Reading the strip…');
+      setHouseholdWords(householdWords(state.meds.filter((m) => m.active)));
       let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
-      let outcome = classifyTest(text, state.meds);
+      let outcome = classifyTest(text, state.meds, scanHints());
+      if (outcome.kind !== 'ok') {
+        // Same as the real scan: a second look at this photo (other reader, household words) before new photos.
+        setProgress('Looking again…');
+        const again = await readSecondLook([...photos]);
+        if (again.length) text += '\n' + again.map((l) => l.text).join('\n');
+        outcome = classifyTest(text, state.meds, scanHints());
+      }
       if (outcome.kind !== 'ok') {
         // The same glare retry as the real scan: two more photos at slightly different angles.
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Taking another photo (${n} of 2) — tilt the strip a little`) });
         text += '\n' + more.map((l) => l.text).join('\n');
-        outcome = classifyTest(text, state.meds);
+        outcome = classifyTest(text, state.meds, scanHints());
       }
       const r: Run = {
         outcome,
@@ -331,14 +340,16 @@ function Result({
   const fill = o.kind === 'ok' ? t.okFill : o.kind === 'check' ? t.warnFill : t.badFill;
   const icon = o.kind === 'ok' ? '✓' : o.kind === 'check' ? '!' : '✕';
   const title =
-    o.kind === 'ok' ? 'Recognised' : o.kind === 'check' ? 'Strength not read' : o.kind === 'strength' ? 'Wrong strength' : o.kind === 'conflict' ? 'A different medicine' : 'Not recognised';
+    o.kind === 'ok' ? 'Recognised' : o.kind === 'check' ? (o.partial ? 'Only part of the name read' : 'Strength not read') : o.kind === 'strength' ? 'Wrong strength' : o.kind === 'conflict' ? 'A different medicine' : 'Not recognised';
   const meaning =
     o.kind === 'ok'
       ? o.substitute
         ? 'A different brand of the same medicine. At dose time you’ll be asked to check the brand.'
         : 'This strip will be recognised at dose time.'
       : o.kind === 'check'
-        ? 'The name was read, but not the strength. Try closer, with less shine, or show the side with the strength.'
+        ? o.partial
+          ? `It looks like ${medLabel(o.med)}, but only part of the name could be read. At dose time the person will be asked to check the name.`
+          : 'The name was read, but not the strength. Try closer, with less shine, or show the side with the strength.'
         : o.kind === 'strength'
           ? `This strip says ${o.found.map((f) => `${f} mg`).join(' / ')}. You need ${medLabel(o.med)}.`
           : o.kind === 'conflict'

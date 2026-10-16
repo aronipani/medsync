@@ -8,10 +8,12 @@ export interface AppleTextLine {
   height: number;
   corners: { x: number; y: number }[];
   confidence: number;
+  alternatives?: string[]; // Vision's next-best readings of the line (builds from ios-25 on)
 }
 
 interface AppleTextNative {
-  recognize(uri: string): Promise<AppleTextLine[]>;
+  /** words: household medicine words as a custom vocabulary (turns on language correction for that call only). */
+  recognize(uri: string, words?: string[] | null): Promise<AppleTextLine[]>;
 }
 
 /** The Apple Vision reader, or null where it isn't built in (Android, Expo Go, older builds). */

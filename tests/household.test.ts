@@ -81,3 +81,22 @@ test('strength seen', () => {
   assert.equal(strengthSeen('CLOPILET 150 mg', '75'), 'other');
   assert.equal(strengthSeen('CLOPILET MRP Rs 75', '75'), 'unknown'); // a price is not a strength
 });
+
+test('contents name from the built-in list: a strip with only "CLOPIDOGREL 75" left', () => {
+  const only = [med('clopilet', 'Clopilet', '75'), med('pantodac', 'Pantodac', '40')]; // no aliases typed
+  const v = verdict('…OPIDOGREL Tablets IP 75 mg', only);
+  assert.equal(v.kind === 'sure' || v.kind === 'likely' ? v.medId : v.kind, 'clopilet');
+});
+
+test('hints (word-list reading) lift to amber at most', () => {
+  // The raw reading has almost nothing; the word-list reading says CLOPILET 75.
+  const v = householdMatch('C… 7', household, ['CLOPILET 75']);
+  assert.deepEqual([v.kind, v.kind === 'likely' ? v.medId : ''], ['likely', 'clopilet']);
+  // Raw reading alone already sure: hints don't change it.
+  assert.equal(householdMatch('LOPILE 75', household, ['PANTODAC 40']).kind, 'sure');
+});
+
+test('a hint pointing to a different medicine than the raw reading makes it unsure', () => {
+  const v = householdMatch('CLOPIL', household, ['PANTODAC 40']);
+  assert.equal(v.kind, 'unsure');
+});

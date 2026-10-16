@@ -1,6 +1,7 @@
 // Test scan: try the scanner on a strip before the reminder comes, without logging a dose.
 // Pure — no React Native — so it can be unit tested. See docs/specs/11-test-scan.md.
 
+import { householdMatch } from './household.ts';
 import { matchDetail } from './match.ts';
 import { occurrencesForDate } from './schedule.ts';
 import { addDays, dateKey } from './time.ts';
@@ -8,7 +9,7 @@ import type { AppState, Medication, Occurrence } from './types.ts';
 
 export type TestOutcome =
   | { kind: 'ok'; med: Medication; via?: string; substitute?: boolean }
-  | { kind: 'check'; med: Medication } // name read, strength not
+  | { kind: 'check'; med: Medication; partial?: boolean } // name read, strength not (partial: only part of the name)
   | { kind: 'strength'; med: Medication; found: string[] } // name read, a different strength printed
   | { kind: 'conflict'; med: Medication; looksLike: string } // looks like a different medicine
   | { kind: 'unknown' };
@@ -18,7 +19,7 @@ export type TestOutcome =
  * (not just the ones due now). Same rules as the Scan tab: a clear match wins, then another brand of the
  * same medicine, then a wrong strength, then "looks like something else", then name only.
  */
-export function classifyTest(text: string, meds: Medication[]): TestOutcome {
+export function classifyTest(text: string, meds: Medication[], hints: string[] = []): TestOutcome {
   const active = meds.filter((m) => m.active);
   const checked = active.map((med) => ({ med, d: matchDetail(text, med, active) }));
   const first = (level: string) => checked.find((x) => x.d.level === level);
@@ -32,6 +33,10 @@ export function classifyTest(text: string, meds: Medication[]): TestOutcome {
   if (conflict) return { kind: 'conflict', med: conflict.med, looksLike: conflict.d.looksLike ?? 'another medicine' };
   const nameOnly = first('nameOnly');
   if (nameOnly) return { kind: 'check', med: nameOnly.med };
+  // Worn or cut strip: the household's own medicines from fragments (spec 15), as on the Scan tab.
+  const hh = householdMatch(text, active, hints);
+  const hit = (hh.kind === 'sure' || hh.kind === 'likely') && active.find((m) => m.id === hh.medId);
+  if (hit) return hh.kind === 'sure' ? { kind: 'ok', med: hit, via: 'part of the name' } : { kind: 'check', med: hit, partial: true };
   return { kind: 'unknown' };
 }
 

@@ -130,6 +130,18 @@ Apple Vision and ML Kit are general text readers; neither can load the household
 * ML Kit has no word list; Android relies on the fragment matching in step 4.
 * Change in `modules/apple-text`: an optional `customWords` argument (turns on correction for that call only).
 
+### 3b. Second look on a miss (built Oct 2026)
+When the first photo matches nothing, before asking for two more photos (`readSecondLook` in `src/ocr.ts`):
+* iPhone: **Google ML Kit** reads the same photo (upright, upside down) and the name areas already cropped — the two
+  readers make different mistakes; this counts as full evidence.
+* iPhone: **Apple Vision with the household's words** (`customWords`, correction on) reads the name areas again —
+  hint only.
+* Vision's own **second-guess readings** of each line (`topCandidates(3)`) are kept as hints on every read.
+* The contents name from the built-in medicine list (CLOPIDOGREL for Clopilet) is a name word even when nobody typed
+  it as an alias.
+Android: ML Kit is already the reader and has no word list, so only the contents names apply. The test scan uses the
+same steps. Every second-look reading is in the scan trace, marked "hint only" where it is.
+
 ### 4. Score every household medicine
 Text (fragment coverage, unique words weighted above shared ones), strength (same / other / unknown), look
 (embedding similarity of the strip crop to `references`), colours, expiry read = stored expiry. Weights and rules as
@@ -204,7 +216,8 @@ there are ~1,500 checked photos.
    crops refreshed on confirmed scans, backup support.
 3. **Household index** (`src/householdIndex.ts`) and `household.ts` reading profile words, unique-word weighting,
    strength and expiry from it (section 2a, steps 0 and 4).
-4. **Apple Vision word-list pass** (`customWords` in `modules/apple-text`, brand/contents crops only, amber-only rule).
+4. **Built (Oct 2026): second look on a miss** — ML Kit on iPhone, Vision word-list pass and Vision's alternative
+   readings as amber-only hints, contents names from the medicine list (section 3b).
 5. **Guided crops** from profile regions, then the YOLO `strip` class (needs labels and a retrain).
 6. **Image embeddings** on the phone (TFLite model in `assets/models/`), added as the "look" signal, with colours.
 7. **DoseSure server**: built in `server/` with strip read, catalogue and rate limits (spec 16); still to deploy.

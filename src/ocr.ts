@@ -31,6 +31,29 @@ export function startScanStats() {
   used['apple-vision'] = 0;
   used['ml-kit'] = 0;
   detector.photos = detector.found = detector.areas = 0;
+  hints.clear();
+  nameCrops.clear();
+}
+
+// ---- Hints (spec 15, section 2a) ----
+// Text that may point to a household medicine but must never be the only evidence for green: Vision's second-guess
+// readings of a line, and the word-list reading (Vision with the household's words as its vocabulary).
+const hints = new Set<string>();
+/** Hint lines collected during the current scan (since startScanStats). */
+export const scanHints = (): string[] => [...hints];
+
+// Name areas cropped during the current scan (YOLO brand/contents areas, enlarged biggest print), per photo,
+// so a scan that found nothing can read them again with the other reader or the word list without re-cropping.
+const nameCrops = new Map<string, string[]>();
+const keepCrop = (photo: string, crop: string) => {
+  const list = nameCrops.get(photo) ?? [];
+  if (list.length < 8) nameCrops.set(photo, [...list, crop]);
+};
+
+let householdWords: string[] = [];
+/** The household's medicine words (brand, contents, taught words) for the word-list reading. */
+export function setHouseholdWords(words: string[]) {
+  householdWords = [...new Set(words.map((w) => w.trim()).filter((w) => w.length >= 3))].slice(0, 500);
 }
 
 /** "found 5 areas on 2 of 3 photos", "found nothing — full reading used", "off", "not in this build". */
@@ -59,9 +82,10 @@ export function scanReaderLabel(): string {
 async function recognize(uri: string): Promise<OcrLine[]> {
   if (appleVision) {
     try {
-      const lines = await appleVision.recognize(uri);
+      const lines = await appleVision.recognize(uri, null);
       last = 'apple-vision';
       used['apple-vision']++;
+      for (const l of lines) for (const a of l.alternatives ?? []) hints.add(a);
       return lines.map((l) => ({ text: l.text, height: l.height, top: l.top, left: l.left, width: l.width, corners: l.corners }));
     } catch {
       // fall through to ML Kit
@@ -228,6 +252,7 @@ async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[];
         const turn = turnedText.get(b);
         if (turn) ctx = ctx.rotate(turn); // read it the way up it was readable
         const img = await (await ctx.renderAsync()).saveAsync({ compress: 0.95, format: SaveFormat.JPEG });
+        keepCrop(uri, img.uri);
         set.add(await readStep(trace, `re-read enlarged: “${b.text.slice(0, 30)}”`, img.uri));
       } catch {
         // Re-reading is a bonus; ignore failures.
@@ -277,6 +302,7 @@ async function readFoundAreas(uri: string, size: { width: number; height: number
           .resize({ width })
           .renderAsync();
         const img = await ref.saveAsync({ compress: 0.95, format: SaveFormat.JPEG });
+        if (r.cls === 'brand' || r.cls === 'contents' || r.cls === 'strength') keepCrop(uri, img.uri);
         set.add(await readStep(trace, `${r.cls} area (${r.score.toFixed(2)}), ${turn === c.rotate ? 'level' : 'upside down'}`, img.uri));
       } catch {
         // one area failing to read is fine; the others and the upright reading remain
@@ -319,6 +345,59 @@ export async function readBurst(
   for (let i = 0; i < uris.length; i++) {
     // Full treatment for the first photo; upright + upside down + re-read for the rest (keeps it quick).
     await readPhoto(uris[i], set, { rotations: i === 0 ? [180, 90, 270] : [180], reread: true });
+  }
+  return set.lines;
+}
+
+/**
+ * A scan that matched nothing gets a second look at the same photos before asking for new ones (spec 15, 2a):
+ *  - iPhone: Google ML Kit reads each photo (upright and upside down) and the name areas already cropped.
+ *    The two readers make different mistakes, so this is full evidence (it can lead to green).
+ *  - iPhone: Apple Vision reads the name areas again with the household's words as its vocabulary.
+ *    That reading leans towards household names, so it only goes into the hints (amber at most).
+ * Android already reads with ML Kit and has no word list, so it returns nothing new.
+ */
+export async function readSecondLook(photos: string[]): Promise<OcrLine[]> {
+  if (!appleVision) return [];
+  const set = new LineSet();
+  for (const photo of photos) {
+    const trace = traces.get(photo);
+    const crops = nameCrops.get(photo) ?? [];
+    const step = async (label: string, uri: string) => {
+      const t0 = Date.now();
+      try {
+        const lines = await recognizeMlKit(uri);
+        used['ml-kit']++;
+        if (trace) addStep(trace, `second look (ML Kit): ${label}`, 'ml-kit', lines.map((l) => l.text), Date.now() - t0);
+        set.add(lines);
+      } catch {
+        // ML Kit missing or failed: nothing more to add
+      }
+    };
+    await step('whole photo, upright', photo);
+    try {
+      const turned = await (await ImageManipulator.manipulate(photo).resize({ width: WORK_WIDTH }).rotate(180).renderAsync()).saveAsync({ compress: 0.9, format: SaveFormat.JPEG });
+      await step('whole photo, turned 180°', turned.uri);
+    } catch {
+      // the upright reading is still used
+    }
+    for (const [i, crop] of crops.entries()) await step(`name area ${i + 1}`, crop);
+    if (householdWords.length) {
+      for (const [i, crop] of crops.entries()) {
+        const t0 = Date.now();
+        try {
+          const lines = await appleVision.recognize(crop, householdWords);
+          used['apple-vision']++;
+          for (const l of lines) {
+            hints.add(l.text);
+            for (const a of l.alternatives ?? []) hints.add(a);
+          }
+          if (trace) addStep(trace, `second look (Vision + household words, hint only): name area ${i + 1}`, 'apple-vision', lines.map((l) => l.text), Date.now() - t0);
+        } catch {
+          // a crop that can't be read is fine
+        }
+      }
+    }
   }
   return set.lines;
 }

@@ -9,10 +9,13 @@ public class AppleTextModule: Module {
   public func definition() -> ModuleDefinition {
     Name("AppleText")
 
-    AsyncFunction("recognize") { (uri: String, promise: Promise) in
+    // words: optional list of the household's medicine words. When given, Vision's language correction is turned
+    // on for this call with those words as its custom vocabulary (Vision ignores custom words without correction).
+    // Used only for a second, "hint" reading of name areas (spec 15, section 2a); the raw reading stays uncorrected.
+    AsyncFunction("recognize") { (uri: String, words: [String]?, promise: Promise) in
       DispatchQueue.global(qos: .userInitiated).async {
         do {
-          promise.resolve(try AppleTextModule.recognize(uri))
+          promise.resolve(try AppleTextModule.recognize(uri, words: words ?? []))
         } catch {
           promise.reject("ERR_APPLE_TEXT", error.localizedDescription)
         }
@@ -30,7 +33,7 @@ public class AppleTextModule: Module {
     }
   }
 
-  static func recognize(_ uri: String) throws -> [[String: Any]] {
+  static func recognize(_ uri: String, words: [String]) throws -> [[String: Any]] {
     let url: URL
     if uri.hasPrefix("file:") {
       guard let u = URL(string: uri) else { throw ReadError.badUri(uri) }
@@ -56,7 +59,8 @@ public class AppleTextModule: Module {
     let request = VNRecognizeTextRequest()
     request.recognitionLevel = .accurate
     request.recognitionLanguages = ["en-US"]
-    request.usesLanguageCorrection = false // correction "fixes" brand names into dictionary words
+    request.usesLanguageCorrection = !words.isEmpty // off by default: correction "fixes" brand names into dictionary words
+    if !words.isEmpty { request.customWords = Array(words.prefix(500)) }
     request.minimumTextHeight = 0.008 // strips have small print; the default skips it
 
     try VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:]).perform([request])
@@ -66,7 +70,9 @@ public class AppleTextModule: Module {
 
     var out: [[String: Any]] = []
     for obs in request.results ?? [] {
-      guard let best = obs.topCandidates(1).first else { continue }
+      // Up to 3 candidate readings per line: the best, and Vision's own next guesses (worn letters often have one).
+      let candidates = obs.topCandidates(3)
+      guard let best = candidates.first else { continue }
       let text = best.string.trimmingCharacters(in: .whitespacesAndNewlines)
       if text.isEmpty { continue }
       let b = obs.boundingBox
@@ -78,6 +84,9 @@ public class AppleTextModule: Module {
         "height": Double(b.height) * h,
         "corners": [px(obs.topLeft), px(obs.topRight), px(obs.bottomRight), px(obs.bottomLeft)],
         "confidence": Double(best.confidence),
+        "alternatives": candidates.dropFirst()
+          .map { $0.string.trimmingCharacters(in: .whitespacesAndNewlines) }
+          .filter { !$0.isEmpty && $0 != text },
       ])
     }
     return out

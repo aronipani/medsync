@@ -116,3 +116,11 @@ test('test-scan reminders name the person when there are several', () => {
   const r = testReminders(s, {}, new Date('2026-10-15T08:30:00'), 60, 12);
   assert.deepEqual(r[0].lines.sort(), ['Ma: Cordarone X 200 — not tested yet', 'Pa: Nebicard 2.5 — not tested yet']);
 });
+
+test('a cut strip is recognised the same way as on the Scan tab', () => {
+  const r = classifyTest('…OPILE… 75', meds);
+  assert.equal(r.kind === 'ok' || r.kind === 'check' ? r.med.id : r.kind, 'clo');
+  // A word-list hint alone is never "ok".
+  const h = classifyTest('C…', meds, ['CLOPILET 75']);
+  assert.deepEqual([h.kind, h.kind === 'check' && h.partial], ['check', true]);
+});

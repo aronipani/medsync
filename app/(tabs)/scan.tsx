@@ -5,11 +5,11 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
-import { householdMatch } from '../../src/household.ts';
+import { householdMatch, householdWords } from '../../src/household.ts';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
-import { readBurst, readLinesAnyOrientation, scanDetectorLabel, scanReaderLabel, startScanStats } from '../../src/ocr.ts';
+import { readBurst, readLinesAnyOrientation, readSecondLook, scanDetectorLabel, scanHints, scanReaderLabel, setHouseholdWords, startScanStats } from '../../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../../src/regionModel.ts';
 import { readinessSummary, upcomingReadiness, type TestRecords } from '../../src/testScan.ts';
 import { loadTestRecords } from '../../src/testScanStore.ts';
@@ -194,7 +194,7 @@ export default function Scan() {
     if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method });
     // Worn or cut strip: decide among the household's own medicines from fragments ("…LOPIL… 75"), spec 15.
     // Being due is not part of the decision; it only decides what the result says.
-    const hh = householdMatch(text, household);
+    const hh = householdMatch(text, household, method === 'text' ? scanHints() : []);
     if (hh.kind === 'sure' || hh.kind === 'likely') {
       const occ = due.find((o) => o.med.id === hh.medId);
       if (occ) return hh.kind === 'sure' ? show({ kind: 'match', occs: [occ], method }) : show({ kind: 'check', occ, method, partial: true });
@@ -234,9 +234,20 @@ export default function Scan() {
         return uri;
       };
       setProgress('Reading the strip…');
+      const household = state.meds.filter((m) => m.active);
+      setHouseholdWords(householdWords(household));
       let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
-      // Nothing matched? Glare may be hiding letters — take two more photos at slightly different angles.
-      if (!due.some((o) => ['match', 'substitute', 'conflict'].includes(matchDetail(text, o.med, state.meds).level))) {
+      const settled = () =>
+        due.some((o) => ['match', 'substitute', 'conflict'].includes(matchDetail(text, o.med, state.meds).level)) ||
+        householdMatch(text, household).kind === 'sure';
+      // Nothing matched? First a second look at the same photo (iPhone: the other reader, and the household's
+      // words as a hint), then — glare may be hiding letters — two more photos at slightly different angles.
+      if (!settled()) {
+        setProgress('Looking again…');
+        const again = await readSecondLook([...photos]);
+        if (again.length) text += '\n' + again.map((l) => l.text).join('\n');
+      }
+      if (!settled()) {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Taking another photo (${n} of 2) — tilt the strip a little`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }

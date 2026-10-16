@@ -5,6 +5,7 @@
 
 import { sameMedicine } from './consolidate.ts';
 import { levenshtein, strengthText, tokenize } from './match.ts';
+import { relatedNames } from './drugdb.ts';
 import { decode } from './learn.ts';
 import type { Medication } from './types.ts';
 
@@ -26,9 +27,13 @@ const SURE_COVER = 0.6; // name coverage needed (with strength and no look-alike
 /** OCR reads O as 0, I as 1 inside words. */
 const letters = (t: string) => t.replace(/0/g, 'O').replace(/1/g, 'I').replace(/5/g, 'S').replace(/8/g, 'B');
 
-/** Distinctive name words of a medicine: brand words, alias words, taught-strip words (no numbers, no common print). */
+/**
+ * Distinctive name words of a medicine: brand words, alias words, its contents from the built-in medicine list
+ * (CLOPIDOGREL often survives when the brand is torn off), taught-strip words. No numbers, no common print.
+ */
 export function nameWords(med: Med): string[] {
-  const src = [med.name.replace(/\s*\/\s*/g, ' '), ...med.aliases];
+  const generic = med.name ? relatedNames({ name: med.name, strength: med.strength }).generic : undefined;
+  const src = [med.name.replace(/\s*\/\s*/g, ' '), ...med.aliases, ...(generic ? [generic] : [])];
   const words = src.flatMap(tokenize).filter((w) => /^[A-Z]+$/.test(w) && w.length >= MIN_RUN && !COMMON.has(w));
   const taught = (med.learned ?? []).flatMap(decode).filter((w) => /^[A-Z]{5,}$/.test(w) && !COMMON.has(w));
   return [...new Set([...words, ...taught])];
@@ -64,6 +69,11 @@ export function nameCover(fragments: string[], word: string): number {
   const seen = new Set<number>();
   for (const f of fragments) for (const i of covered(f, word)) seen.add(i);
   return seen.size >= MIN_RUN ? seen.size / word.length : 0;
+}
+
+/** Every household medicine's name words, for Apple Vision's word list (spec 15, 2a). */
+export function householdWords(meds: Med[]): string[] {
+  return [...new Set(meds.flatMap(nameWords))];
 }
 
 const numbersOf = (s: string) => (s.match(/\d+(?:\.\d+)?/g) ?? []).map(Number);
@@ -105,8 +115,23 @@ export type Verdict =
 /**
  * Scores every active household medicine (all members) against the text read, and decides.
  * Being due is deliberately NOT an input: it must never turn an uncertain scan into a green.
+ *
+ * `hints` is text that may point to a household medicine but leans towards household names (Vision's word-list
+ * reading, its second-guess readings): it can lift a scan to `likely` (amber), never to `sure` (green), and a
+ * hint that points elsewhere than the raw text makes the scan `unsure`.
  */
-export function householdMatch(text: string, meds: Med[]): Verdict {
+export function householdMatch(text: string, meds: Med[], hints: string[] = []): Verdict {
+  const raw = decide(text, meds);
+  if (raw.kind === 'sure' || !hints.length) return raw;
+  const withHints = decide(`${text}\n${hints.join('\n')}`, meds);
+  if (withHints.kind === 'sure' || withHints.kind === 'likely') {
+    if (raw.kind === 'likely' && raw.medId !== withHints.medId) return { kind: 'unsure', candidates: withHints.candidates };
+    return { kind: 'likely', medId: withHints.medId, candidates: withHints.candidates };
+  }
+  return raw.kind === 'none' ? withHints : raw;
+}
+
+function decide(text: string, meds: Med[]): Verdict {
   const fragments = [...new Set(tokenize(text).map(letters).filter((t) => /^[A-Z]{4,}$/.test(t) && !COMMON.has(t)))];
   const candidates: Candidate[] = [];
   for (const med of meds) {
