@@ -1,4 +1,4 @@
-# MedSync feature specs
+# DoseSure feature specs (formerly MedSync)
 
 | # | Feature | Status |
 |---|---|---|
@@ -16,4 +16,5 @@
 | [12](12-strip-scan-pipeline.md) | Strip scan pipeline end to end (flow diagrams), scan traces for retraining | Built |
 | [13](13-add-photos-for-training.md) | Collect strip photos (camera or library, e.g. from friends); Send for training via share sheet | Built |
 | [14](14-simple-for-older-people.md) | Simple for older people: Settings tabs, less on each screen, bigger controls, rules for new features | Built |
-| [15](15-closed-set-strip-matching.md) | Recognise the household's own strips: closed-set matching, strip profiles, enrollment via the DoseSure server | Spec |
+| [15](15-closed-set-strip-matching.md) | Recognise the household's own strips: closed-set matching, strip profiles, enrollment via the DoseSure server | Household matching built; enrollment to build |
+| [16](16-dosesure-server.md) | DoseSure server: one anonymous backend for strip reading, catalogue, encrypted backups, family circle, training photos (`server/`) | Server built, not deployed; app side to build |

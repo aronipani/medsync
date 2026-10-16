@@ -3,6 +3,8 @@ name: Android APK
 on:
   push:
     branches: [main]
+    # Server-only and docs-only changes don't need a new app build.
+    paths-ignore: ['server/**', 'docs/**', '.github/workflows/server.yml']
   workflow_dispatch:
 
 permissions:

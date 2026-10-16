@@ -1,0 +1,218 @@
+openapi: 3.1.0
+info:
+  title: DoseSure API
+  version: 0.1.0
+  description: |
+    One central, strictly anonymous server for every DoseSure phone (docs/specs/16-dosesure-server.md).
+    No accounts. Every call except /v1/health and /v1/install needs `Authorization: Install <token>`,
+    an anonymous token used only for rate limits. Backups and family activity are encrypted on the phone;
+    the server stores ciphertext it cannot read.
+servers:
+  - url: https://api.dosesure.app
+    description: Production (placeholder until a domain is chosen)
+  - url: http://localhost:8787
+    description: npm run local
+
+components:
+  securitySchemes:
+    install:
+      type: apiKey
+      in: header
+      name: Authorization
+      description: '"Install " + token from POST /v1/install'
+    vaultToken:
+      type: apiKey
+      in: header
+      name: X-Vault-Token
+      description: 43-char base64url, derived on the phone from the backup key (HKDF info "vault-token")
+    circleToken:
+      type: apiKey
+      in: header
+      name: X-Circle-Token
+      description: 43-char base64url, derived on the phone from the circle key (HKDF info "circle-token")
+  parameters:
+    id:
+      name: id
+      in: path
+      required: true
+      schema: { type: string, pattern: '^[A-Za-z0-9_-]{22,64}$' }
+      description: Derived on the phone from the key (HKDF info "vault-id" / "circle-id"), 32 chars
+  schemas:
+    Error:
+      type: object
+      properties:
+        error: { type: string, example: rate_limited }
+        message: { type: string }
+    Profile:
+      type: object
+      required: [version, brand, strength, tokens]
+      properties:
+        version: { const: 1 }
+        brand: { type: string, example: Clopilet }
+        generic: { type: string, example: Clopidogrel }
+        strength: { type: string, example: 75 mg }
+        maker: { type: string, example: Sun Pharma }
+        form: { type: string, example: tablet }
+        tokens: { type: array, items: { type: string }, maxItems: 20, example: [CLOPILET, CLOPIDOGREL, '75'] }
+        repeatsPerPocket: { type: boolean }
+        grid: { type: object, properties: { rows: { type: integer }, cols: { type: integer } } }
+        colours: { type: object, properties: { foil: { type: string }, print: { type: array, items: { type: string } } } }
+        regions:
+          type: array
+          items:
+            type: object
+            properties:
+              cls: { enum: [brand, contents, strength, expiry] }
+              box: { type: array, items: { type: number }, minItems: 4, maxItems: 4, description: 'x1, y1, x2, y2 in 0…1' }
+        lookAlikes: { type: array, items: { type: string }, maxItems: 5 }
+        expiry: { type: string, example: 2027-08, description: Returned by strip read only; never kept in the catalogue }
+
+security:
+  - install: []
+
+paths:
+  /v1/health:
+    get:
+      security: []
+      responses: { '200': { description: OK } }
+
+  /v1/install:
+    post:
+      summary: Get an anonymous install token (once, on first use; the phone may reset it any time)
+      security: []
+      responses:
+        '201': { description: Token, content: { application/json: { schema: { type: object, properties: { token: { type: string } } } } } }
+        '429': { description: Global daily cap reached }
+
+  /v1/strip/read:
+    post:
+      summary: Read a new strip with the frontier model (enrollment only — never at dose time)
+      description: Photos are cleaned of metadata, read in memory and not kept. 3/min and 30/day per install; global daily model cap.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photos]
+              properties:
+                photos: { type: array, minItems: 1, maxItems: 2, items: { type: string, contentEncoding: base64, description: 'JPEG ≤1.5 MB; printed side first' } }
+      responses:
+        '200':
+          description: Draft profile for the helper to check (null if brand and strength couldn't be read)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  profile: { oneOf: [{ $ref: '#/components/schemas/Profile' }, { type: 'null' }] }
+                  unsure: { type: array, items: { type: string }, description: Fields left out; the helper fills them }
+        '413': { description: Photo too large }
+        '415': { description: Not a JPEG }
+        '429': { description: Too many reads from this install }
+        '502': { description: Model unavailable — app falls back to reading on the phone }
+        '503': { description: Daily model budget reached — app falls back to reading on the phone }
+
+  /v1/catalogue:
+    get:
+      summary: Confirmed profiles for a brand + strength (asked BEFORE sending any photo)
+      parameters:
+        - { name: brand, in: query, required: true, schema: { type: string } }
+        - { name: strength, in: query, required: true, schema: { type: string } }
+      responses:
+        '200':
+          description: Up to 3 variants confirmed by at least 3 households
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  matches:
+                    type: array
+                    items: { type: object, properties: { profile: { $ref: '#/components/schemas/Profile' }, confirmations: { type: integer } } }
+    post:
+      summary: Add a helper-confirmed profile (opt-in; no reference photos, no expiry)
+      requestBody:
+        content: { application/json: { schema: { type: object, properties: { profile: { $ref: '#/components/schemas/Profile' } } } } }
+      responses:
+        '201': { description: Counted, content: { application/json: { schema: { type: object, properties: { confirmations: { type: integer }, shared: { type: boolean } } } } } }
+
+  /v1/vault/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    put:
+      summary: Save the encrypted backup (first save creates the vault)
+      security: [{ install: [], vaultToken: [] }]
+      parameters:
+        - { name: If-Match, in: header, required: false, schema: { type: integer }, description: Version this phone last saw; 409 if another phone saved since }
+      requestBody:
+        content: { application/octet-stream: { schema: { type: string, format: binary, description: '0x01 | nonce(12) | AES-256-GCM ciphertext | tag(16), ≤2 MB' } } }
+      responses:
+        '201': { description: Saved, content: { application/json: { schema: { type: object, properties: { version: { type: integer } } } } } }
+        '403': { description: Wrong vault token }
+        '409': { description: A newer backup exists }
+    get:
+      summary: Fetch the latest (or previous) encrypted backup
+      security: [{ install: [], vaultToken: [] }]
+      parameters:
+        - { name: version, in: query, required: false, schema: { const: previous } }
+      responses:
+        '200': { description: Ciphertext; X-Vault-Version header, content: { application/octet-stream: {} } }
+        '404': { description: No backup }
+    delete:
+      summary: Delete the backup from the server (both versions)
+      security: [{ install: [], vaultToken: [] }]
+      responses: { '204': { description: Deleted } }
+
+  /v1/circle/{id}/events:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    post:
+      summary: Post encrypted activity events to the family circle (first post creates it)
+      security: [{ install: [], circleToken: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                events: { type: array, minItems: 1, maxItems: 20, items: { type: string, description: 'base64url ciphertext, ≤2048 chars' } }
+      responses:
+        '201': { description: Stored for 30 days }
+    get:
+      summary: Fetch events after a cursor
+      security: [{ install: [], circleToken: [] }]
+      parameters:
+        - { name: after, in: query, required: false, schema: { type: string } }
+      responses:
+        '200':
+          description: Events, oldest first (max 200)
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  events: { type: array, items: { type: object, properties: { id: { type: string }, at: { type: integer }, data: { type: string } } } }
+                  cursor: { type: string }
+                  more: { type: boolean }
+
+  /v1/circle/{id}:
+    parameters: [{ $ref: '#/components/parameters/id' }]
+    delete:
+      summary: Delete the circle and all its events
+      security: [{ install: [], circleToken: [] }]
+      responses: { '204': { description: Deleted } }
+
+  /v1/photos:
+    post:
+      summary: Opt-in training photo (spec 07 record only)
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [photo]
+              properties:
+                photo: { type: string, contentEncoding: base64 }
+                name: { type: string, description: Only if the person typed or picked it }
+                appVersion: { type: string }
+                platform: { enum: [ios, android] }
+      responses:
+        '201': { description: Stored (cleaned of metadata, filed by month) }

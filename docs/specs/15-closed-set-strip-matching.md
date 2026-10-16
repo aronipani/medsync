@@ -86,14 +86,16 @@ they are the first lines to be torn off.
 
 ### Flow (helper-facing)
 1. Add a medicine → **Scan the strip** → photo of the back, then the front (two photos; the app guides with an outline).
-2. If online **and** the household allowed it (consent, below): the two photos go to the DoseSure server, which asks a
-   frontier vision model to read them and returns a draft profile (section 1) in a few seconds.
+2. If online **and** the household allowed it (consent, below): first the brand and strength the phone read itself
+   are looked up in the shared catalogue (no photo sent). If no confirmed profile is found, the two photos go to the
+   DoseSure server, which asks a frontier vision model to read them and returns a draft profile (section 1) in a few
+   seconds.
 3. The helper sees **"Is this right?"** with name, strength, maker and the pocket grid, big and editable. Nothing is
    saved until they press **Save**. Never added to the schedule automatically — same rule as prescriptions (spec 09).
 4. If offline, consent is off, or the server fails: the profile is built on the phone (text read today + the two
    photos), `source: 'phone'`. The app offers to improve it later ("Read this strip better when online?"), once.
 
-### Server (one standard DoseSure backend)
+### Server (one standard DoseSure backend — built in `server/`, see spec 16)
 * **Endpoint:** `POST /v1/strip/read` — two JPEGs (≤1280 px, location/camera data removed on the phone), app version,
   platform. Returns the profile JSON. No account, no family id, no name of the person.
 * **The model key lives only on the server.** The app has none; a leaked app build can't use the provider directly.
@@ -125,26 +127,35 @@ photos, a person corrects them in CVAT, and `autolabel.py` is replaced as the la
 there are ~1,500 checked photos.
 
 ## 5. Build order
-1. **Fuzzy closed-set matching on the phone** (`src/match.ts`): household-wide candidates, trigram + alignment text
+1. **Built (Oct 2026): fuzzy closed-set matching on the phone** (`src/household.ts`, used by the Scan tab after the
+   strict matcher in `src/match.ts`): household-wide candidates, trigram + alignment text
    score, margin rule, look-alike rule, "someone else's medicine" result. No server, no new model. Biggest quick win.
 2. **Strip profiles** on the phone: `profile` on `Medication`, two-photo enrollment, reference crops refreshed on
    confirmed scans, backup support.
 3. **Image embeddings** on the phone (TFLite model in `assets/models/`), added as the "look" signal.
-4. **DoseSure server**: `/v1/strip/read`, rate limiting, consent screen, PRIVACY.md. Then the shared catalogue if
-   decided.
+4. **DoseSure server**: built in `server/` with strip read, catalogue and rate limits (spec 16); still to deploy.
+   App side: consent screen, enrollment flow, PRIVACY.md.
 5. **Detector retraining** with model-drafted, hand-checked labels.
 
 ## Decisions needed
-* **Hosting** for the DoseSure server (small function + storage; also serves spec 07).
-* **Shared strip catalogue:** keep confirmed profiles centrally so later households need no model call — yes/no.
-* **Model provider** and a monthly budget cap (the server stops calling the model and the app falls back to
+* ~~Hosting~~ — AWS Lambda + DynamoDB + S3 (spec 16).
+* **Shared strip catalogue:** built (shared after 3 confirmations, no photos, no expiry); switch on or off at launch.
+* **Model provider** (Claude by default, changeable on the server) and a monthly budget cap (the server stops calling the model and the app falls back to
   `source: 'phone'` when it's reached).
 
-## Tests (`tests/match.test.ts`, `tests/profile.test.ts`)
-* Fragments ("LOPIL 75", "CLOPI", "ILET") pick Clopilet 75 among a 10-medicine household; random text picks none.
-* Clopilet 75 vs Clopitab 75: no green without a brand text match.
-* A strip belonging to another member gives "someone else's medicine", never green.
-* Due-now never changes a "not sure" into green.
+## Tests
+Built (`tests/household.test.ts`):
+* Half names from a cut strip ("…LOPIL… 75", "CLOPI" + "ILET" from two pockets) pick Clopilet 75 among a
+  10-medicine household; common strip print and random text pick none.
+* A different strength printed rules a medicine out.
+* Fragment + strength with nothing similar in the house: sure (green); fragment without strength: amber.
+* Look-alikes in the house (Clopilet / Clopitab, Rosuvas / Rosuday): a fragment match is never green; two equally
+  good fits: "not sure, scan the other side".
+* Another member's strip is identified (the Scan tab then says whose it is); due-now is not an input.
+* Taught-strip words count as name words.
+
+To build with profiles and enrollment (`tests/profile.test.ts`):
 * Look-only match gives amber, never green.
 * Reference images: the 7th confirmed scan replaces the oldest; expiry from the first scan is kept.
-* Server profile with a bad or missing field: the field is left empty for the helper, the rest is used.
+* Server profile with a bad or missing field: the field is left empty for the helper, the rest is used
+  (server side already tested in `server/tests/profile.test.ts`).
