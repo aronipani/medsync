@@ -92,15 +92,11 @@ function Shell() {
       >
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="med/[id]" options={{ presentation: 'modal', title: 'Medicine' }} />
-        <Stack.Screen name="member/[id]" options={{ presentation: 'modal', title: 'Family member' }} />
-        <Stack.Screen name="settings" options={{ title: 'Settings' }} />
         <Stack.Screen name="add" options={{ presentation: 'modal', title: 'Add medicine' }} />
         <Stack.Screen name="scan-add" options={{ title: 'Scan to add' }} />
         <Stack.Screen name="test-scan" options={{ title: 'Test scan' }} />
         <Stack.Screen name="import-photos" options={{ title: 'Collect strip photos' }} />
         <Stack.Screen name="rx-review" options={{ title: 'Check prescription' }} />
-        <Stack.Screen name="history" options={{ title: 'Schedule history' }} />
-        <Stack.Screen name="about" options={{ title: 'About & safety' }} />
       </Stack>
     </>
   );

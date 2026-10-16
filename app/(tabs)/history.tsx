@@ -1,14 +1,15 @@
 import { File, Paths } from 'expo-file-system';
-import { Stack } from 'expo-router';
+import { Tabs } from 'expo-router';
+import { freshOnFocus } from '../../src/components/freshOnFocus.tsx';
 import * as Sharing from 'expo-sharing';
 import React, { useState } from 'react';
 import { Alert, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
-import { MemberPicker } from '../src/components.tsx';
-import { describeMedTimes } from '../src/describe.ts';
-import { medLabel } from '../src/schedule.ts';
-import { useStore } from '../src/store.tsx';
-import type { ScheduleVersion } from '../src/types.ts';
-import { Button, Card, Empty, s, useTheme } from '../src/ui.tsx';
+import { MemberPicker } from '../../src/components.tsx';
+import { describeMedTimes } from '../../src/describe.ts';
+import { medLabel } from '../../src/schedule.ts';
+import { useStore } from '../../src/store.tsx';
+import type { ScheduleVersion } from '../../src/types.ts';
+import { Button, Card, Empty, s, useTheme } from '../../src/ui.tsx';
 
 const KIND_LABEL: Record<string, string> = {
   added: 'Added',
@@ -22,7 +23,9 @@ const KIND_LABEL: Record<string, string> = {
 
 const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
 
-export default function History() {
+export default freshOnFocus(History);
+
+function History() {
   const t = useTheme();
   const { state, restoreVersion } = useStore();
   const [memberId, setMemberId] = useState<string | undefined>();
@@ -49,7 +52,7 @@ export default function History() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Stack.Screen options={{ title: 'Schedule history' }} />
+      <Tabs.Screen options={{ title: 'Earlier versions of the list' }} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={{ color: t.sub, lineHeight: 20, marginBottom: 8 }}>
           Every change to a schedule — a new prescription, an edit, a merge — saves the schedule as it was just before. Tap one to see that version or go back to it.

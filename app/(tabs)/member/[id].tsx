@@ -1,16 +1,19 @@
-import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { router, Tabs, useLocalSearchParams } from 'expo-router';
+import { freshOnFocus } from '../../../src/components/freshOnFocus.tsx';
 import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Switch, Text, View } from 'react-native';
-import { LANGS, MAIN_LANGS, MORE_LANGS, matchAnnouncement, type LangCode } from '../../src/phrases.ts';
-import { hasVoice, say, type SpeakStatus } from '../../src/speech.ts';
-import { MEMBER_COLORS, newMember, useStore } from '../../src/store.tsx';
-import type { Meal, Member } from '../../src/types.ts';
-import { Button, Chip, Field, Label, s, TimeField, useTheme } from '../../src/ui.tsx';
+import { LANGS, MAIN_LANGS, MORE_LANGS, matchAnnouncement, type LangCode } from '../../../src/phrases.ts';
+import { hasVoice, say, type SpeakStatus } from '../../../src/speech.ts';
+import { MEMBER_COLORS, newMember, useStore } from '../../../src/store.tsx';
+import type { Meal, Member } from '../../../src/types.ts';
+import { Button, Chip, Field, Label, s, TimeField, useTheme } from '../../../src/ui.tsx';
 import { Pressable } from 'react-native';
 
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner'];
 
-export default function EditMember() {
+export default freshOnFocus(EditMember);
+
+function EditMember() {
   const t = useTheme();
   const { id } = useLocalSearchParams<{ id: string }>();
   const { state, saveMember, deleteMember } = useStore();
@@ -33,7 +36,7 @@ export default function EditMember() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: existing ? existing.name : 'Add family member' }} />
+      <Tabs.Screen options={{ title: existing ? existing.name : 'Add family member' }} />
       <Label>Name</Label>
       <Field value={m.name} onChangeText={(name) => setM({ ...m, name })} placeholder="e.g. Ma, Baba, Aroni" />
 

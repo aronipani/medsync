@@ -76,15 +76,6 @@ export default function Today() {
               {occs.length ? `${taken} of ${occs.length} taken` : atTime(date, '12:00').toDateString()}
             </Text>
           </View>
-          <Pressable
-            onPress={() => router.push('/settings')}
-            accessibilityRole="button"
-            accessibilityLabel="Settings"
-            style={{ minHeight: 48, minWidth: 48, paddingHorizontal: 10, borderRadius: 12, backgroundColor: t.muted, flexDirection: 'row', alignItems: 'center', justifyContent: 'center' }}
-          >
-            <Ionicons name="settings-outline" size={24} color={t.text} />
-            <Text style={{ color: t.text, fontWeight: '700', fontSize: 16, marginLeft: 6 }}>Settings</Text>
-          </Pressable>
         </View>
 
         {offset !== 0 && <Button title="Back to today" onPress={() => setOffset(0)} style={{ marginBottom: 8 }} />}

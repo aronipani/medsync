@@ -1,9 +1,9 @@
 import React from 'react';
 import { Linking, ScrollView, Text } from 'react-native';
-import { SafetyText } from '../src/components/SafetyText.tsx';
-import { buildLabel } from '../src/buildInfo.ts';
-import { ISSUES_URL, PRIVACY_URL } from '../src/legal.ts';
-import { Button, Card, useTheme } from '../src/ui.tsx';
+import { SafetyText } from '../../src/components/SafetyText.tsx';
+import { buildLabel } from '../../src/buildInfo.ts';
+import { ISSUES_URL, PRIVACY_URL } from '../../src/legal.ts';
+import { Button, Card, useTheme } from '../../src/ui.tsx';
 
 export default function About() {
   const t = useTheme();

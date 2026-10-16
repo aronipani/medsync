@@ -69,6 +69,12 @@ understand at a glance and should never make the person read or decide more than
   "Wrong strength on this strip"; all-caps labels in prescription check, history and scan-to-add are sentence case;
   prescription Keep/Stop are two chips, not a switch; colour picks 48 pt with a ✓.
 
+* **Bottom tabs everywhere:** Settings is a fifth tab (Today · Scan · Schedule · Stock · Settings); the Today
+  Settings button is gone. A family member's screen, About & safety and earlier versions of the list open *inside*
+  the tabs (hidden tab pages with a big "‹ Back"), so the bottom bar never disappears. They start fresh each time they
+  open (`src/components/freshOnFocus.tsx`). Focused one-job screens — the camera ones (Scan to add, Test scan, Collect
+  strip photos) and the add/edit medicine sheets — stay full screen.
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".

@@ -2,17 +2,17 @@ import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
-import { ageText, backupOverdue } from '../src/backup.ts';
-import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
-import { DEFAULT_SETTINGS } from '../src/store.tsx';
-import { buildLabel } from '../src/buildInfo.ts';
-import { sendForTraining } from '../src/sendForTraining.tsx';
-import { appleVisionAvailable } from '../src/ocr.ts';
-import { detectorState, loadRegionModel } from '../src/regionModel.ts';
-import { clearTraining, exportTraining, TRAINING_EMAIL, trainingSummary, unmarkAllSent } from '../src/training.ts';
-import { setupNotifications } from '../src/notifications.ts';
-import { useStore } from '../src/store.tsx';
-import { Button, Card, Label, More, NumberField, s, SegmentTabs, useTheme } from '../src/ui.tsx';
+import { ageText, backupOverdue } from '../../src/backup.ts';
+import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../../src/backupFile.ts';
+import { DEFAULT_SETTINGS } from '../../src/store.tsx';
+import { buildLabel } from '../../src/buildInfo.ts';
+import { sendForTraining } from '../../src/sendForTraining.tsx';
+import { appleVisionAvailable } from '../../src/ocr.ts';
+import { detectorState, loadRegionModel } from '../../src/regionModel.ts';
+import { clearTraining, exportTraining, TRAINING_EMAIL, trainingSummary, unmarkAllSent } from '../../src/training.ts';
+import { setupNotifications } from '../../src/notifications.ts';
+import { useStore } from '../../src/store.tsx';
+import { Button, Card, Label, More, NumberField, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
 type TimingKey = 'mealOffsetMin' | 'dueWindowMin' | 'missedAfterMin' | 'followUpMin' | 'snoozeMin' | 'testReminderMin';
 // Plain words, grouped by what people think about: when doses are, and when reminders come.
@@ -33,6 +33,10 @@ export default function SettingsScreen() {
   const t = useTheme();
   const params = useLocalSearchParams<{ tab?: string }>();
   const [tab, setTab] = useState<Tab>(params.tab === 'helper' || params.tab === 'timing' ? params.tab : 'everyday');
+  // Settings is a tab now and stays mounted, so a link to a section (settings?tab=helper) switches to it.
+  useEffect(() => {
+    if (params.tab === 'helper' || params.tab === 'timing' || params.tab === 'everyday') setTab(params.tab);
+  }, [params.tab]);
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
       <SegmentTabs<Tab>
