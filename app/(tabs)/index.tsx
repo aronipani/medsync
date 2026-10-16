@@ -100,11 +100,13 @@ export default function Today() {
       : o.status === 'skipped'
         ? 'Skipped'
         : o.status === 'missed'
-          ? `Missed · ${qtyLabel(o.dose.qty, o.med.unit)} at ${fmt12(o.time)}`
-          : `${qtyLabel(o.dose.qty, o.med.unit)} · ${describeTiming(o.dose)}`;
+          ? 'Missed'
+          : o.dose.timing.kind === 'meal'
+            ? `${qtyLabel(o.dose.qty, o.med.unit)} · ${describeTiming(o.dose)}`
+            : qtyLabel(o.dose.qty, o.med.unit);
 
   /** One medicine as a row: still-to-take ones bold and dark, finished ones quiet. */
-  const Row = ({ o, last }: { o: Occurrence; last: boolean }) => {
+  const Row = ({ o, last, time }: { o: Occurrence; last: boolean; time?: boolean }) => {
     const open = o.status === 'due' || o.status === 'upcoming';
     return (
       <Pressable
@@ -114,9 +116,11 @@ export default function Today() {
         style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 66, paddingVertical: 8, borderBottomWidth: last ? 0 : 1, borderBottomColor: t.line }}
       >
         <Mark o={o} />
+        {/* Scheduled time on the left in lists of the day, so every row reads the same way. */}
+        {time && <Text style={{ color: t.sub, fontSize: 17, fontWeight: '600', width: 76 }}>{fmt12(o.time)}</Text>}
         <View style={{ flex: 1 }}>
           <Text style={{ color: open ? t.text : t.sub, fontSize: open ? 21 : 19, fontWeight: open ? '700' : '600' }}>{medLabel(o.med)}</Text>
-          <Text style={{ color: o.status === 'missed' ? t.bad : open ? t.text : t.sub, opacity: open ? 0.8 : 1, fontSize: 16, marginTop: 2 }}>{statusLine(o)}</Text>
+          <Text style={{ color: open ? t.text : t.sub, opacity: open ? 0.8 : 1, fontSize: 16, marginTop: 2 }}>{statusLine(o)}</Text>
           <MemberDot memberId={o.memberId} />
         </View>
       </Pressable>
@@ -142,10 +146,17 @@ export default function Today() {
       <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
 
       {low.length > 0 && (
-        <Pressable accessibilityRole="button" onPress={() => router.navigate('/inventory')}>
-          <Card style={{ backgroundColor: t.warnSoft, marginTop: 8 }}>
-            <Text style={{ color: t.warn, fontWeight: '700', fontSize: 17 }}>Running low: {low.map((m) => `${medLabel(m)} (${m.stock} left)`).join(', ')}</Text>
-          </Card>
+        // One short line, not a list: the medicines come first; Stock has the details.
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.navigate('/inventory')}
+          style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 16, borderRadius: 16, backgroundColor: t.warnSoft, marginTop: 8 }}
+        >
+          <Text style={{ color: t.warn, fontSize: 18, fontWeight: '900' }}>!</Text>
+          <Text style={{ color: t.warn, fontSize: 17, fontWeight: '700', flex: 1 }} numberOfLines={1}>
+            {low.length === 1 ? `${medLabel(low[0])} is running low` : `${low.length} medicines running low`}
+          </Text>
+          <Ionicons name="chevron-forward" size={20} color={t.warn} />
         </Pressable>
       )}
 
@@ -227,10 +238,10 @@ export default function Today() {
               )}
               {done.length > 0 && (
                 <>
-                  <Section title="Done" />
+                  <Section title="Earlier today" />
                   <Card style={{ paddingVertical: 4 }}>
                     {done.map((o, i) => (
-                      <Row key={o.key} o={o} last={i === done.length - 1} />
+                      <Row key={o.key} o={o} last={i === done.length - 1} time />
                     ))}
                   </Card>
                 </>

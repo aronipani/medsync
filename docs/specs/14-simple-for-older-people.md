@@ -125,6 +125,10 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
   Settings → Everyday; "Earlier versions of the list" in Settings → Helper tools; adding a person only in Settings →
   Family. Schedule has no "More options" any more. Fixed "8:30 AM · 8:30 AM" (clock-time doses) and "10 mls".
 
+* **Today, later in the day:** "Done" became **Earlier today** (it held missed doses too), each row with its scheduled
+  time on the left; missed text is quiet ("Missed") — the red ! mark carries it, no wall of red. Low stock is one line
+  ("! 7 medicines running low ›" → Stock) instead of a paragraph listing every medicine.
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".
