@@ -5,6 +5,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
+import { householdMatch } from '../../src/household.ts';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
@@ -29,7 +30,7 @@ const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', '
 
 type Result =
   | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean; expiry?: string } // green
-  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string } // amber: name matches, strength unreadable
+  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean } // amber: name matches, strength unreadable (partial: only part of the name read)
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
   | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey }; // red; detail = raw text read (helpers only), tip = what to try
 
@@ -124,7 +125,9 @@ export default function Scan() {
         );
       case 'check':
         return (
-          phrase(lang, 'checkStrength', { strength: spokenStrength(r.occ.med.strength) }) +
+          (r.partial
+            ? phrase(lang, 'checkName', { name: `${r.occ.med.name} ${spokenStrength(r.occ.med.strength)}` })
+            : phrase(lang, 'checkStrength', { strength: spokenStrength(r.occ.med.strength) })) +
           (r.expiry && expiryStatus(r.expiry) === 'expired' ? ` ${phrase(lang, 'expired')}` : '')
         );
       case 'strength':
@@ -189,6 +192,24 @@ export default function Scan() {
     if (learnedOcc && !findConflict(text, learnedOcc.med, household)) return show({ kind: 'match', occs: [learnedOcc], method, learned: true });
     const nameOnly = checked.find((x) => x.d.level === 'nameOnly');
     if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method });
+    // Worn or cut strip: decide among the household's own medicines from fragments ("…LOPIL… 75"), spec 15.
+    // Being due is not part of the decision; it only decides what the result says.
+    const hh = householdMatch(text, household);
+    if (hh.kind === 'sure' || hh.kind === 'likely') {
+      const occ = due.find((o) => o.med.id === hh.medId);
+      if (occ) return hh.kind === 'sure' ? show({ kind: 'match', occs: [occ], method }) : show({ kind: 'check', occ, method, partial: true });
+      const notNow = explainMiss((o) => o.med.id === hh.medId);
+      if (notNow) return show({ kind: 'nomatch', reason: notNow.text, detail: text.replace(/\s+/g, ' ').trim().slice(0, 90), say: notNow.say });
+    }
+    if (hh.kind === 'unsure') {
+      return show({
+        kind: 'nomatch',
+        reason: 'Not sure which medicine this is.',
+        tip: 'Turn the strip over and scan the side with the name.',
+        detail: text.replace(/\s+/g, ' ').trim().slice(0, 90),
+        say: 'wrong',
+      });
+    }
     const why = explainMiss((o) => ['match', 'substitute'].includes(matchDetail(text, o.med, household).level));
     show({
       kind: 'nomatch',
@@ -503,7 +524,7 @@ export default function Scan() {
 
           {result?.kind === 'check' && (
             <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>⚠ Check the strength</Text>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{result.partial ? '⚠ Check the name' : '⚠ Check the strength'}</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
                 <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
@@ -511,9 +532,13 @@ export default function Scan() {
                 </View>
               )}
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
-                The name matches {result.occ.med.name}, but the strength couldn't be read (torn or shiny).
+                {result.partial
+                  ? `Only part of the name could be read. It looks like ${result.occ.med.name}.`
+                  : `The name matches ${result.occ.med.name}, but the strength couldn't be read (torn or shiny).`}
               </Text>
-              <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 10 }}>Strip must say {spokenStrength(result.occ.med.strength)}</Text>
+              <Text style={{ color: '#fff', fontSize: 26, fontWeight: '900', marginTop: 10 }}>
+                Strip must say {result.partial ? `${result.occ.med.name} ` : ''}{spokenStrength(result.occ.med.strength)}
+              </Text>
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 4 }}>Then take {qtyLabel(result.occ.dose.qty, result.occ.med.unit)}.</Text>
               <Button
                 big

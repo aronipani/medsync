@@ -58,6 +58,7 @@ test('every language has every phrase and amount', () => {
     for (const q of [0.25, 0.5, 1, 1.5, 2]) assert.ok(amountText(code, q, 'tablet').length > 0, `${code} ${q}`);
     assert.match(phrase(code, 'correct', { name: 'Clopilet 75' }), /Clopilet 75/);
     assert.match(phrase(code, 'checkStrength', { strength: '2.5 mg' }), /2\.5 mg/);
+    assert.match(phrase(code, 'checkName', { name: 'Clopilet 75 mg' }), /Clopilet 75 mg/);
   }
 });
 
