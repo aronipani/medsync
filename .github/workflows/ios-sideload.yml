@@ -37,6 +37,10 @@ jobs:
         working-directory: ios
         run: pod install
 
+      # Apple Vision is a local module; if it is ever missing the app silently falls back to ML Kit.
+      - name: Check Apple Vision reader is included
+        run: grep -q "AppleText" ios/Podfile.lock || { echo "AppleText pod missing — is modules/apple-text/ios committed?"; exit 1; }
+
       - name: Build unsigned app
         run: |
           WS=$(ls -d ios/*.xcworkspace | head -1)
