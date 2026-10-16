@@ -82,6 +82,76 @@ the oldest `references` entry, and new readable tokens are added to `learned`. W
 photo is the best reference for today's. Expiry and batch are kept from the **first** scan of a new strip, because
 they are the first lines to be torn off.
 
+## 2a. The dose-time scan, step by step (YOLO, Apple Vision / ML Kit, the household index)
+
+Everything here runs on the phone, offline. "Profile" is the stored strip profile of section 1, made by Add a
+strip (server or phone) and kept current by confirmed scans. Today's pipeline is spec 12; this section says what
+changes and which stored data each step uses.
+
+### 0. Household index (built when the app opens or a medicine changes)
+`src/householdIndex.ts` (new), from every **active** medicine of every member:
+
+| Index part | From | Used in step |
+|---|---|---|
+| Words per medicine (brand, generic, profile `tokens`, typed aliases, taught words), each marked *unique* (only this medicine has it) or *shared* | Profile + `Medication` + `learned` | 3 (Vision word list), 4 (text score) |
+| Strength numbers per medicine | Profile / typed strength | 4 |
+| Barcodes | `barcodes` | 1 |
+| Look-alike pairs | Profile `lookAlikes` + same-medicine warning (spec 02) + similar-name rule (`lookAlike()`) | 5 |
+| Region boxes relative to the strip outline | Profile `regions` | 2 (guided crops) |
+| Reference embeddings (≤6 per medicine) and colours | Profile `references`, `colours` | 4 (look, colour) |
+| Expiry per medicine | Profile / `expiry` | 4 (support only) |
+
+Small: a household of 25 medicines is a few hundred words and 150 short vectors.
+
+### 1. Capture
+The camera watches for barcodes while the photo is taken. A linked barcode is decisive (exists today).
+
+### 2. Find — YOLO region detector
+* Today: brand / contents / strength / expiry boxes (spec 10).
+* **New class `strip`** (whole strip outline). Gives the crop for look and colour, and the strip's angle.
+  Needs labels and a retrain (section 4).
+* **Guided crops:** with the strip outline found, each candidate's stored `regions` say where its name and strength
+  should be; those areas are cropped, levelled and enlarged even when YOLO missed them. Crops from different
+  candidates that overlap are read once.
+
+### 3. Read — Apple Vision (iPhone) / ML Kit (Android)
+Apple Vision and ML Kit are general text readers; neither can load the household index as such. What can be used:
+
+* **Raw pass (as today, the evidence):** whole photo + YOLO crops + guided crops, both ways up. On iPhone Vision runs
+  with `usesLanguageCorrection = false` (`modules/apple-text`), because correction "fixes" brand names into
+  dictionary words. This pass is what decisions rest on.
+* **Word-list pass (iPhone only, new):** `VNRecognizeTextRequest.customWords` = the household words from the index.
+  Vision only applies custom words when language correction is on, so this is a **second pass on the brand and
+  contents crops only**, with correction on. It helps whole words that are blurred or shiny; it does little for
+  half-cut words (fragments are handled in step 4).
+* **Safety rule:** the word-list pass pulls readings *towards* household names — which is exactly how a wrong
+  strip could be read as a right one. So its text may raise a medicine to **amber**, but **green needs the raw pass**
+  to contain the name fragment and the strength. The trace records which pass read what.
+* ML Kit has no word list; Android relies on the fragment matching in step 4.
+* Change in `modules/apple-text`: an optional `customWords` argument (turns on correction for that call only).
+
+### 4. Score every household medicine
+Text (fragment coverage, unique words weighted above shared ones), strength (same / other / unknown), look
+(embedding similarity of the strip crop to `references`), colours, expiry read = stored expiry. Weights and rules as
+in section 2. `src/household.ts` takes the index instead of bare medicines.
+
+### 5. Decide which medicine it is
+Section 2's decision rules: margin over the second best; look-alikes need brand text and strength from the raw pass;
+look, colour and expiry can lift to amber, never to green; "not sure — scan the other side" when two fit.
+
+### 6. Then the schedule
+Due now for this person → green / amber. Otherwise: taken already, due later, or another member's medicine
+(existing `explainMiss`). Due-now never changes step 5's decision.
+
+### 7. After the person confirms
+Replace the oldest reference crop + embedding, add newly read unique words to `learned`, keep the first expiry seen,
+save the trace (spec 12) with the index version, both passes and the guided crops.
+
+### Without a profile
+A medicine added the old way (typed name only) still works: steps 2–3 run without guided crops, the word list has
+its typed words, step 4 uses text and strength only. The app suggests "Scan this strip once so it's easier to
+recognise" (Add a strip, offline-capable) in the medicine's screen, not at dose time.
+
 ## 3. Adding a strip: enrollment through the DoseSure server
 
 ### Flow (helper-facing)
@@ -130,12 +200,16 @@ there are ~1,500 checked photos.
 1. **Built (Oct 2026): fuzzy closed-set matching on the phone** (`src/household.ts`, used by the Scan tab after the
    strict matcher in `src/match.ts`): household-wide candidates, trigram + alignment text
    score, margin rule, look-alike rule, "someone else's medicine" result. No server, no new model. Biggest quick win.
-2. **Strip profiles** on the phone: `profile` on `Medication`, two-photo enrollment, reference crops refreshed on
-   confirmed scans, backup support.
-3. **Image embeddings** on the phone (TFLite model in `assets/models/`), added as the "look" signal.
-4. **DoseSure server**: built in `server/` with strip read, catalogue and rate limits (spec 16); still to deploy.
-   App side: consent screen, enrollment flow, PRIVACY.md.
-5. **Detector retraining** with model-drafted, hand-checked labels.
+2. **Strip profiles** on the phone: `profile` on `Medication`, two-photo Add a strip (offline-capable), reference
+   crops refreshed on confirmed scans, backup support.
+3. **Household index** (`src/householdIndex.ts`) and `household.ts` reading profile words, unique-word weighting,
+   strength and expiry from it (section 2a, steps 0 and 4).
+4. **Apple Vision word-list pass** (`customWords` in `modules/apple-text`, brand/contents crops only, amber-only rule).
+5. **Guided crops** from profile regions, then the YOLO `strip` class (needs labels and a retrain).
+6. **Image embeddings** on the phone (TFLite model in `assets/models/`), added as the "look" signal, with colours.
+7. **DoseSure server**: built in `server/` with strip read, catalogue and rate limits (spec 16); still to deploy.
+   App side: consent screen, catalogue-first enrollment, PRIVACY.md.
+8. **Detector retraining** with model-drafted, hand-checked labels, including `strip`.
 
 ## Decisions needed
 * ~~Hosting~~ — AWS Lambda + DynamoDB + S3 (spec 16).
