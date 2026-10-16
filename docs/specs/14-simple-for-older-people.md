@@ -132,6 +132,14 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
 * **Today, another day:** one list with times on the left (no card per time), a quiet "‹ Back to today", no low-stock
   notice (it's about now); tapping a past dose asks "I took it / It was skipped" instead of offering a scan.
 
+* **Report a problem** is an in-app screen (Settings → Everyday → Help, and About): tap what happened (scan didn't
+  recognise / reminder didn't come / hard to understand / something else), optionally say more (keyboard microphone),
+  Send — an email to the helper address with app version and phone type (switchable; no medicine names or photos).
+  Falls back to Gmail via mailto, then to the share sheet. Replaces the GitHub issues link.
+* **Collect strip photos** no longer lists the family's own medicines (helpers don't take them; the app guesses after each
+  photo): just *Skip* (default) or *Type a name*, one short intro line.
+* Back buttons say "Back", not the route group "(tabs)".
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".

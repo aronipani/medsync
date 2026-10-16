@@ -88,6 +88,7 @@ function Shell() {
           headerStyle: { backgroundColor: t.bg },
           headerShadowVisible: false,
           headerTintColor: t.text,
+          headerBackTitle: 'Back', // not the route group name "(tabs)"
           contentStyle: { backgroundColor: t.bg },
         }}
       >

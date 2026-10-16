@@ -45,6 +45,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="member/[id]" options={{ href: null, title: 'Family member', headerLeft: back }} />
       <Tabs.Screen name="about" options={{ href: null, title: 'About & safety', headerLeft: back }} />
       <Tabs.Screen name="history" options={{ href: null, title: 'Earlier versions of the list', headerLeft: back }} />
+      <Tabs.Screen name="report" options={{ href: null, title: 'Report a problem', headerLeft: back }} />
     </Tabs>
   );
 }

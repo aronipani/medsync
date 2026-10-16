@@ -98,6 +98,11 @@ function Everyday() {
         </Text>
       </Card>
 
+      {/* Easy to find: second section, not inside About. */}
+      <Label>Help</Label>
+      <Button title="Report a problem" kind="secondary" onPress={() => router.push('/report')} />
+      <Button title="About & safety" kind="secondary" onPress={() => router.push('/about')} style={{ marginTop: 10 }} />
+
       <Label>For the doctor</Label>
       <Card>
         <Button title="Share medicine history" kind="secondary" onPress={() => shareHistoryCsv(state, new Date().toISOString().slice(0, 10)).catch((e) => Alert.alert('Could not share', String(e)))} />
@@ -106,8 +111,7 @@ function Everyday() {
 
       <BackupCard />
 
-      <Label>Safety and privacy</Label>
-      <Button title="About & safety" kind="secondary" onPress={() => router.push('/about')} />
+
     </>
   );
 }

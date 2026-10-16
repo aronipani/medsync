@@ -149,18 +149,13 @@ export default function ImportPhotos() {
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
       <Stack.Screen options={{ title: 'Collect strip photos' }} />
-      <Text style={{ color: t.sub, lineHeight: 20 }}>
-        Photograph medicine strips (or add photos friends sent). Each photo is scanned as a real scan would be, then kept as a training
-        photo labelled with the medicine you choose, with what the scanner made of it. Strips the scanner fails on are the most useful.
-      </Text>
+      <Text style={{ color: t.text, fontSize: 18, lineHeight: 25 }}>Photograph medicine strips to help the scanner learn. Strips it can’t read are the most useful.</Text>
 
-      <Label>1 · Which medicine is in the next photos?</Label>
+      {/* No list of the family's own medicines here: helpers don't take them, and the app guesses after each photo. */}
+      <Label>1 · Name the medicine (optional)</Label>
       <Card>
         <View style={s.wrap}>
           <Chip label="Skip — just take photos" active={medId === 'unknown'} onPress={() => setMedId('unknown')} />
-          {meds.map((m) => (
-            <Chip key={m.id} label={medLabel(m)} active={medId === m.id} onPress={() => setMedId(m.id)} />
-          ))}
           <Chip label="Type a name" active={medId === 'typed'} onPress={() => setMedId('typed')} />
         </View>
         {medId === 'typed' && (
@@ -193,7 +188,7 @@ export default function ImportPhotos() {
           </View>
         )}
         {medId === 'unknown' && (
-          <Text style={{ color: t.sub, marginTop: 8 }}>No typing needed. After each photo the app says what it thinks the medicine is — tap Yes if it’s right. Photos are useful either way.</Text>
+          <Text style={{ color: t.sub, fontSize: 16, marginTop: 8 }}>After each photo the app guesses the medicine — tap Yes if it’s right.</Text>
         )}
         {!label && <Text style={{ color: t.bad, marginTop: 8 }}>Choose a medicine, or type its name.</Text>}
       </Card>
