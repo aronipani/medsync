@@ -341,7 +341,7 @@ function Result({
         </Text>
       ) : null}
       <Text style={{ color: '#fffb', fontSize: 12, marginTop: 10 }}>
-        {run.seconds}s · Read by {run.reader || '—'} · region detector: {run.detector}
+        {run.seconds}s · Read by {run.reader || '—'} · strip area finder: {run.detector}
       </Text>
       {o.kind !== 'unknown' && !run.answered && (
         <>

@@ -61,7 +61,7 @@ export default function History() {
             <Card style={{ marginTop: 10 }}>
               <View style={s.between}>
                 <Text style={{ color: t.text, fontWeight: '700', flex: 1 }}>{v.reason}</Text>
-                <Text style={{ color: t.sub, fontSize: 12 }}>{when(v.at)}</Text>
+                <Text style={{ color: t.sub, fontSize: 14 }}>{when(v.at)}</Text>
               </View>
               {state.members.length > 1 && <Text style={{ color: t.sub, marginTop: 2 }}>{name(v.memberId)}</Text>}
               {v.changes.slice(0, 6).map((c, i) => (
@@ -85,7 +85,7 @@ export default function History() {
               <Text style={{ color: t.sub, marginTop: 2 }}>
                 {name(open.memberId)} · saved {when(open.at)}
               </Text>
-              <Text style={{ color: t.sub, marginTop: 14, fontSize: 12, fontWeight: '700' }}>SCHEDULE AT THAT TIME</Text>
+              <Text style={{ color: t.sub, marginTop: 14, fontSize: 14, fontWeight: '700' }}>SCHEDULE AT THAT TIME</Text>
               {!open.before.length && <Text style={{ color: t.sub, marginTop: 6 }}>No medicines.</Text>}
               {open.before.map((m) => {
                 const member = state.members.find((x) => x.id === m.memberId);
@@ -101,8 +101,8 @@ export default function History() {
               })}
               {open.source ? (
                 <>
-                  <Text style={{ color: t.sub, marginTop: 14, fontSize: 12, fontWeight: '700' }}>PRESCRIPTION TEXT THAT CAUSED THE CHANGE</Text>
-                  <Text style={{ color: t.text, marginTop: 4, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 12 }}>{open.source}</Text>
+                  <Text style={{ color: t.sub, marginTop: 14, fontSize: 14, fontWeight: '700' }}>PRESCRIPTION TEXT THAT CAUSED THE CHANGE</Text>
+                  <Text style={{ color: t.text, marginTop: 4, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 14 }}>{open.source}</Text>
                 </>
               ) : null}
               <Button

@@ -68,8 +68,8 @@ export default function Today() {
             <Pressable onPress={() => setOffset((o) => o + 1)} hitSlop={12}>
               <Ionicons name="chevron-forward" size={26} color={t.text} />
             </Pressable>
-            <Pressable onPress={() => router.push('/settings')} hitSlop={12} style={{ marginLeft: 14 }}>
-              <Ionicons name="settings-outline" size={22} color={t.text} />
+            <Pressable onPress={() => router.push('/settings')} hitSlop={14} accessibilityRole="button" accessibilityLabel="Settings" style={{ marginLeft: 16 }}>
+              <Ionicons name="settings-outline" size={28} color={t.text} />
             </Pressable>
           </View>
         </View>
@@ -90,7 +90,8 @@ export default function Today() {
 
         {!state.meds.length ? (
           <>
-            <Empty title="No medicines yet" body="Add each medicine with its strength and when it is taken. Reminders start automatically." />
+            <Empty title="No medicines yet" body="Add each medicine and when it is taken. Reminders start by themselves." />
+            <Button big title="Add a medicine" onPress={() => router.push('/add')} />
             <CollectCard />
           </>
         ) : !occs.length ? (
@@ -126,7 +127,6 @@ export default function Today() {
             </View>
           ))
         )}
-        {state.meds.length === 0 && <Button title="Add a medicine" onPress={() => router.push('/add')} />}
       </ScrollView>
     </>
   );

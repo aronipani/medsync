@@ -7,7 +7,7 @@ Friends can take them, but installing the app is easy only on Android (APK link)
 work for everyone — but on their own they have no label and no scan trace.
 
 ## What it does
-**Settings → Training photos → "Collect strip photos (camera or library)"** — works like Test scan:
+**Settings → Helper tools → "Collect strip photos"** (or the quiet link on Today for a new user) — works like Test scan:
 
 1. **Which medicine is in the next photos?** — pick one of the medicines in the app, type a name and strength
    ("Vonzai" / "20"; "Vonzai 20" in the name field also works), or "Don't know". Stays chosen for the next photos.

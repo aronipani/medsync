@@ -101,16 +101,18 @@ export function Button({
       style={({ pressed }) => [
         {
           backgroundColor: bg,
-          paddingVertical: big ? 16 : 11,
+          paddingVertical: big ? 18 : 13,
           paddingHorizontal: 16,
-          borderRadius: 12,
+          minHeight: big ? 62 : 50, // easy to hit for shaky hands (older users)
+          borderRadius: 14,
           alignItems: 'center',
+          justifyContent: 'center',
           opacity: disabled ? 0.45 : pressed ? 0.8 : 1,
         },
         style,
       ]}
     >
-      <Text style={{ color: fg, fontWeight: '700', fontSize: big ? 18 : 15 }}>{title}</Text>
+      <Text style={{ color: fg, fontWeight: '700', fontSize: big ? 20 : 17, textAlign: 'center' }}>{title}</Text>
     </Pressable>
   );
 }
@@ -122,22 +124,62 @@ export function Chip({ label, active, color, onPress }: { label: string; active?
     <Pressable
       onPress={onPress}
       style={{
-        paddingVertical: 7,
-        paddingHorizontal: 13,
+        paddingVertical: 10,
+        paddingHorizontal: 16,
+        minHeight: 44,
+        justifyContent: 'center',
         borderRadius: 999,
         backgroundColor: active ? c : t.muted,
         marginRight: 8,
         marginBottom: 8,
       }}
     >
-      <Text style={{ color: active ? '#FFFFFF' : t.text, fontWeight: '600' }}>{label}</Text>
+      <Text style={{ color: active ? '#FFFFFF' : t.text, fontWeight: '600', fontSize: 16 }}>{label}</Text>
     </Pressable>
+  );
+}
+
+/** Big tab switcher for a screen's sections (e.g. Settings): few, clearly named, easy to hit. */
+export function SegmentTabs<T extends string>({ tabs, value, onChange }: { tabs: { key: T; label: string }[]; value: T; onChange: (k: T) => void }) {
+  const t = useTheme();
+  return (
+    <View accessibilityRole="tablist" style={{ flexDirection: 'row', backgroundColor: t.muted, borderRadius: 14, padding: 4, gap: 4 }}>
+      {tabs.map((x) => {
+        const on = x.key === value;
+        return (
+          <Pressable
+            key={x.key}
+            accessibilityRole="tab"
+            accessibilityState={{ selected: on }}
+            onPress={() => onChange(x.key)}
+            style={{ flex: 1, minHeight: 48, borderRadius: 11, alignItems: 'center', justifyContent: 'center', backgroundColor: on ? t.card : 'transparent', paddingHorizontal: 4 }}
+          >
+            <Text style={{ color: on ? t.text : t.sub, fontWeight: on ? '800' : '600', fontSize: 16, textAlign: 'center' }}>{x.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
+/** "More options" fold: keeps rarely used choices out of sight until asked for (less to read at once). */
+export function More({ title = 'More options', children }: { title?: string; children: React.ReactNode }) {
+  const t = useTheme();
+  const [open, setOpen] = React.useState(false);
+  return (
+    <View style={{ marginTop: 10 }}>
+      <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)} style={{ minHeight: 44, justifyContent: 'center' }}>
+        <Text style={{ color: t.brand, fontWeight: '700', fontSize: 16 }}>{open ? `▾ ${title}` : `▸ ${title}`}</Text>
+      </Pressable>
+      {open ? <View style={{ gap: 8 }}>{children}</View> : null}
+    </View>
   );
 }
 
 export function Label({ children }: { children: React.ReactNode }) {
   const t = useTheme();
-  return <Text style={{ color: t.sub, fontSize: 13, fontWeight: '600', marginBottom: 6, marginTop: 14, textTransform: 'uppercase', letterSpacing: 0.5 }}>{children}</Text>;
+  // Sentence case and readable size: small all-caps labels are hard to read for older eyes.
+  return <Text style={{ color: t.sub, fontSize: 16, fontWeight: '700', marginBottom: 8, marginTop: 20 }}>{children}</Text>;
 }
 
 export function Field(props: TextInputProps) {
@@ -147,7 +189,7 @@ export function Field(props: TextInputProps) {
       placeholderTextColor={t.sub}
       {...props}
       style={[
-        { backgroundColor: t.card, color: t.text, borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 12, fontSize: 16 },
+        { backgroundColor: t.card, color: t.text, borderWidth: 1, borderColor: t.line, borderRadius: 12, padding: 14, fontSize: 18, minHeight: 52 },
         props.style,
       ]}
     />

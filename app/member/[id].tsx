@@ -59,7 +59,7 @@ export default function EditMember() {
       </Pressable>
       {showMore && (
         <>
-          <Text style={{ color: t.warn, fontSize: 13, lineHeight: 18, marginBottom: 8 }}>
+          <Text style={{ color: t.warn, fontSize: 15, lineHeight: 21, marginBottom: 8 }}>
             These translations haven't been checked by a native speaker yet. Before relying on one, ask someone who speaks it to listen to the example below.
           </Text>
           <View style={s.wrap}>
@@ -69,7 +69,7 @@ export default function EditMember() {
           </View>
         </>
       )}
-      <Text style={{ color: t.sub, fontSize: 13 }}>
+      <Text style={{ color: t.sub, fontSize: 15 }}>
         {LANGS[lang].english}
         {MORE_LANGS.includes(lang) ? ' — not yet checked' : ''}
       </Text>

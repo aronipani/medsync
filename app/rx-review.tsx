@@ -117,7 +117,7 @@ export default function PrescriptionReview() {
                     : { text: `UPDATES ${pi.targetLabel}`, bg: t.warnSoft, fg: t.warn };
               return (
                 <View style={{ marginTop: 6 }}>
-                  <Text style={{ alignSelf: 'flex-start', backgroundColor: badge.bg, color: badge.fg, fontWeight: '800', fontSize: 12, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' }}>
+                  <Text style={{ alignSelf: 'flex-start', backgroundColor: badge.bg, color: badge.fg, fontWeight: '800', fontSize: 14, paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6, overflow: 'hidden' }}>
                     {badge.text}
                   </Text>
                   {pi.diffs.map((d) => (
@@ -131,8 +131,8 @@ export default function PrescriptionReview() {
             <Text style={{ color: t.sub, marginTop: 4 }}>{summary(i)}</Text>
             {i.med.endDate && <Text style={{ color: t.sub, marginTop: 2 }}>Until {i.med.endDate}</Text>}
 
-            <Text style={{ color: t.sub, marginTop: 10, fontSize: 12, fontWeight: '700' }}>READ FROM PRESCRIPTION</Text>
-            <Text style={{ color: t.text, marginTop: 2, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 13 }}>{i.source}</Text>
+            <Text style={{ color: t.sub, marginTop: 10, fontSize: 14, fontWeight: '700' }}>READ FROM PRESCRIPTION</Text>
+            <Text style={{ color: t.text, marginTop: 2, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace', fontSize: 15 }}>{i.source}</Text>
 
             {i.med.notes ? (
               <Text style={{ color: t.text, marginTop: 8 }}>
@@ -206,7 +206,7 @@ export default function PrescriptionReview() {
               : `All ${included.length} checked`}
         </Text>
         <Button big title="Update schedule" onPress={approve} disabled={(!included.length && !stopIds.length) || unchecked.length > 0} />
-        <Text style={{ color: t.sub, textAlign: 'center', marginTop: 6, fontSize: 12 }}>The current schedule is saved in History first.</Text>
+        <Text style={{ color: t.sub, textAlign: 'center', marginTop: 6, fontSize: 14 }}>The current schedule is saved in History first.</Text>
       </View>
 
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(undefined)}>

@@ -271,9 +271,9 @@ export default function Scan() {
 
   /** Which text reader (and, once added, the region detector) read this scan — small print under the result. */
   const ReadBy = () =>
-    lastRead.current.readBy ? (
+    state.settings.showScanDetails && lastRead.current.readBy ? (
       <Text style={{ color: '#fffb', fontSize: 12, marginTop: 10 }}>
-        Read by {lastRead.current.readBy} · region detector: {lastRead.current.detector}
+        Read by {lastRead.current.readBy} · strip area finder: {lastRead.current.detector}
       </Text>
     ) : null;
 
@@ -314,27 +314,25 @@ export default function Scan() {
       {!due.length ? (
         <Card style={{ marginTop: 8 }}>
           <Text style={[s.h2, { color: t.ok }]}>{doneNow.length ? '✓ All due medicines taken' : 'Nothing due right now'}</Text>
-          <Text style={{ color: t.sub, marginTop: 6 }}>
+          <Text style={{ color: t.text, marginTop: 8, fontSize: 18 }}>
             {next ? `Next: ${medLabel(next.med)} at ${fmt12(next.time)}` : 'No more doses today.'}
           </Text>
-          {ready.total > 0 && (
-            <Text style={{ color: ready.ready === ready.total ? t.ok : t.sub, marginTop: 6 }}>
-              {ready.ready === ready.total
-                ? `✓ All ${ready.total} medicines for the next 24 hours tested`
-                : `${ready.ready} of ${ready.total} medicines for the next 24 hours tested`}
-            </Text>
-          )}
-          <Button title="Test scan (nothing is logged)" kind="secondary" onPress={() => router.push('/test-scan')} style={{ marginTop: 12 }} />
+          {/* One suggestion at most: check strips that haven't been tried yet, so the real scan goes smoothly. */}
+          {ready.total > 0 && ready.ready < ready.total ? (
+            <Button title="Check the next strips now" kind="secondary" onPress={() => router.push('/test-scan')} style={{ marginTop: 14 }} />
+          ) : ready.total > 0 ? (
+            <Text style={{ color: t.ok, marginTop: 10, fontSize: 16 }}>✓ The next strips are checked</Text>
+          ) : null}
         </Card>
       ) : (
         <>
           {/* Due checklist */}
           <Card style={{ marginTop: 8, paddingVertical: 12 }}>
-            <Text style={{ color: t.sub, fontWeight: '700', marginBottom: 6 }}>DUE NOW — scan each one</Text>
+            <Text style={{ color: t.sub, fontWeight: '700', fontSize: 16, marginBottom: 6 }}>Due now — scan each one</Text>
             {due.map((o) => (
               <View key={o.key} style={[s.between, { paddingVertical: 4 }]}>
-                <Text style={{ color: t.text, fontSize: 16, fontWeight: '600', flex: 1 }}>{medLabel(o.med)}</Text>
-                <Text style={{ color: t.sub }}>
+                <Text style={{ color: t.text, fontSize: 18, fontWeight: '700', flex: 1 }}>{medLabel(o.med)}</Text>
+                <Text style={{ color: t.sub, fontSize: 16 }}>
                   {qtyLabel(o.dose.qty, o.med.unit)} · {fmt12(o.time)}
                 </Text>
               </View>
@@ -429,7 +427,7 @@ export default function Scan() {
                   {o.med.notes ? <Text style={{ color: '#fffd', marginTop: 4 }}>{o.med.notes}</Text> : null}
                 </View>
               ))}
-              <Text style={{ color: '#fffc', marginTop: 10, fontSize: 13 }}>Check the name on the strip too.</Text>
+              <Text style={{ color: '#fffc', marginTop: 10, fontSize: 16 }}>Check the name on the strip too.</Text>
               {result.learned && (
                 <View style={{ backgroundColor: '#0003', borderRadius: 10, padding: 10, marginTop: 12 }}>
                   <Text style={{ color: '#fff', fontWeight: '700' }}>Recognised from a strip you taught the app.</Text>

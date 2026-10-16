@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
-import { router, useFocusEffect } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { ageText, backupOverdue } from '../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
 import { DEFAULT_SETTINGS } from '../src/store.tsx';
@@ -12,24 +12,120 @@ import { detectorState, loadRegionModel } from '../src/regionModel.ts';
 import { clearTraining, exportTraining, TRAINING_EMAIL, trainingSummary, unmarkAllSent } from '../src/training.ts';
 import { setupNotifications } from '../src/notifications.ts';
 import { useStore } from '../src/store.tsx';
-import type { Settings } from '../src/types.ts';
-import { Button, Card, Label, NumberField, s, useTheme } from '../src/ui.tsx';
+import { Button, Card, Label, More, NumberField, s, SegmentTabs, useTheme } from '../src/ui.tsx';
 
-const ROWS: { key: Exclude<keyof Settings, 'collectTraining' | 'regionDetector' | 'collectConsent' | 'lastBackupAt' | 'acceptedNotice'>; label: string; help: string; step: number }[] = [
-  { key: 'mealOffsetMin', label: 'Before / after meal (min)', help: '"Before breakfast" = breakfast time minus this.', step: 5 },
-  { key: 'dueWindowMin', label: 'Can scan early by (min)', help: 'A dose becomes scannable this long before its time.', step: 15 },
-  { key: 'missedAfterMin', label: 'Mark missed after (min)', help: 'Not taken this long after its time → logged as missed.', step: 15 },
-  { key: 'followUpMin', label: '"Not taken yet" reminder (min)', help: 'Second reminder if the dose is still open. 0 turns it off.', step: 5 },
-  { key: 'snoozeMin', label: 'Snooze (min)', help: 'Used by the Snooze button on a reminder.', step: 5 },
-  {
-    key: 'testReminderMin',
-    label: 'Test-scan reminder (min before)',
-    help: 'If a medicine in the next dose hasn\'t passed a test scan, a reminder to test it comes this long before. 0 turns it off.',
-    step: 15,
-  },
+type TimingKey = 'mealOffsetMin' | 'dueWindowMin' | 'missedAfterMin' | 'followUpMin' | 'snoozeMin' | 'testReminderMin';
+// Plain words, grouped by what people think about: when doses are, and when reminders come.
+const DOSE_ROWS: { key: TimingKey; label: string; help: string; step: number }[] = [
+  { key: 'mealOffsetMin', label: '“Before a meal” means', help: 'Minutes before (or after) the meal time.', step: 5 },
+  { key: 'dueWindowMin', label: 'A dose can be taken early by', help: 'Minutes before its time.', step: 15 },
+  { key: 'missedAfterMin', label: 'Count a dose as missed after', help: 'Minutes after its time.', step: 15 },
+];
+const REMINDER_ROWS: { key: TimingKey; label: string; help: string; step: number }[] = [
+  { key: 'followUpMin', label: 'Remind again if not taken after', help: 'Minutes. 0 = no second reminder.', step: 5 },
+  { key: 'snoozeMin', label: 'Snooze for', help: 'Minutes, when you tap Snooze.', step: 5 },
+  { key: 'testReminderMin', label: 'Remind to check a new strip', help: 'Minutes before a dose whose strip hasn’t been checked. 0 = off.', step: 15 },
 ];
 
+type Tab = 'everyday' | 'timing' | 'helper';
+
 export default function SettingsScreen() {
+  const t = useTheme();
+  const params = useLocalSearchParams<{ tab?: string }>();
+  const [tab, setTab] = useState<Tab>(params.tab === 'helper' || params.tab === 'timing' ? params.tab : 'everyday');
+  return (
+    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      <SegmentTabs<Tab>
+        tabs={[
+          { key: 'everyday', label: 'Everyday' },
+          { key: 'timing', label: 'Timing' },
+          { key: 'helper', label: 'Helper tools' },
+        ]}
+        value={tab}
+        onChange={setTab}
+      />
+      {tab === 'everyday' && <Everyday />}
+      {tab === 'timing' && <Timing />}
+      {tab === 'helper' && <Helper />}
+      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 28, fontSize: 13 }} selectable>
+        MedSync {buildLabel()}
+      </Text>
+    </ScrollView>
+  );
+}
+
+/** What a person may need: who is in the family, a test reminder, a backup, safety information. */
+function Everyday() {
+  const t = useTheme();
+  const { state } = useStore();
+  const test = async () => {
+    const ok = await setupNotifications();
+    if (!ok) return Alert.alert('Reminders are off', 'Turn on notifications for MedSync in your phone’s Settings.');
+    await Notifications.scheduleNotificationAsync({
+      content: { title: '💊 Test reminder', body: 'This is how medicine reminders look and sound.', sound: 'default', categoryIdentifier: 'dose' },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, channelId: 'medicine-reminders' },
+    });
+    Alert.alert('Test reminder on its way', 'Lock your phone. It arrives in 5 seconds.');
+  };
+  return (
+    <>
+      <Label>Family</Label>
+      <Card>
+        {state.members.map((m) => (
+          <Pressable key={m.id} onPress={() => router.push(`/member/${m.id}`)} style={[s.between, { minHeight: 52 }]}>
+            <View style={s.row}>
+              <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: m.color, marginRight: 10 }} />
+              <Text style={{ color: t.text, fontSize: 18, fontWeight: '600' }}>{m.name}</Text>
+            </View>
+            <Text style={{ color: t.sub, fontSize: 16 }}>
+              {state.meds.filter((x) => x.memberId === m.id).length} medicines ›
+            </Text>
+          </Pressable>
+        ))}
+        <Button title="+ Add a person" kind="secondary" onPress={() => router.push('/member/new')} style={{ marginTop: 8 }} />
+      </Card>
+
+      <Label>Reminders</Label>
+      <Card>
+        <Button title="Send a test reminder" onPress={test} />
+        <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>
+          {Platform.OS === 'ios' ? 'Reminders follow your phone’s silent and Focus settings.' : 'Allow “Alarms & reminders” for MedSync so reminders come on time.'}
+        </Text>
+      </Card>
+
+      <BackupCard />
+
+      <Label>Safety and privacy</Label>
+      <Button title="About & safety" kind="secondary" onPress={() => router.push('/about')} />
+    </>
+  );
+}
+
+function Timing() {
+  const t = useTheme();
+  const { state, saveSettings } = useStore();
+  const row = (r: (typeof DOSE_ROWS)[number]) => (
+    <Card key={r.key} style={{ marginBottom: 10 }}>
+      <Text style={{ color: t.text, fontWeight: '700', fontSize: 17 }}>{r.label}</Text>
+      <View style={[s.between, { marginTop: 8 }]}>
+        <Text style={{ color: t.sub, fontSize: 15, flex: 1, marginRight: 8 }}>{r.help}</Text>
+        <NumberField value={state.settings[r.key]} step={r.step} onChange={(v) => saveSettings({ ...state.settings, [r.key]: Math.round(v) })} />
+      </View>
+    </Card>
+  );
+  return (
+    <>
+      <Text style={{ color: t.sub, marginTop: 14, fontSize: 15, lineHeight: 21 }}>These already have sensible values. Change them only if you need to.</Text>
+      <Label>Dose times</Label>
+      {DOSE_ROWS.map(row)}
+      <Label>Reminders</Label>
+      {REMINDER_ROWS.map(row)}
+    </>
+  );
+}
+
+/** For a family helper (and the person improving the scanner): checking the scanner, training photos, technical details. */
+function Helper() {
   const t = useTheme();
   const { state, saveSettings } = useStore();
   const [summary, setSummary] = useState(() => trainingSummary());
@@ -37,137 +133,80 @@ export default function SettingsScreen() {
   useEffect(() => {
     loadRegionModel().then(() => setDetector(detectorState()));
   }, []);
-  // Scans save photos in the background: recount whenever Settings is opened, not only when it first loads.
+  // Scans save photos in the background: recount whenever this tab is shown.
   useFocusEffect(useCallback(() => setSummary(trainingSummary()), []));
-
-  const test = async () => {
-    const ok = await setupNotifications();
-    if (!ok) return Alert.alert('Notifications are off', 'Turn on notifications for MedSync in your phone settings.');
-    await Notifications.scheduleNotificationAsync({
-      content: { title: '💊 Test reminder', body: 'This is how medicine reminders will look and sound.', sound: 'default', categoryIdentifier: 'dose' },
-      trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, channelId: 'medicine-reminders' },
-    });
-    Alert.alert('Test scheduled', 'Lock your phone — the reminder arrives in 5 seconds.');
-  };
-
+  const labelled = summary.photos - summary.unlabelled;
+  const toggle = (label: string, value: boolean, onChange: (v: boolean) => void, help?: string) => (
+    <View style={{ marginTop: 10 }}>
+      <View style={[s.between, { minHeight: 48 }]}>
+        <Text style={{ color: t.text, fontWeight: '600', fontSize: 16, flex: 1, marginRight: 10 }}>{label}</Text>
+        <Switch value={value} onValueChange={onChange} />
+      </View>
+      {help ? <Text style={{ color: t.sub, fontSize: 14, lineHeight: 20 }}>{help}</Text> : null}
+    </View>
+  );
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
-      <Label>Family</Label>
+    <>
+      <Text style={{ color: t.sub, marginTop: 14, fontSize: 15, lineHeight: 21 }}>For family helpers. Nothing here is needed for taking medicines.</Text>
+
+      <Label>Check the scanner</Label>
       <Card>
-        {state.members.map((m) => (
-          <Pressable key={m.id} onPress={() => router.push(`/member/${m.id}`)} style={[s.between, { paddingVertical: 8 }]}>
-            <View style={s.row}>
-              <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: m.color, marginRight: 8 }} />
-              <Text style={{ color: t.text, fontSize: 16 }}>{m.name}</Text>
-            </View>
-            <Text style={{ color: t.sub }}>{state.meds.filter((x) => x.memberId === m.id).length} medicines ›</Text>
-          </Pressable>
-        ))}
-        <Button title="+ Add family member" kind="secondary" onPress={() => router.push('/member/new')} style={{ marginTop: 8 }} />
+        <Button title="Test scan" onPress={() => router.push('/test-scan')} />
+        <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>Try a strip before its reminder. Nothing is recorded.</Text>
       </Card>
 
-      <BackupCard />
-
-      <Label>Timing</Label>
-      {ROWS.map((r) => (
-        <Card key={r.key} style={{ marginBottom: 8 }}>
-          <View style={s.between}>
-            <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>{r.label}</Text>
-            <NumberField value={state.settings[r.key]} step={r.step} onChange={(v) => saveSettings({ ...state.settings, [r.key]: Math.round(v) })} />
-          </View>
-          <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>{r.help}</Text>
-        </Card>
-      ))}
-
-      <Label>Strip reading</Label>
+      <Label>Photos for improving the scanner</Label>
       <Card>
-        <View style={s.between}>
-          <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>Use the region detector</Text>
-          <Switch value={state.settings.regionDetector !== false} onValueChange={(v) => saveSettings({ ...state.settings, regionDetector: v })} />
-        </View>
-        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
-          Finds the name, strength and expiry on a strip and reads just those parts. Trial model — turn off to compare with the old method
-          (reading the whole photo every way up). If it finds nothing, the old method is used anyway.
+        <Text style={{ color: t.text, fontSize: 17, fontWeight: '600' }}>
+          {summary.photos ? `${summary.photos} photo${summary.photos === 1 ? '' : 's'} · ${summary.unsent ? `${summary.unsent} not sent` : 'all sent'}` : 'No photos yet'}
         </Text>
-        <Button title="Test scan" kind="secondary" onPress={() => router.push('/test-scan')} style={{ marginTop: 10 }} />
-      </Card>
-
-      <Label>Training photos</Label>
-      <Card>
-        <View style={s.between}>
-          <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>Also keep photos from everyday scans</Text>
-          <Switch value={!!state.settings.collectTraining} onValueChange={(v) => saveSettings({ ...state.settings, collectTraining: v })} />
-        </View>
-        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
-          On: every scan on the Scan tab, Scan to add and Test scan keeps its photos (each scan takes 1–3), labelled when the medicine is
-          confirmed. Off: only photos you take in Collect strip photos are kept. Nothing leaves the phone until you send it.
-        </Text>
-        <Text style={{ color: t.text, marginTop: 10 }}>
-          {summary.photos - summary.unlabelled} photo{summary.photos - summary.unlabelled === 1 ? '' : 's'} of {summary.medicines} medicine{summary.medicines === 1 ? '' : 's'}
-          {summary.unlabelled ? ` · ${summary.unlabelled} from failed scans` : ''} saved
-          {summary.photos ? ` · ${summary.unsent ? `${summary.unsent} not sent yet` : 'all sent'}` : ''}
-        </Text>
-        <View style={[s.row, { gap: 8, marginTop: 10 }]}>
+        <Button title="Collect strip photos" onPress={() => router.push('/import-photos')} style={{ marginTop: 10 }} />
+        <Button title="Send photos" kind="secondary" disabled={!summary.unsent} onPress={() => sendForTraining(() => setSummary(trainingSummary()))} style={{ marginTop: 8 }} />
+        <More>
+          {toggle('Also keep photos from everyday scans', !!state.settings.collectTraining, (v) => saveSettings({ ...state.settings, collectTraining: v }), 'Each scan keeps 1–3 photos. Off: only photos from Collect strip photos.')}
+          <Text style={{ color: t.sub, fontSize: 14 }}>
+            {labelled} with a medicine name · {summary.unlabelled} without · sent to {TRAINING_EMAIL}
+          </Text>
+          {summary.photos > summary.unsent && (
+            <Button
+              title="Didn’t arrive? Send all again"
+              kind="secondary"
+              onPress={() =>
+                Alert.alert('Send all again?', 'All photos will count as not sent, so the next Send includes them.', [
+                  { text: 'Cancel', style: 'cancel' },
+                  { text: 'Yes', onPress: () => (unmarkAllSent(), setSummary(trainingSummary())) },
+                ])
+              }
+            />
+          )}
+          <Button title="Save as a file (.zip)" kind="secondary" disabled={!summary.photos} onPress={() => exportTraining().catch((e) => Alert.alert('Could not save', String(e)))} />
           <Button
-            title="Export (.zip)"
-            kind="secondary"
-            style={{ flex: 1 }}
-            disabled={!summary.photos}
-            onPress={() => exportTraining().catch((e) => Alert.alert('Export failed', String(e)))}
-          />
-          <Button
-            title="Delete all"
+            title="Delete all photos"
             kind="ghost"
-            style={{ flex: 1 }}
             disabled={!summary.photos}
             onPress={() =>
-              Alert.alert('Delete all training photos?', 'This cannot be undone.', [
+              Alert.alert('Delete all photos?', 'This cannot be undone.', [
                 { text: 'Cancel', style: 'cancel' },
                 { text: 'Delete', style: 'destructive', onPress: () => (clearTraining(), setSummary(trainingSummary())) },
               ])
             }
           />
-        </View>
-        <Button
-          title="Send for training (email)"
-          style={{ marginTop: 10 }}
-          disabled={!summary.unsent}
-          onPress={() => sendForTraining(() => setSummary(trainingSummary()))}
-        />
-        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>Opens an email to {TRAINING_EMAIL} with the photos not sent before (or, if Mail isn’t set up, the share sheet — pick Gmail and send it to that address). You press Send.</Text>
-        {summary.photos > summary.unsent && (
-          <Button
-            title="Didn't arrive? Send everything again"
-            kind="ghost"
-            onPress={() =>
-              Alert.alert('Send everything again?', 'All training photos will count as not sent, so the next Send for training includes them.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Yes', onPress: () => (unmarkAllSent(), setSummary(trainingSummary())) },
-              ])
-            }
-          />
-        )}
-        <Button title="Collect strip photos (camera or library)" kind="secondary" style={{ marginTop: 10 }} onPress={() => router.push('/import-photos')} />
-        <Button title="Refresh count" kind="ghost" onPress={() => setSummary(trainingSummary())} />
+        </More>
       </Card>
 
-      <Label>About</Label>
-      <Button title="About & safety · privacy" kind="secondary" onPress={() => router.push('/about')} />
-      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 8, fontSize: 13 }} selectable>
-        Version {buildLabel()}
-      </Text>
-      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 4, fontSize: 13 }}>
-        Text reader: {appleVisionAvailable() ? 'Apple Vision (ML Kit as backup)' : 'Google ML Kit'} · Region detector:{' '}
-        {detector === 'missing' ? 'not in this build' : state.settings.regionDetector === false ? 'off' : detector === 'ready' ? 'on' : 'loading'}
-      </Text>
-
-      <Label>Reminders</Label>
-      <Button title="Send a test reminder" kind="secondary" onPress={test} />
-      <Text style={{ color: t.sub, marginTop: 8, fontSize: 13, lineHeight: 18 }}>
-        On iPhone, reminders follow your Focus / silent settings. On Android, allow "Alarms & reminders" and turn off battery
-        optimisation for MedSync so reminders arrive on time.
-      </Text>
-    </ScrollView>
+      <Label>Scanner details</Label>
+      <Card>
+        <Text style={{ color: t.text, fontSize: 15, lineHeight: 21 }}>
+          Text reader: {appleVisionAvailable() ? 'Apple Vision (ML Kit as backup)' : 'Google ML Kit'}
+          {'\n'}Strip area finder (trial):{' '}
+          {detector === 'missing' ? 'not in this build' : state.settings.regionDetector === false ? 'off' : detector === 'ready' ? 'on' : 'loading'}
+        </Text>
+        <More title="Change">
+          {toggle('Use the strip area finder', state.settings.regionDetector !== false, (v) => saveSettings({ ...state.settings, regionDetector: v }), 'Trial model that finds the name and strength first. Off: read the whole photo every way up.')}
+          {toggle('Show scanner details on scan results', !!state.settings.showScanDetails, (v) => saveSettings({ ...state.settings, showScanDetails: v }), 'Adds a small line saying how each scan was read.')}
+        </More>
+      </Card>
+    </>
   );
 }
 
@@ -248,19 +287,19 @@ function BackupCard() {
     <>
       <Label>Backup</Label>
       <Card>
-        <Text style={{ color: overdue ? t.warn : t.text, fontWeight: '600' }}>
+        <Text style={{ color: overdue ? t.warn : t.text, fontWeight: '700', fontSize: 17 }}>
           {overdue ? 'No backup for 30+ days' : 'Last backup: '}
           {overdue ? '' : ageText(state.settings.lastBackupAt)}
         </Text>
-        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
-          Saves everyone's medicines, schedules and history to one small file. Keep it in Google Drive, email or WhatsApp to
-          yourself, and restore it on a new phone. Photos are not included. The file contains health information — keep it private.
+        <Text style={{ color: t.sub, marginTop: 6, fontSize: 15, lineHeight: 21 }}>
+          Saves all medicines and history to one small file. Keep it somewhere private, like your email or Google Drive.
         </Text>
-        <View style={[s.row, { gap: 8, marginTop: 10 }]}>
-          <Button title="Save a backup" style={{ flex: 1 }} onPress={save} />
-          <Button title="Restore…" kind="secondary" style={{ flex: 1 }} onPress={restore} />
-        </View>
-        {safety ? <Button title="Undo last restore" kind="ghost" onPress={undo} style={{ marginTop: 4 }} /> : null}
+        <Button title="Save a backup" onPress={save} style={{ marginTop: 10 }} />
+        <More title="Restore from a backup">
+          <Text style={{ color: t.sub, fontSize: 14, lineHeight: 20 }}>For a new phone. It replaces what is on this phone; you can undo it once.</Text>
+          <Button title="Restore…" kind="secondary" onPress={restore} />
+          {safety ? <Button title="Undo last restore" kind="ghost" onPress={undo} /> : null}
+        </More>
       </Card>
     </>
   );

@@ -15,7 +15,7 @@ export default function About() {
       <Button title="Full privacy policy" kind="secondary" style={{ marginTop: 14 }} onPress={() => Linking.openURL(PRIVACY_URL)} />
       <Button title="Report a problem" kind="ghost" style={{ marginTop: 6 }} onPress={() => Linking.openURL(ISSUES_URL)} />
       <Text style={{ color: t.sub, textAlign: 'center', marginTop: 16 }}>MedSync · free, no account, no ads</Text>
-      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 4, fontSize: 13 }} selectable>
+      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 4, fontSize: 15 }} selectable>
         {buildLabel()}
       </Text>
     </ScrollView>

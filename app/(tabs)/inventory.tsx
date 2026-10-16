@@ -93,7 +93,7 @@ export default function Inventory() {
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
                       <Text style={{ color: low ? t.warn : t.text, fontSize: 22, fontWeight: '800' }}>{m.stock}</Text>
-                      <Text style={{ color: t.sub, fontSize: 12 }}>{m.unit}s left</Text>
+                      <Text style={{ color: t.sub, fontSize: 14 }}>{m.unit}s left</Text>
                     </View>
                   </View>
                   <Text style={{ color: low ? t.warn : t.sub, marginTop: 6 }}>
@@ -108,7 +108,7 @@ export default function Inventory() {
                         return <Text style={{ color: st === 'expired' ? t.bad : st === 'soon' ? t.warn : t.sub, fontWeight: st === 'ok' ? '400' : '700', flex: 1 }}>{text}</Text>;
                       })()}
                       <Pressable onPress={() => setExpiry(m.id, undefined)} hitSlop={10}>
-                        <Text style={{ color: t.sub, fontSize: 13 }}>Clear</Text>
+                        <Text style={{ color: t.sub, fontSize: 15 }}>Clear</Text>
                       </Pressable>
                     </View>
                   ) : null}

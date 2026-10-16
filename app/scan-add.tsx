@@ -167,7 +167,7 @@ export default function ScanToAdd() {
           </View>
           {barcode && <Text style={{ color: t.ok, marginTop: 8, fontWeight: '600' }}>✓ Barcode saved</Text>}
           {error && <Text style={{ color: t.bad, marginTop: 8 }}>{error}</Text>}
-          <Text style={{ color: t.sub, marginTop: 10, fontSize: 13, lineHeight: 18 }}>
+          <Text style={{ color: t.sub, marginTop: 10, fontSize: 15, lineHeight: 21 }}>
             Shiny foil? Stand away from overhead lights and window glare, keep the light off unless it's dark, and tilt the strip slowly while the 3 photos are taken.
           </Text>
           <Button big title={photos ? 'Read this side too' : 'Read the strip'} onPress={takePhoto} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
@@ -182,7 +182,7 @@ export default function ScanToAdd() {
       {result && !showCamera && (
         <>
           <Card>
-            <Text style={{ color: t.sub, fontSize: 12, fontWeight: '700', letterSpacing: 0.5 }}>MEDICINE INSIDE</Text>
+            <Text style={{ color: t.sub, fontSize: 14, fontWeight: '700', letterSpacing: 0.5 }}>MEDICINE INSIDE</Text>
             {result.ingredients.length ? (
               <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 4 }}>{result.contents}</Text>
             ) : (
@@ -195,7 +195,7 @@ export default function ScanToAdd() {
             <Field value={result.name} onChangeText={(name) => (setEdited(true), setResult({ ...result, name }))} autoCapitalize="words" />
             {result.nameOptions.length > 0 && (
               <>
-                <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6, fontSize: 13 }}>
+                <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6, fontSize: 15 }}>
                   {result.brand ? `Brand found: ${result.brand}. Tap to choose:` : 'Tap to choose:'}
                 </Text>
                 <View style={s.wrap}>

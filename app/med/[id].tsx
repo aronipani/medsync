@@ -144,7 +144,7 @@ export default function EditMed() {
                 ⚠ {w}
               </Text>
             ))}
-            <Text style={{ color: t.sub, marginTop: 8, fontSize: 13 }}>Compare every field with the prescription, fix anything wrong, then save.</Text>
+            <Text style={{ color: t.sub, marginTop: 8, fontSize: 15 }}>Compare every field with the prescription, fix anything wrong, then save.</Text>
           </Card>
         )}
         {state.members.length > 1 && !pendingItem && (
@@ -161,7 +161,7 @@ export default function EditMed() {
             <Text style={{ color: t.text, fontWeight: '700' }}>
               {med.name.trim()} usually contains {known.ingredients.join(' + ')}
             </Text>
-            <Text style={{ color: t.sub, marginTop: 2, fontSize: 13 }}>From the app's built-in medicine list — check it against the strip.</Text>
+            <Text style={{ color: t.sub, marginTop: 2, fontSize: 15 }}>From the app's built-in medicine list — check it against the strip.</Text>
             {known.strengths.length > 0 && (
               <>
                 <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6 }}>Common strengths (tap to use):</Text>
@@ -186,7 +186,7 @@ export default function EditMed() {
         <Field value={med.strength} onChangeText={(strength) => set({ strength })} placeholder="e.g. 650 (as printed)" />
         <Label>Other names on the strip (optional)</Label>
         <Field value={aliases} onChangeText={setAliases} placeholder="e.g. Paracetamol 650" />
-        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>
+        <Text style={{ color: t.sub, marginTop: 6, fontSize: 15 }}>
           The scanner accepts the strip if it reads the name and strength, or any of these names. Separate with commas.
         </Text>
 

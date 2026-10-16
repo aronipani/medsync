@@ -91,7 +91,7 @@ export default function Meds() {
                   <View style={s.between}>
                     <Text style={{ color: t.text, fontSize: 17, fontWeight: '700', flex: 1 }}>{medLabel(med)}</Text>
                     {!med.active && <Text style={{ color: t.sub }}>Paused</Text>}
-                    {med.endDate && <Text style={{ color: t.sub, fontSize: 12 }}>until {med.endDate}</Text>}
+                    {med.endDate && <Text style={{ color: t.sub, fontSize: 14 }}>until {med.endDate}</Text>}
                   </View>
                   {[...med.doses].sort((a, b) => doseTime(a, member, state.settings).localeCompare(doseTime(b, member, state.settings))).map((d) => (
                     <Text key={d.id} style={{ color: t.sub, marginTop: 4 }}>

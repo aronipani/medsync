@@ -139,7 +139,7 @@ export default function AddMedicine() {
       <Label>Whole prescription</Label>
       <Option icon="camera-outline" title="Photograph prescription" body="Drafts the schedule. You check every medicine before it's added." onPress={() => readPrescription('camera')} />
       <Option icon="images-outline" title="Choose prescription photo" body="From your photos — up to 4 pages." onPress={() => readPrescription('library')} />
-      <Text style={{ color: t.sub, fontSize: 13, lineHeight: 18, marginTop: 4 }}>
+      <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21, marginTop: 4 }}>
         Works best with printed prescriptions. Text is read on this phone — nothing is uploaded. Handwriting often can't be read; add those medicines one at a time.
       </Text>
 
