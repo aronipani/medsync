@@ -9,6 +9,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { expiryStatus, formatExpiry, parseExpiry } from '../src/expiry.ts';
 import { rescheduleAll, setupNotifications } from '../src/notifications.ts';
+import { sendForTraining } from '../src/sendForTraining.tsx';
 import { appleVisionAvailable, readBurst, readLinesAnyOrientation, scanDetectorLabel, scanReaderLabel, startScanStats } from '../src/ocr.ts';
 import { detectorState, loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { medLabel } from '../src/schedule.ts';
@@ -279,6 +280,9 @@ export default function TestScan() {
       <Button big title={run ? 'Test another strip' : 'Test scan'} onPress={test} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
 
       {run && <Result run={run} onAnswer={answer} onPick={pick} choices={choices} who={(m) => memberName(m.memberId)} />}
+      {state.settings.collectTraining && (
+        <Button title="Send training photos" kind="ghost" onPress={() => sendForTraining()} disabled={busy} style={{ marginTop: 10 }} />
+      )}
     </ScrollView>
   );
 }

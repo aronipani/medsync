@@ -6,6 +6,7 @@ import { ageText, backupOverdue } from '../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../src/backupFile.ts';
 import { DEFAULT_SETTINGS } from '../src/store.tsx';
 import { buildLabel } from '../src/buildInfo.ts';
+import { sendForTraining } from '../src/sendForTraining.tsx';
 import { appleVisionAvailable } from '../src/ocr.ts';
 import { detectorState, loadRegionModel } from '../src/regionModel.ts';
 import { clearTraining, emailTraining, exportTraining, TRAINING_EMAIL, trainingSummary } from '../src/training.ts';
@@ -132,22 +133,10 @@ export default function SettingsScreen() {
           title="Send for training (email)"
           style={{ marginTop: 10 }}
           disabled={!summary.unsent}
-          onPress={() =>
-            emailTraining(buildLabel())
-              .then((r) => {
-                setSummary(trainingSummary());
-                if (r.kind === 'no-mail')
-                  Alert.alert('No email account', `Set up Mail on this phone, or use Export and send the zip to ${TRAINING_EMAIL} another way.`, [
-                    { text: 'OK', style: 'cancel' },
-                    { text: 'Export instead', onPress: () => exportTraining().catch(() => {}) },
-                  ]);
-                else if ((r.kind === 'sent' || r.kind === 'opened') && r.left)
-                  Alert.alert('More to send', `${r.photos} photos went in this email. ${r.left} more — tap "Send for training" again.`);
-              })
-              .catch((e) => Alert.alert('Could not open email', String(e)))
-          }
+          onPress={() => sendForTraining(() => setSummary(trainingSummary()))}
         />
-        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>Opens an email to {TRAINING_EMAIL} with the photos not sent before. You press Send.</Text>
+        <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>Opens an email to {TRAINING_EMAIL} with the photos not sent before (or, if Mail isn’t set up, the share sheet — pick Gmail and send it to that address). You press Send.</Text>
+        <Button title="Collect strip photos (camera or library)" kind="secondary" style={{ marginTop: 10 }} onPress={() => router.push('/import-photos')} />
         <Button title="Refresh count" kind="ghost" onPress={() => setSummary(trainingSummary())} />
       </Card>
 

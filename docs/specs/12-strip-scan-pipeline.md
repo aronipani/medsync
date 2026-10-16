@@ -7,7 +7,7 @@ spec 10 (region detector and text readers) and spec 11 (test scan). Diagrams are
 
 ```mermaid
 flowchart TD
-    A([Scan tab · Test scan · Scan to add]) --> B[Take photo]
+    A(["Scan tab · Test scan · Scan to add ·<br/>Add photos for training (spec 13)"]) --> B[Take photo or pick from library]
     B --> C["Read whole photo upright<br/>Apple Vision on iPhone · ML Kit on Android<br/>(ML Kit backup if Vision fails)"]
     C --> D{Region detector<br/>on and loaded?}
     D -- no --> R
@@ -43,6 +43,7 @@ flowchart TD
     T -- no --> Z([Photos discarded])
     T -- yes --> U{How did it end?}
     U -- "Marked taken / taught" --> L["Labelled<br/>(medicine known)"]
+    U -- "Added from library with a name (spec 13)" --> L
     U -- "Test scan: Yes, that's right" --> L
     U -- "Test scan: No / not recognised → 'Which medicine is it?' → picked" --> L
     U -- "Red · closed · unanswered · 'None of these'" --> UL["Unlabelled<br/>(with the reason)"]

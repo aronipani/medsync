@@ -17,7 +17,9 @@ export interface TrainingEntry {
   name: string;
   strength: string;
   contents?: string; // "Isosorbide Mononitrate 10 mg"
-  how: 'dose-check' | 'taught' | 'scan-to-add' | 'test-scan' | 'failed-scan' | 'failed-add';
+  how: 'dose-check' | 'taught' | 'scan-to-add' | 'test-scan' | 'failed-scan' | 'failed-add' | 'imported';
+  /** Imported photos (spec 13): whether the scanner recognised the strip as the medicine the person named. */
+  scan?: 'recognised' | 'name only' | 'not recognised';
   /** Not confirmed by a person: the scan failed or was closed. Exported under unlabelled/ to be named on a computer. */
   unlabelled?: boolean;
   reason?: string; // why it wasn't confirmed, e.g. the red result's message
@@ -81,12 +83,19 @@ export async function saveTrainingPhotos(
   label: { name: string; strength: string; contents?: string },
   how: TrainingEntry['how'],
   ocrText: string,
+  extra: Pick<TrainingEntry, 'scan'> = {},
 ): Promise<number> {
   if (!uris.length) return 0;
-  return serial(() => saveLabelled(uris, label, how, ocrText));
+  return serial(() => saveLabelled(uris, label, how, ocrText, extra));
 }
 
-async function saveLabelled(uris: string[], label: { name: string; strength: string; contents?: string }, how: TrainingEntry['how'], ocrText: string): Promise<number> {
+async function saveLabelled(
+  uris: string[],
+  label: { name: string; strength: string; contents?: string },
+  how: TrainingEntry['how'],
+  ocrText: string,
+  extra: Pick<TrainingEntry, 'scan'>,
+): Promise<number> {
   const added: TrainingEntry[] = [];
   try {
     const root = dir();
@@ -120,6 +129,7 @@ async function saveLabelled(uris: string[], label: { name: string; strength: str
         regions: regions.map((r) => ({ cls: r.cls, text: r.text })),
         reader: lastReader(),
         trace: traceFor(uris[i]),
+        ...extra,
       });
     }
   } catch {
@@ -135,7 +145,7 @@ const UNLABELLED = '_unlabelled';
  * Keeps photos of a scan nobody confirmed (red result, unreadable, or closed): the strips the reader finds hardest,
  * so the most useful ones for retraining. No medicine label; exported separately under unlabelled/.
  */
-export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add' | 'test-scan', reason: string, ocrText: string): Promise<number> {
+export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add' | 'test-scan' | 'imported', reason: string, ocrText: string): Promise<number> {
   if (!uris.length) return 0;
   return serial(async () => {
     const added: TrainingEntry[] = [];
@@ -291,16 +301,24 @@ const EMAIL_LIMIT = 18 * 1024 * 1024; // Gmail takes 25 MB per email; attachment
 
 export type SendResult =
   | { kind: 'sent' | 'opened'; photos: number; left: number }
-  | { kind: 'cancelled' | 'nothing' | 'no-mail' };
+  | { kind: 'shared'; photos: number; left: number; files: string[] } // share sheet closed; ask whether it was sent
+  | { kind: 'cancelled' | 'nothing' };
+
+/** Marks photos as sent (after the person confirms a share-sheet send went out). */
+export function markSent(files: string[]) {
+  const sentAt = new Date().toISOString();
+  const ids = new Set(files);
+  updateEntries((e) => (ids.has(e.file) ? { ...e, sentAt } : e)); // re-read: photos saved meanwhile stay
+}
 
 /**
- * Opens an email to TRAINING_EMAIL with the photos not sent before attached as one zip; the person presses Send.
- * Big collections go in parts small enough for email ("send again for the rest").
- * Photos are marked sent once the mail app says so (iPhone) or the email was opened and not cancelled (Android
- * can't tell sent from saved).
+ * Sends the photos not sent before as one zip to TRAINING_EMAIL; the person presses Send.
+ * With Apple Mail / an Android mail app: opens a ready email (address, subject, zip attached).
+ * Without (e.g. only the Gmail app on iPhone, where the ready-email screen isn't available): opens the share sheet
+ * with the zip, to send with Gmail, Outlook or WhatsApp to TRAINING_EMAIL — the caller asks afterwards whether it was
+ * sent, because the share sheet can't tell. Big collections go in parts small enough for email.
  */
 export async function emailTraining(buildLabel: string): Promise<SendResult> {
-  if (!(await MailComposer.isAvailableAsync())) return { kind: 'no-mail' };
   recoverOrphans();
   const unsent = readManifest().filter((e) => !e.sentAt && new File(dir(), ...e.file.split('/')).exists);
   if (!unsent.length) return { kind: 'nothing' };
@@ -316,22 +334,39 @@ export async function emailTraining(buildLabel: string): Promise<SendResult> {
   const unl = batch.filter((e) => e.unlabelled).length;
   const meds = new Set(batch.filter((e) => !e.unlabelled).map((e) => e.medicine));
   const left = unsent.length - batch.length;
-  const res = await MailComposer.composeAsync({
-    recipients: [TRAINING_EMAIL],
-    subject: `MedSync training photos ${today()} (${photos})`,
-    body:
-      `${photos - unl} confirmed photos of ${meds.size} medicine${meds.size === 1 ? '' : 's'}` +
-      (unl ? ` and ${unl} from failed scans` : '') +
-      `.\nApp: ${buildLabel}\n` +
-      (left ? `\n${left} more photos to send — tap "Send for training" again after this.\n` : '') +
-      '\nUnzip and use with the scripts in training/ (see training/README.md).',
-    attachments: [file.uri],
-  });
-  if (res.status === MailComposer.MailComposerStatus.CANCELLED) return { kind: 'cancelled' };
-  const sentAt = new Date().toISOString();
-  const ids = new Set(batch.map((e) => e.file));
-  updateEntries((e) => (ids.has(e.file) ? { ...e, sentAt } : e)); // re-read: photos saved while the email was open stay
-  return { kind: res.status === MailComposer.MailComposerStatus.SENT ? 'sent' : 'opened', photos, left };
+  const files = batch.map((e) => e.file);
+  let mailReady = false;
+  try {
+    mailReady = await MailComposer.isAvailableAsync();
+  } catch {
+    mailReady = false;
+  }
+  if (mailReady) {
+    try {
+      const res = await MailComposer.composeAsync({
+        recipients: [TRAINING_EMAIL],
+        subject: `MedSync training photos ${today()} (${photos})`,
+        body:
+          `${photos - unl} labelled photos of ${meds.size} medicine${meds.size === 1 ? '' : 's'}` +
+          (unl ? ` and ${unl} unlabelled (failed scans)` : '') +
+          `.\nApp: ${buildLabel}\n` +
+          (left ? `\n${left} more photos to send — tap "Send for training" again after this.\n` : '') +
+          '\nUnzip and use with the scripts in training/ (see training/README.md).',
+        attachments: [file.uri],
+      });
+      if (res.status === MailComposer.MailComposerStatus.CANCELLED) return { kind: 'cancelled' };
+      if (res.status === MailComposer.MailComposerStatus.SENT) {
+        markSent(files);
+        return { kind: 'sent', photos, left };
+      }
+      // Saved as a draft (iPhone) or unknown (Android can't tell sent from saved): ask, like the share sheet.
+      return { kind: 'shared', photos, left, files };
+    } catch {
+      // fall through to the share sheet
+    }
+  }
+  await Sharing.shareAsync(file.uri, { mimeType: 'application/zip', dialogTitle: `Send to ${TRAINING_EMAIL}`, UTI: 'public.zip-archive' });
+  return { kind: 'shared', photos, left, files };
 }
 
 export function clearTraining() {
