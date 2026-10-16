@@ -6,14 +6,14 @@
 import * as ImagePicker from 'expo-image-picker';
 import { Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Image, ScrollView, Text, View } from 'react-native';
-import { importSummary, judgeImport, parseTypedLabel, type ImportLabel, type ImportScan } from '../src/importPhotos.ts';
+import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
+import { guessFromText, importSummary, judgeImport, parseTypedLabel, suggestBrands, type ImportLabel, type ImportScan } from '../src/importPhotos.ts';
 import { readLinesAnyOrientation, startScanStats } from '../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { medLabel } from '../src/schedule.ts';
 import { useStore } from '../src/store.tsx';
 import { sendForTraining } from '../src/sendForTraining.tsx';
-import { saveTrainingPhotos, saveUnlabelledPhotos, TRAINING_EMAIL, trainingSummary } from '../src/training.ts';
+import { labelSavedPhoto, saveTrainingPhotos, saveUnlabelledPhotos, TRAINING_EMAIL, trainingSummary } from '../src/training.ts';
 import { Button, Card, Chip, Field, Label, s, useTheme } from '../src/ui.tsx';
 
 const MAX_PHOTOS = 30;
@@ -23,14 +23,19 @@ interface Done {
   scan: ImportScan;
   read: string;
   label?: ImportLabel; // undefined: saved unlabelled
+  file?: string; // the saved photo, when saved unlabelled (so a confirmed guess can name it)
+  guess?: ImportLabel; // what the scanner thinks it is, for photos taken without a name
+  answered?: boolean;
 }
 
 export default function ImportPhotos() {
   const t = useTheme();
   const { state, saveSettings } = useStore();
-  const [medId, setMedId] = useState<string | 'typed' | 'unknown'>('typed');
+  // Naming is optional: by default photos are taken without a name and the app offers a guess afterwards.
+  const [medId, setMedId] = useState<string | 'typed' | 'unknown'>('unknown');
   const [name, setName] = useState('');
   const [strength, setStrength] = useState('');
+  const [strengthOptions, setStrengthOptions] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState('');
   const [done, setDone] = useState<Done[]>([]);
@@ -84,25 +89,37 @@ export default function ImportPhotos() {
       setProgress(photos.length > 1 ? `Scanning photo ${i + 1} of ${photos.length}…` : 'Scanning…');
       startScanStats();
       let text = '';
+      let lines: Awaited<ReturnType<typeof readLinesAnyOrientation>> = [];
       try {
-        text = (await readLinesAnyOrientation(uri)).map((l) => l.text).join('\n');
+        lines = await readLinesAnyOrientation(uri);
+        text = lines.map((l) => l.text).join('\n');
       } catch {
         // saved anyway, as "not recognised", with nothing read
       }
       if (label === 'unknown') {
-        await saveUnlabelledPhotos([uri], 'imported', 'Added from the photo library; medicine not known.', text);
-        out.push({ uri, scan: 'not recognised', read: text });
+        const [file] = await saveUnlabelledPhotos([uri], 'imported', 'Collected without a name.', text);
+        out.push({ uri, scan: 'not recognised', read: text, file, guess: guessFromText(lines) ?? undefined });
       } else {
         const scan = judgeImport(text, label);
         await saveTrainingPhotos([uri], label, 'imported', text, { scan });
-        out.push({ uri, scan, read: text });
+        out.push({ uri, scan, read: text, label });
       }
-      setDone((prev) => [{ ...out[out.length - 1], label: label === 'unknown' ? undefined : label }, ...prev]);
+      setDone((prev) => [out[out.length - 1], ...prev]);
     }
     setUnsent(trainingSummary().unsent);
     setProgress('');
     setBusy(false);
   };
+
+  /** "Looks like X?" — Yes names the saved photo; No leaves it unlabelled. */
+  const answerGuess = (d: Done, yes: boolean) => {
+    if (yes && d.file && d.guess) {
+      const scan = judgeImport(d.read, d.guess);
+      labelSavedPhoto(d.file, d.uri, d.guess, scan);
+      setDone((prev) => prev.map((x) => (x === d ? { ...x, label: d.guess, scan, answered: true } : x)));
+    } else setDone((prev) => prev.map((x) => (x === d ? { ...x, answered: true } : x)));
+  };
+  const suggestions = medId === 'typed' ? suggestBrands(name) : [];
 
   if (!state.settings.collectConsent)
     return (
@@ -140,20 +157,43 @@ export default function ImportPhotos() {
       <Label>1 · Which medicine is in the next photos?</Label>
       <Card>
         <View style={s.wrap}>
+          <Chip label="Skip — just take photos" active={medId === 'unknown'} onPress={() => setMedId('unknown')} />
           {meds.map((m) => (
             <Chip key={m.id} label={medLabel(m)} active={medId === m.id} onPress={() => setMedId(m.id)} />
           ))}
           <Chip label="Type a name" active={medId === 'typed'} onPress={() => setMedId('typed')} />
-          <Chip label="Don't know" active={medId === 'unknown'} onPress={() => setMedId('unknown')} />
         </View>
         {medId === 'typed' && (
           <View style={{ marginTop: 10, gap: 8 }}>
-            <Field placeholder="Name as printed, e.g. Vonzai" value={name} onChangeText={setName} autoCapitalize="words" />
-            <Field placeholder="Strength, e.g. 20 (or 180/10)" value={strength} onChangeText={setStrength} />
+            <Field placeholder="Name as printed, e.g. Vonzai" value={name} onChangeText={(v) => (setName(v), setStrengthOptions([]))} autoCapitalize="words" autoCorrect={false} />
+            {suggestions.length > 0 && (
+              <View style={s.wrap}>
+                {suggestions.map((b) => (
+                  <Chip
+                    key={b.name}
+                    label={b.name}
+                    onPress={() => {
+                      setName(b.name);
+                      setStrengthOptions(b.strengths);
+                      setStrength(b.strengths.length === 1 ? b.strengths[0] : '');
+                    }}
+                  />
+                ))}
+              </View>
+            )}
+            {strengthOptions.length > 1 && (
+              <View style={s.wrap}>
+                {strengthOptions.map((x) => (
+                  <Chip key={x} label={x} active={strength === x} onPress={() => setStrength(x)} />
+                ))}
+              </View>
+            )}
+            <Field placeholder="Strength, e.g. 20 (or 180/10)" value={strength} onChangeText={setStrength} keyboardType="numbers-and-punctuation" />
+
           </View>
         )}
         {medId === 'unknown' && (
-          <Text style={{ color: t.sub, marginTop: 8 }}>Saved without a label (unlabelled/ in the export) — still useful, but labelled photos help most.</Text>
+          <Text style={{ color: t.sub, marginTop: 8 }}>No typing needed. After each photo the app says what it thinks the medicine is — tap Yes if it’s right. Photos are useful either way.</Text>
         )}
         {!label && <Text style={{ color: t.bad, marginTop: 8 }}>Choose a medicine, or type its name.</Text>}
       </Card>
@@ -188,11 +228,22 @@ export default function ImportPhotos() {
                 <View style={{ flex: 1 }}>
                   <Text style={{ color: scanColor(d.scan), fontWeight: '700' }}>
                     {d.label ? `${d.label.name} ${d.label.strength}`.trim() + ' — ' : ''}
-                    {!d.label ? 'saved unlabelled' : d.scan === 'recognised' ? 'scanner recognised it' : d.scan === 'name only' ? 'name read, strength not' : 'scanner did not recognise it'}
+                    {!d.label ? (d.guess && !d.answered ? 'saved — name it?' : 'saved without a name') : d.scan === 'recognised' ? 'scanner recognised it' : d.scan === 'name only' ? 'name read, strength not' : 'scanner did not recognise it'}
                   </Text>
                   <Text style={{ color: t.sub, fontSize: 12 }} numberOfLines={2}>
                     Read: {d.read.replace(/\s+/g, ' ').trim().slice(0, 120) || '(nothing)'}
                   </Text>
+                  {!d.label && d.guess && !d.answered && (
+                    <View style={[s.row, { marginTop: 6, gap: 8, flexWrap: 'wrap' }]}>
+                      <Text style={{ color: t.text, fontWeight: '600' }}>Looks like {`${d.guess.name} ${d.guess.strength}`.trim()}?</Text>
+                      <Pressable onPress={() => answerGuess(d, true)} style={{ paddingHorizontal: 10, paddingVertical: 4, borderRadius: 999, backgroundColor: t.ok }}>
+                        <Text style={{ color: '#fff', fontWeight: '700' }}>Yes</Text>
+                      </Pressable>
+                      <Pressable onPress={() => answerGuess(d, false)} style={{ paddingHorizontal: 10, paddingVertical: 4 }}>
+                        <Text style={{ color: t.sub, textDecorationLine: 'underline' }}>No</Text>
+                      </Pressable>
+                    </View>
+                  )}
                 </View>
               </View>
             ))}

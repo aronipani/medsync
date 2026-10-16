@@ -30,6 +30,26 @@ Outlook, WhatsApp, Drive) and send. The share sheet can't tell whether it was se
 and marks the photos sent only on *Yes, sent*; a saved draft is treated the same way. Big collections go in parts
 under the email size limit. Code: `emailTraining` / `markSent` in `src/training.ts`, `src/sendForTraining.tsx`.
 
+## Naming is optional (v2)
+* **Skip — just take photos** is the default. Each photo is saved unlabelled, and the app guesses the medicine from
+  what was read (brand and strength, same rules as Scan to add, kept only when the brand is in the built-in list of
+  ~3,000 medicines): **"Looks like Nebicard 2.5? Yes / No"**. *Yes* names the saved photo (with auto-labels and
+  whether the scanner recognised it); *No* leaves it unlabelled — still useful. `guessFromText`, `labelSavedPhoto`.
+* **Type a name** suggests brands from the built-in list as you type; tapping one fills the name and, when the brand
+  has one strength, the strength, otherwise offers its strengths as taps. `suggestBrands`.
+
+## File names and phones
+Photo files are named `<time>-<n>-<UUID>.jpg` and zips `medsync-training-<date>-<phone>-<UUID>.zip`, so photos from
+many phones never clash when merged. Each install makes a random phone id once (`training/phone-id.txt` on the phone);
+every manifest entry carries it as `phone`. `src/uid.ts`.
+
+## Sending (v2)
+* **Send for training** first asks **Gmail or another app** / **Mail app** when Apple Mail is set up. Mail with a
+  Hotmail/Outlook account can leave the email stuck in Mail's Outbox while telling the app it was sent; Gmail through
+  the share sheet avoids that. After a share-sheet send the app asks "Did it send?".
+* **"Didn't arrive? Send everything again"** (Settings) clears the sent marks so the next send includes all photos.
+* The everyday-scan switch is now "Also keep photos from everyday scans": off keeps only photos taken in Collect.
+
 ## Asking friends for photos
 Message to send (also in the conversation where this was built):
 > I'm training my medicine-scanner app and need photos of medicine strips — any medicine, any brand.

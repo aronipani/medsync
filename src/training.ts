@@ -10,6 +10,7 @@ import { boxesFor, lastReader, traceFor } from './ocr.ts';
 import { describeTrace, regionsToYolo, traceSvg, type ScanTrace } from './scanTrace.ts';
 import { labelRegions, REGION_CLASSES, toYolo } from './regions.ts';
 import { makeZip } from './zip.ts';
+import { photoFileName, uuid } from './uid.ts';
 
 export interface TrainingEntry {
   file: string; // path inside the export, e.g. "Monotrate 10/2026-10-12T09-30-00-1.jpg"
@@ -29,11 +30,31 @@ export interface TrainingEntry {
   regions?: { cls: string; text: string }[]; // what each box said, to help when checking labels
   reader?: string; // which text reader read it: "apple-vision" or "ml-kit"
   sentAt?: string; // when it was emailed with "Send for training"
+  phone?: string; // which phone took it (a random id per install), so photos from several friends can be told apart
   /** What each scan step saw on this photo: detector boxes and the text of every reading (spec 12). */
   trace?: ScanTrace;
 }
 
 const dir = () => new Directory(Paths.document, 'training');
+
+/** A random id for this install, made once and kept with the training photos. */
+export function phoneId(): string {
+  try {
+    const root = dir();
+    if (!root.exists) root.create({ intermediates: true });
+    const f = new File(root, 'phone-id.txt');
+    if (f.exists) {
+      const id = f.textSync().trim();
+      if (id) return id;
+    }
+    const id = uuid();
+    if (!f.exists) f.create();
+    f.write(id);
+    return id;
+  } catch {
+    return 'unknown';
+  }
+}
 const manifestFile = () => new File(dir(), 'manifest.json');
 const safe = (s: string) => s.replace(/[\\/:*?"<>|]+/g, ' ').replace(/\s+/g, ' ').trim() || 'unknown';
 
@@ -107,7 +128,7 @@ async function saveLabelled(
     for (let i = 0; i < uris.length; i++) {
       const ref = await ImageManipulator.manipulate(uris[i]).resize({ width: 1280 }).renderAsync();
       const img = await ref.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
-      const fileName = `${at.replace(/[:.]/g, '-')}-${i + 1}.jpg`;
+      const fileName = photoFileName(at, i + 1);
       await new File(img.uri).copy(new File(folder, fileName));
       // Auto-label where the brand, contents and strength are printed (boxes are relative, so resizing is fine).
       const info = boxesFor(uris[i]);
@@ -129,6 +150,7 @@ async function saveLabelled(
         regions: regions.map((r) => ({ cls: r.cls, text: r.text })),
         reader: lastReader(),
         trace: traceFor(uris[i]),
+        phone: phoneId(),
         ...extra,
       });
     }
@@ -145,8 +167,8 @@ const UNLABELLED = '_unlabelled';
  * Keeps photos of a scan nobody confirmed (red result, unreadable, or closed): the strips the reader finds hardest,
  * so the most useful ones for retraining. No medicine label; exported separately under unlabelled/.
  */
-export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add' | 'test-scan' | 'imported', reason: string, ocrText: string): Promise<number> {
-  if (!uris.length) return 0;
+export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add' | 'test-scan' | 'imported', reason: string, ocrText: string): Promise<string[]> {
+  if (!uris.length) return [];
   return serial(async () => {
     const added: TrainingEntry[] = [];
     try {
@@ -157,9 +179,9 @@ export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 
         try {
           const ref = await ImageManipulator.manipulate(uris[i]).resize({ width: 1280 }).renderAsync();
           const img = await ref.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
-          const fileName = `${at.replace(/[:.]/g, '-')}-${i + 1}.jpg`;
+          const fileName = photoFileName(at, i + 1);
           await new File(img.uri).copy(new File(folder, fileName));
-          added.push({ file: `${UNLABELLED}/${fileName}`, medicine: '', name: '', strength: '', how, unlabelled: true, reason, ocrText: ocrText.slice(0, 2000), at, reader: lastReader(), trace: traceFor(uris[i]) });
+          added.push({ file: `${UNLABELLED}/${fileName}`, medicine: '', name: '', strength: '', how, unlabelled: true, reason, ocrText: ocrText.slice(0, 2000), at, reader: lastReader(), trace: traceFor(uris[i]), phone: phoneId() });
         } catch {
           // The camera's copy may already be gone; keep the others.
         }
@@ -168,7 +190,7 @@ export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 
       // keep whatever was saved before the failure
     }
     appendEntries(added);
-    return added.length;
+    return added.map((e) => e.file);
   });
 }
 
@@ -202,6 +224,32 @@ export function recoverOrphans(): number {
   } catch {
     return 0;
   }
+}
+
+/**
+ * Names a photo that was saved unlabelled earlier this session (e.g. "Looks like Pantodac 40? — Yes"), with the same
+ * auto-labels a labelled save gets. `sourceUri` is the photo as it was read (its text boxes are still in memory).
+ */
+export function labelSavedPhoto(file: string, sourceUri: string, label: { name: string; strength: string }, scan?: TrainingEntry['scan']) {
+  const info = boxesFor(sourceUri);
+  const ingredients = lookupBrand(label.name)?.ingredients;
+  const regions = info ? labelRegions(info.boxes, { name: label.name, strength: label.strength, ingredients }) : [];
+  const medicine = `${label.name} ${label.strength}`.trim();
+  updateEntries((e) =>
+    e.file === file
+      ? {
+          ...e,
+          unlabelled: false,
+          reason: undefined,
+          medicine,
+          name: label.name,
+          strength: label.strength,
+          yolo: info && regions.length ? toYolo(regions, info) : undefined,
+          regions: regions.map((r) => ({ cls: r.cls, text: r.text })),
+          ...(scan ? { scan } : {}),
+        }
+      : e,
+  );
 }
 
 export function trainingSummary(): { photos: number; medicines: number; unlabelled: number; unsent: number } {
@@ -290,7 +338,7 @@ export async function exportTraining(): Promise<boolean> {
   recoverOrphans();
   const entries = readManifest();
   if (!entries.length) return false;
-  const { file } = buildZip(entries, `medsync-training-${today()}.zip`);
+  const { file } = buildZip(entries, `medsync-training-${today()}-${phoneId().slice(0, 8)}-${uuid()}.zip`);
   await Sharing.shareAsync(file.uri, { mimeType: 'application/zip', dialogTitle: 'Export training photos' });
   return true;
 }
@@ -303,6 +351,18 @@ export type SendResult =
   | { kind: 'sent' | 'opened'; photos: number; left: number }
   | { kind: 'shared'; photos: number; left: number; files: string[] } // share sheet closed; ask whether it was sent
   | { kind: 'cancelled' | 'nothing' };
+
+/** Forgets which photos were sent, so the next Send for training sends all of them again (an email that never arrived). */
+export function unmarkAllSent(): number {
+  let n = 0;
+  updateEntries((e) => {
+    if (!e.sentAt) return e;
+    n++;
+    const { sentAt: _drop, ...rest } = e;
+    return rest;
+  });
+  return n;
+}
 
 /** Marks photos as sent (after the person confirms a share-sheet send went out). */
 export function markSent(files: string[]) {
@@ -318,7 +378,16 @@ export function markSent(files: string[]) {
  * with the zip, to send with Gmail, Outlook or WhatsApp to TRAINING_EMAIL — the caller asks afterwards whether it was
  * sent, because the share sheet can't tell. Big collections go in parts small enough for email.
  */
-export async function emailTraining(buildLabel: string): Promise<SendResult> {
+/** Whether a ready-made email can be opened (Apple Mail on iPhone with an account set up, or a mail app on Android). */
+export async function mailAppAvailable(): Promise<boolean> {
+  try {
+    return await MailComposer.isAvailableAsync();
+  } catch {
+    return false;
+  }
+}
+
+export async function emailTraining(buildLabel: string, via: 'mail' | 'share' = 'mail'): Promise<SendResult> {
   recoverOrphans();
   const unsent = readManifest().filter((e) => !e.sentAt && new File(dir(), ...e.file.split('/')).exists);
   if (!unsent.length) return { kind: 'nothing' };
@@ -330,18 +399,12 @@ export async function emailTraining(buildLabel: string): Promise<SendResult> {
     batch.push(e);
     bytes += size;
   }
-  const { file, photos } = buildZip(batch, `medsync-training-${today()}-${batch.length}.zip`);
+  const { file, photos } = buildZip(batch, `medsync-training-${today()}-${phoneId().slice(0, 8)}-${uuid()}.zip`);
   const unl = batch.filter((e) => e.unlabelled).length;
   const meds = new Set(batch.filter((e) => !e.unlabelled).map((e) => e.medicine));
   const left = unsent.length - batch.length;
   const files = batch.map((e) => e.file);
-  let mailReady = false;
-  try {
-    mailReady = await MailComposer.isAvailableAsync();
-  } catch {
-    mailReady = false;
-  }
-  if (mailReady) {
+  if (via === 'mail' && (await mailAppAvailable())) {
     try {
       const res = await MailComposer.composeAsync({
         recipients: [TRAINING_EMAIL],

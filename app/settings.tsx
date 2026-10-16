@@ -9,7 +9,7 @@ import { buildLabel } from '../src/buildInfo.ts';
 import { sendForTraining } from '../src/sendForTraining.tsx';
 import { appleVisionAvailable } from '../src/ocr.ts';
 import { detectorState, loadRegionModel } from '../src/regionModel.ts';
-import { clearTraining, emailTraining, exportTraining, TRAINING_EMAIL, trainingSummary } from '../src/training.ts';
+import { clearTraining, exportTraining, TRAINING_EMAIL, trainingSummary, unmarkAllSent } from '../src/training.ts';
 import { setupNotifications } from '../src/notifications.ts';
 import { useStore } from '../src/store.tsx';
 import type { Settings } from '../src/types.ts';
@@ -95,13 +95,12 @@ export default function SettingsScreen() {
       <Label>Training photos</Label>
       <Card>
         <View style={s.between}>
-          <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>Save scan photos for training</Text>
+          <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>Also keep photos from everyday scans</Text>
           <Switch value={!!state.settings.collectTraining} onValueChange={(v) => saveSettings({ ...state.settings, collectTraining: v })} />
         </View>
         <Text style={{ color: t.sub, marginTop: 6, fontSize: 13, lineHeight: 18 }}>
-          When a scan is confirmed (or taught), its photos are kept on this phone, labelled with the medicine, to train a strip-recognition model later.
-          Scans that end red, can't be read or are closed are kept too, without a label — they are the strips the app finds hardest.
-          Nothing is uploaded. Photos may show hands or surroundings.
+          On: every scan on the Scan tab, Scan to add and Test scan keeps its photos (each scan takes 1–3), labelled when the medicine is
+          confirmed. Off: only photos you take in Collect strip photos are kept. Nothing leaves the phone until you send it.
         </Text>
         <Text style={{ color: t.text, marginTop: 10 }}>
           {summary.photos - summary.unlabelled} photo{summary.photos - summary.unlabelled === 1 ? '' : 's'} of {summary.medicines} medicine{summary.medicines === 1 ? '' : 's'}
@@ -136,6 +135,18 @@ export default function SettingsScreen() {
           onPress={() => sendForTraining(() => setSummary(trainingSummary()))}
         />
         <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>Opens an email to {TRAINING_EMAIL} with the photos not sent before (or, if Mail isn’t set up, the share sheet — pick Gmail and send it to that address). You press Send.</Text>
+        {summary.photos > summary.unsent && (
+          <Button
+            title="Didn't arrive? Send everything again"
+            kind="ghost"
+            onPress={() =>
+              Alert.alert('Send everything again?', 'All training photos will count as not sent, so the next Send for training includes them.', [
+                { text: 'Cancel', style: 'cancel' },
+                { text: 'Yes', onPress: () => (unmarkAllSent(), setSummary(trainingSummary())) },
+              ])
+            }
+          />
+        )}
         <Button title="Collect strip photos (camera or library)" kind="secondary" style={{ marginTop: 10 }} onPress={() => router.push('/import-photos')} />
         <Button title="Refresh count" kind="ghost" onPress={() => setSummary(trainingSummary())} />
       </Card>
