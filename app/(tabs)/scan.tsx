@@ -16,9 +16,9 @@ import { bestLearned } from '../../src/learn.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../../src/training.ts';
 import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
+import { describeTiming, dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
-import { dateKey, fmt12 } from '../../src/time.ts';
+import { addDays, dateKey, fmt12 } from '../../src/time.ts';
 import { expiryStatus, formatExpiry, parseExpiry } from '../../src/expiry.ts';
 import type { LogMethod, Occurrence } from '../../src/types.ts';
 import { Button, Card, Empty, Field, More, s, useTheme } from '../../src/ui.tsx';
@@ -301,13 +301,18 @@ export default function Scan() {
   if (!state.meds.length)
     return (
       <ScrollView contentContainerStyle={{ padding: 16 }}>
-        <Empty title="No medicines scheduled" body="Add medicines in the Schedule tab first." />
+        <Empty title="No medicines yet" body="Add a medicine first, then scan its strip here at dose time." />
+        <Button big title="Add a medicine" onPress={() => router.push('/add')} />
         <CollectCard />
       </ScrollView>
     );
 
   const todayOccs = occurrencesForDate(state, dateKey(now), now, memberId);
   const next = todayOccs.find((o) => o.status === 'upcoming');
+  // Everything at the next time (several medicines are often due together); tomorrow's first time if today is done.
+  const tomorrowOccs = next ? [] : occurrencesForDate(state, dateKey(addDays(now, 1)), now, memberId);
+  const nextIsTomorrow = !next && tomorrowOccs.length > 0;
+  const nextGroup = next ? todayOccs.filter((o) => o.status === 'upcoming' && o.time === next.time) : tomorrowOccs.filter((o) => o.time === tomorrowOccs[0]?.time);
   // Several medicines at the same time: show which one this is and what is still to take.
   const matched = result?.kind === 'match' ? result.occs : [];
   const stillToTake = due.filter((o) => !matched.some((m) => m.key === o.key));
@@ -322,18 +327,46 @@ export default function Scan() {
       <MemberPicker value={memberId} onChange={setMemberId} />
 
       {!due.length ? (
-        <Card style={{ marginTop: 8 }}>
-          <Text style={[s.h2, { color: t.ok }]}>{doneNow.length ? '✓ All due medicines taken' : 'Nothing due right now'}</Text>
-          <Text style={{ color: t.text, marginTop: 8, fontSize: 18 }}>
-            {next ? `Next: ${medLabel(next.med)} at ${fmt12(next.time)}` : 'No more doses today.'}
+        // Nothing due: a calm screen — where things stand, what comes next (all medicines at that time), one suggestion.
+        <View style={{ marginTop: 16 }}>
+          <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: doneNow.length ? t.okFill : t.muted, alignItems: 'center', justifyContent: 'center' }}>
+            <Ionicons name={doneNow.length ? 'checkmark' : 'time-outline'} size={36} color={doneNow.length ? '#fff' : t.text} />
+          </View>
+          <Text style={{ color: t.text, fontSize: 30, fontWeight: '700', letterSpacing: -0.3, marginTop: 16 }}>
+            {doneNow.length ? 'All done for now' : 'Nothing to take right now'}
           </Text>
+
+          {nextGroup.length > 0 ? (
+            <Card style={{ marginTop: 20 }}>
+              <Text style={{ color: t.sub, fontSize: 17, fontWeight: '600' }}>
+                Next · {nextIsTomorrow ? 'tomorrow ' : ''}
+                {fmt12(nextGroup[0].time)}
+              </Text>
+              {nextGroup.map((o) => (
+                <View key={o.key} style={{ marginTop: 10 }}>
+                  <Text style={{ color: t.text, fontSize: 21, fontWeight: '700' }}>{medLabel(o.med)}</Text>
+                  <Text style={{ color: t.sub, fontSize: 16, marginTop: 1 }}>
+                    {qtyLabel(o.dose.qty, o.med.unit)} · {describeTiming(o.dose)}
+                  </Text>
+                </View>
+              ))}
+            </Card>
+          ) : (
+            <Text style={{ color: t.sub, fontSize: 18, marginTop: 8 }}>No more medicines today.</Text>
+          )}
+
           {/* One suggestion at most: check strips that haven't been tried yet, so the real scan goes smoothly. */}
           {ready.total > 0 && ready.ready < ready.total ? (
-            <Button title="Check the next strips now" kind="secondary" onPress={() => router.push('/test-scan')} style={{ marginTop: 14 }} />
+            <Button
+              big
+              title={nextGroup.length && !nextIsTomorrow ? `Check the strips for ${fmt12(nextGroup[0].time)}` : 'Check the next strips'}
+              onPress={() => router.push('/test-scan')}
+              style={{ marginTop: 20 }}
+            />
           ) : ready.total > 0 ? (
-            <Text style={{ color: t.ok, marginTop: 10, fontSize: 16 }}>✓ The next strips are checked</Text>
+            <Text style={{ color: t.ok, marginTop: 16, fontSize: 17, fontWeight: '600' }}>✓ The next strips are checked</Text>
           ) : null}
-        </Card>
+        </View>
       ) : (
         <>
           {/* Due checklist (hidden while a result fills the screen) */}

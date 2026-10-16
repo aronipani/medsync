@@ -19,7 +19,7 @@ import { classifyTest, recordFor, upcomingReadiness, type Readiness, type TestOu
 import { loadTestRecords, saveTestRecord } from '../src/testScanStore.ts';
 import { dateKey, fmt12, fmtDay } from '../src/time.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
-import { Button, Card, Label, s, useTheme } from '../src/ui.tsx';
+import { Button, Card, More, s, useTheme } from '../src/ui.tsx';
 
 interface Run {
   outcome: TestOutcome;
@@ -38,10 +38,10 @@ interface Run {
 
 const READY_LABEL: Record<Readiness, string> = {
   ready: 'Ready',
-  check: 'Strength not read last time',
-  failed: 'Last test failed',
-  untested: 'Not tested yet',
-  stale: 'Tested over a month ago',
+  check: 'Strength not read last time — try again',
+  failed: 'Didn’t work last time — try again',
+  untested: 'Not checked yet',
+  stale: 'Checked over a month ago — try again',
 };
 
 export default function TestScan() {
@@ -118,7 +118,7 @@ export default function TestScan() {
       let outcome = classifyTest(text, state.meds);
       if (outcome.kind !== 'ok') {
         // The same glare retry as the real scan: two more photos at slightly different angles.
-        const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Shine check ${n}/2 — tilt the strip a little…`) });
+        const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Taking another photo (${n} of 2) — tilt the strip a little`) });
         text += '\n' + more.map((l) => l.text).join('\n');
         outcome = classifyTest(text, state.meds);
       }
@@ -141,7 +141,7 @@ export default function TestScan() {
     } catch (e) {
       const failed: Run = {
         outcome: { kind: 'unknown' },
-        text: String(e).includes('linked') ? 'Text reading needs the installed app build (not Expo Go).' : '',
+        text: String(e).includes('linked') ? 'Reading printed names does not work in this version of the app.' : '',
         photos,
         seconds: Math.round((Date.now() - t0) / 100) / 10,
         reader: scanReaderLabel(),
@@ -192,100 +192,124 @@ export default function TestScan() {
     return [...soon, ...state.meds.filter((m) => m.active && !soon.includes(m))];
   }, [upcoming, state.meds]);
 
-  const Check = ({ ok, label, detail, action }: { ok: boolean | undefined; label: string; detail?: string; action?: React.ReactNode }) => (
-    <View style={{ flexDirection: 'row', alignItems: 'flex-start', paddingVertical: 6 }}>
-      <Ionicons
-        name={ok === undefined ? 'ellipse-outline' : ok ? 'checkmark-circle' : 'alert-circle'}
-        size={22}
-        color={ok === undefined ? t.sub : ok ? t.ok : t.warn}
-        style={{ marginRight: 10, marginTop: 1 }}
-      />
-      <View style={{ flex: 1 }}>
-        <Text style={{ color: t.text, fontWeight: '600' }}>{label}</Text>
-        {detail ? <Text style={{ color: t.sub, marginTop: 2 }}>{detail}</Text> : null}
-        {action}
-      </View>
-    </View>
-  );
+  // Group the next 24 hours by time: several medicines are often due together.
+  const groups = useMemo(() => {
+    const m = new Map<string, typeof upcoming>();
+    for (const u of upcoming) m.set(`${u.date}|${u.time}`, [...(m.get(`${u.date}|${u.time}`) ?? []), u]);
+    return [...m.values()];
+  }, [upcoming]);
+  const readyCount = upcoming.filter((u) => u.readiness === 'ready').length;
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-      <Stack.Screen options={{ title: 'Test scan' }} />
-      <Text style={{ color: t.sub, marginBottom: 10 }}>
-        Check everything works before the reminder comes. Scan any strip — nothing is logged, stock doesn't change and the app learns nothing.
-      </Text>
+    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
+      <Stack.Screen options={{ title: 'Check the strips' }} />
+      <Text style={{ color: t.text, fontSize: 18, lineHeight: 25 }}>Scan each strip before its reminder. Nothing is recorded — this is only a check.</Text>
 
-      <Label>Ready for the next dose?</Label>
-      <Card>
-        <Check ok={perm?.granted} label="Camera" detail={perm?.granted ? 'Allowed' : 'Needed to scan strips'} action={perm && !perm.granted ? <Button title="Allow camera" kind="secondary" onPress={requestPerm} style={{ marginTop: 6 }} /> : undefined} />
-        <Check
-          ok={notif}
-          label="Reminders"
-          detail={
-            notif === false
-              ? 'Notifications are off — reminders won’t appear'
-              : nextDose
-                ? `Next: ${fmtDay(nextDose.date, today)} ${fmt12(nextDose.time)} · ${medLabel(nextDose.med)}`
-                : 'Allowed · no doses in the next 24 hours'
-          }
-          action={notif === false ? <Button title="Allow reminders" kind="secondary" onPress={() => setupNotifications().then(setNotif)} style={{ marginTop: 6 }} /> : undefined}
-        />
-        <Check ok label="Text reader" detail={appleVisionAvailable() ? 'Apple Vision (ML Kit as backup)' : 'Google ML Kit'} />
-        <Check
-          ok={state.settings.regionDetector === false ? undefined : detector === 'ready' ? true : detector === 'missing' ? false : undefined}
-          label="Region detector"
-          detail={state.settings.regionDetector === false ? 'Off (Settings → Strip reading)' : detector === 'ready' ? 'Loaded' : detector === 'missing' ? 'Not in this build — full reading is used' : 'Loading…'}
-        />
-      </Card>
+      {/* Only problems are shown; when camera and reminders work there is nothing to read here. */}
+      {perm && !perm.granted && (
+        <Card style={{ backgroundColor: t.warnSoft, marginTop: 14 }}>
+          <Text style={{ color: t.warn, fontSize: 18, fontWeight: '700' }}>The camera is needed to scan strips</Text>
+          <Button title="Allow camera" onPress={requestPerm} style={{ marginTop: 12 }} />
+        </Card>
+      )}
+      {notif === false && (
+        <Card style={{ backgroundColor: t.warnSoft, marginTop: 14 }}>
+          <Text style={{ color: t.warn, fontSize: 18, fontWeight: '700' }}>Reminders are off</Text>
+          <Text style={{ color: t.text, fontSize: 16, marginTop: 4 }}>Without them, no reminder will appear at dose time.</Text>
+          <Button title="Turn reminders on" onPress={() => setupNotifications().then(setNotif)} style={{ marginTop: 12 }} />
+        </Card>
+      )}
 
-      <Label>Medicines due in the next 24 hours</Label>
-      <Card>
-        {!upcoming.length ? (
-          <Text style={{ color: t.sub }}>Nothing scheduled in the next 24 hours.</Text>
-        ) : (
-          upcoming.map((u) => (
-            <Check
-              key={u.med.id}
-              ok={u.readiness === 'ready' ? true : u.readiness === 'untested' ? undefined : false}
-              label={`${medLabel(u.med)}${memberName(u.memberId) ? ` · ${memberName(u.memberId)}` : ''}`}
-              detail={`${fmtDay(u.date, today)} ${fmt12(u.time)} · ${READY_LABEL[u.readiness]}${u.last?.seconds ? ` (${u.last.seconds}s)` : ''}`}
-            />
-          ))
-        )}
+      <View style={[s.between, { marginTop: 24, marginBottom: 8, marginHorizontal: 4 }]}>
+        <Text style={{ color: t.sub, fontSize: 17, fontWeight: '600' }}>Next 24 hours</Text>
         {upcoming.length > 0 && (
-          <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>
-            Scan each strip once. If one isn’t recognised, use “Teach this strip” on the Scan tab or check its name and strength in the medicine’s details.
+          <Text style={{ color: t.text, fontSize: 17, fontWeight: '600' }}>
+            {readyCount} of {upcoming.length} ready
           </Text>
         )}
+      </View>
+      <Card style={{ paddingVertical: 4 }}>
+        {!upcoming.length ? (
+          <Text style={{ color: t.sub, fontSize: 17, paddingVertical: 14 }}>No medicines in the next 24 hours.</Text>
+        ) : (
+          groups.map((g, gi) => (
+            <View key={`${g[0].date}|${g[0].time}`} style={{ paddingVertical: 10, borderBottomWidth: gi === groups.length - 1 ? 0 : 1, borderBottomColor: t.line }}>
+              <Text style={{ color: t.sub, fontSize: 16, fontWeight: '600', marginBottom: 4 }}>
+                {fmtDay(g[0].date, today)} · {fmt12(g[0].time)}
+              </Text>
+              {g.map((u) => (
+                <View key={u.med.id + u.memberId} style={{ flexDirection: 'row', alignItems: 'center', gap: 14, minHeight: 54 }}>
+                  <ReadyMark r={u.readiness} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={{ color: t.text, fontSize: 19, fontWeight: u.readiness === 'ready' ? '600' : '700' }}>
+                      {medLabel(u.med)}
+                      {memberName(u.memberId) ? ` · ${memberName(u.memberId)}` : ''}
+                    </Text>
+                    <Text style={{ color: u.readiness === 'ready' ? t.sub : u.readiness === 'untested' ? t.text : t.warn, fontSize: 16, marginTop: 1 }}>
+                      {READY_LABEL[u.readiness]}
+                    </Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ))
+        )}
       </Card>
 
-      <View style={{ height: 300, borderRadius: 18, overflow: 'hidden', marginTop: 14, backgroundColor: '#000' }}>
+      <View style={{ height: run ? 220 : 300, borderRadius: 20, overflow: 'hidden', marginTop: 16, backgroundColor: '#000' }}>
         {perm?.granted && focused ? <CameraView ref={camera} style={{ flex: 1 }} facing="back" autofocus="on" flash="off" enableTorch={torch} /> : null}
         {perm?.granted && focused && (
           <Pressable
             onPress={() => setTorch((v) => !v)}
+            accessibilityRole="button"
             accessibilityLabel={torch ? 'Turn light off' : 'Turn light on'}
-            style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 20, padding: 8 }}
+            style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 26, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}
           >
-            <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={22} color="#fff" />
+            <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={26} color="#fff" />
           </Pressable>
         )}
         {busy && (
           <View style={{ position: 'absolute', inset: 0, alignItems: 'center', justifyContent: 'center', backgroundColor: '#0007' }}>
             <ActivityIndicator color="#fff" size="large" />
-            <Text style={{ color: '#fff', marginTop: 8 }}>{progress || 'Reading…'}</Text>
+            <Text style={{ color: '#fff', fontSize: 17, marginTop: 8 }}>{progress || 'Reading the strip…'}</Text>
           </View>
         )}
       </View>
-      <Button big title={run ? 'Test another strip' : 'Test scan'} onPress={test} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
+      <Button big title={run ? 'Check another strip' : 'Check a strip'} onPress={test} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
 
-      {run && <Result run={run} onAnswer={answer} onPick={pick} choices={choices} who={(m) => memberName(m.memberId)} />}
-      {state.settings.collectTraining && (
-        <Button title="Send training photos" kind="ghost" onPress={() => sendForTraining()} disabled={busy} style={{ marginTop: 10 }} />
-      )}
+      {run && <Result run={run} onAnswer={answer} onPick={pick} choices={choices} who={(m) => memberName(m.memberId)} details={!!state.settings.showScanDetails} />}
+
+      {/* Helpers only. */}
+      <More title="For helpers">
+        <Text style={{ color: t.text, fontSize: 16 }}>Text reader: {appleVisionAvailable() ? 'Apple Vision (ML Kit as backup)' : 'Google ML Kit'}</Text>
+        <Text style={{ color: t.text, fontSize: 16 }}>
+          Strip area finder:{' '}
+          {state.settings.regionDetector === false ? 'off' : detector === 'ready' ? 'on' : detector === 'missing' ? 'not in this version' : 'starting…'}
+        </Text>
+        {state.settings.collectTraining && <Button title="Send photos for training" kind="ghost" onPress={() => sendForTraining()} disabled={busy} />}
+      </More>
     </ScrollView>
   );
 }
+
+/** Round mark like Today's: green ✓ ready, amber ! needs another try, outline not checked yet. */
+function ReadyMark({ r }: { r: Readiness }) {
+  const t = useTheme();
+  if (r === 'ready')
+    return (
+      <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: t.okFill, alignItems: 'center', justifyContent: 'center' }}>
+        <Ionicons name="checkmark" size={20} color="#fff" />
+      </View>
+    );
+  if (r === 'untested') return <View style={{ width: 30, height: 30, borderRadius: 15, borderWidth: 2.5, borderColor: t.text }} />;
+  return (
+    <View style={{ width: 30, height: 30, borderRadius: 15, backgroundColor: t.warnFill, alignItems: 'center', justifyContent: 'center' }}>
+      <Text style={{ color: '#fff', fontSize: 18, fontWeight: '900' }}>!</Text>
+    </View>
+  );
+}
+
+const whiteChip = { backgroundColor: '#fff3', paddingHorizontal: 16, minHeight: 44, justifyContent: 'center' as const, borderRadius: 999, marginRight: 8, marginBottom: 8 };
 
 function Result({
   run,
@@ -293,90 +317,93 @@ function Result({
   onPick,
   choices,
   who,
+  details,
 }: {
   run: Run;
   onAnswer: (right: boolean) => void;
   onPick: (m: Medication | 'none') => void;
   choices: Medication[];
   who: (m: Medication) => string | undefined;
+  details: boolean;
 }) {
   const t = useTheme();
   const o = run.outcome;
-  const color = o.kind === 'ok' ? t.ok : o.kind === 'check' ? t.warn : t.bad;
+  const fill = o.kind === 'ok' ? t.okFill : o.kind === 'check' ? t.warnFill : t.badFill;
+  const icon = o.kind === 'ok' ? '✓' : o.kind === 'check' ? '!' : '✕';
   const title =
-    o.kind === 'ok'
-      ? `✓ Recognised: ${medLabel(o.med)}`
-      : o.kind === 'check'
-        ? `⚠ ${medLabel(o.med)} — strength not read`
-        : o.kind === 'strength'
-          ? `✗ ${o.med.name} but strength ${o.found.join(' / ')}`
-          : o.kind === 'conflict'
-            ? `✗ Looks like ${o.looksLike}`
-            : '✗ Not recognised';
+    o.kind === 'ok' ? 'Recognised' : o.kind === 'check' ? 'Strength not read' : o.kind === 'strength' ? 'Wrong strength' : o.kind === 'conflict' ? 'A different medicine' : 'Not recognised';
   const meaning =
     o.kind === 'ok'
       ? o.substitute
-        ? `Another brand of the same medicine (${o.via}). At dose time this shows green with a note to check the brand.`
-        : 'At dose time this strip will show green.'
+        ? 'A different brand of the same medicine. At dose time you’ll be asked to check the brand.'
+        : 'This strip will be recognised at dose time.'
       : o.kind === 'check'
-        ? 'At dose time you’ll be asked to read the strength yourself. Try less shine, closer, or the side with the strength.'
+        ? 'The name was read, but not the strength. Try closer, with less shine, or show the side with the strength.'
         : o.kind === 'strength'
-          ? `At dose time this shows red: the prescription is ${medLabel(o.med)}.`
+          ? `This strip says ${o.found.map((f) => `${f} mg`).join(' / ')}. You need ${medLabel(o.med)}.`
           : o.kind === 'conflict'
-            ? `It was compared with ${medLabel(o.med)} and looks like a different medicine — at dose time this shows red.`
-            : 'At dose time this would show red. Move closer, cut the shine, or teach the strip on the Scan tab.';
+            ? `This looks like ${o.looksLike}, not ${medLabel(o.med)}.`
+            : run.text.startsWith('Reading printed names')
+              ? run.text
+              : 'Hold it closer, tilt it away from lights, and try again.';
   const expired = run.expiry && expiryStatus(run.expiry) === 'expired';
   return (
-    <View style={{ backgroundColor: color, borderRadius: 18, padding: 18, marginTop: 14 }}>
-      <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{title}</Text>
-      <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{meaning}</Text>
+    <View style={{ backgroundColor: fill, borderRadius: 24, padding: 24, marginTop: 14 }}>
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
+        <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+          <Text style={{ color: fill, fontSize: 30, fontWeight: '900' }}>{icon}</Text>
+        </View>
+        <View style={{ flex: 1 }}>
+          <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{title}</Text>
+          {o.kind !== 'unknown' && <Text style={{ color: '#fff', fontSize: 19, fontWeight: '600', marginTop: 2 }}>{medLabel(o.med)}</Text>}
+        </View>
+      </View>
+      <Text style={{ color: '#fff', fontSize: 17, lineHeight: 24, marginTop: 14 }}>{meaning}</Text>
       {run.expiry ? (
-        <Text style={{ color: '#fff', marginTop: 8, fontWeight: expired ? '800' : '400' }}>
-          {expired ? `This strip expired in ${formatExpiry(run.expiry)}.` : `Expiry read: ${formatExpiry(run.expiry)}`}
+        <Text style={{ color: '#fff', fontSize: 17, marginTop: 10, fontWeight: expired ? '800' : '400' }}>
+          {expired ? `This strip expired in ${formatExpiry(run.expiry)}. Don’t use it.` : `Expires ${formatExpiry(run.expiry)}`}
         </Text>
       ) : null}
-      {run.text.trim() ? (
-        <Text style={{ color: '#fffc', marginTop: 8, fontStyle: 'italic' }} numberOfLines={3}>
-          Read: “{run.text.replace(/\s+/g, ' ').trim().slice(0, 140)}”
-        </Text>
-      ) : null}
-      <Text style={{ color: '#fffb', fontSize: 12, marginTop: 10 }}>
-        {run.seconds}s · Read by {run.reader || '—'} · strip area finder: {run.detector}
-      </Text>
+      {details && (
+        <>
+          {run.text.trim() ? (
+            <Text style={{ color: '#fff', marginTop: 10, fontStyle: 'italic' }} numberOfLines={3}>
+              Read: “{run.text.replace(/\s+/g, ' ').trim().slice(0, 140)}”
+            </Text>
+          ) : null}
+          <Text style={{ color: '#fff', fontSize: 14, marginTop: 8 }}>
+            {run.seconds}s · Read by {run.reader || '—'} · strip area finder: {run.detector}
+          </Text>
+        </>
+      )}
       {o.kind !== 'unknown' && !run.answered && (
         <>
-          <Text style={{ color: '#fff', marginTop: 14, fontWeight: '600' }}>Is this strip {medLabel(o.med)}?</Text>
-          <View style={[s.row, { gap: 10, marginTop: 8 }]}>
-            <Button title="Yes, that's right" kind="secondary" onPress={() => onAnswer(true)} style={{ flex: 1 }} />
-            <Button title="No, it's wrong" kind="ghost" onPress={() => onAnswer(false)} style={{ flex: 1 }} />
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 18 }}>Is this strip {medLabel(o.med)}?</Text>
+          <View style={[s.row, { gap: 10, marginTop: 10 }]}>
+            <Button title="Yes" kind="light" onPress={() => onAnswer(true)} style={{ flex: 1 }} />
+            <Button title="No" kind="ghost" onColor onPress={() => onAnswer(false)} style={{ flex: 1 }} />
           </View>
         </>
       )}
       {(o.kind === 'unknown' || run.answered === 'wrong') && !run.picked && run.photos.length > 0 && (
         <>
-          <Text style={{ color: '#fff', marginTop: 14, fontWeight: '600' }}>Which medicine is it? (helps train the scanner)</Text>
-          <View style={[s.wrap, { marginTop: 8 }]}>
+          <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 18 }}>Which medicine is it?</Text>
+          <View style={[s.wrap, { marginTop: 10 }]}>
             {choices.map((m) => (
-              <Pressable
-                key={m.id}
-                onPress={() => onPick(m)}
-                style={{ backgroundColor: '#fff3', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 999, marginRight: 8, marginBottom: 8 }}
-              >
-                <Text style={{ color: '#fff', fontWeight: '700' }}>{[who(m), medLabel(m)].filter(Boolean).join(': ')}</Text>
+              <Pressable key={m.id} accessibilityRole="button" onPress={() => onPick(m)} style={whiteChip}>
+                <Text style={{ color: '#fff', fontWeight: '700', fontSize: 16 }}>{[who(m), medLabel(m)].filter(Boolean).join(': ')}</Text>
               </Pressable>
             ))}
-            <Pressable onPress={() => onPick('none')} style={{ paddingHorizontal: 12, paddingVertical: 8, marginBottom: 8 }}>
-              <Text style={{ color: '#fff', textDecorationLine: 'underline' }}>None of these</Text>
-            </Pressable>
           </View>
+          <Button title="None of these" kind="ghost" onColor onPress={() => onPick('none')} style={{ marginTop: 4 }} />
         </>
       )}
-      {run.answered === 'right' && <Text style={{ color: '#fff', marginTop: 12 }}>Thanks — noted.</Text>}
+      {run.answered === 'right' && <Text style={{ color: '#fff', fontSize: 17, marginTop: 14 }}>Thank you — noted.</Text>}
       {(run.picked || (run.answered === 'wrong' && !run.photos.length)) && (
-        <Text style={{ color: '#fff', marginTop: 12 }}>
+        <Text style={{ color: '#fff', fontSize: 17, lineHeight: 24, marginTop: 14 }}>
           {run.picked && run.picked !== 'none'
-            ? `Noted: it's ${medLabel(run.picked)}, and its test counts as failed until a test scan passes. Try less shine and closer, or teach the strip on the Scan tab.`
-            : 'Noted as a failed test. Check the medicine’s name and strength, or teach the strip on the Scan tab.'}
+            ? `Noted. ${medLabel(run.picked)} needs another try: closer, with less shine.`
+            : 'Noted. Check the medicine’s name and strength in Schedule.'}
         </Text>
       )}
     </View>

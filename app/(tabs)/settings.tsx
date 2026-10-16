@@ -155,7 +155,7 @@ function Helper() {
 
       <Label>Check the scanner</Label>
       <Card>
-        <Button title="Test scan" onPress={() => router.push('/test-scan')} />
+        <Button title="Check the strips" onPress={() => router.push('/test-scan')} />
         <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>Try a strip before its reminder. Nothing is recorded.</Text>
       </Card>
 

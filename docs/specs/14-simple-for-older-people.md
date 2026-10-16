@@ -111,6 +111,15 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
 * **Medicine editor:** each time reads as one line ("8:30 AM · After breakfast"); "Save medicine" / "Save changes" /
   "Matches the prescription — save".
 
+* **Check the strips (was "Test scan"):** one plain sentence, then only *problems* (camera or reminders off, each with a
+  fix button); "Next 24 hours · 2 of 4 ready" grouped by time with round marks (✓ ready, ! try again, outline not
+  checked yet); one big "Check a strip". The result uses the deep fills (it was unreadable at night), a white icon,
+  plain meaning, *Yes / No*, 44 pt medicine chips; the raw text and timings only with *Show scanner details*. Text
+  reader / strip area finder and sending photos are under "For helpers".
+* **Scan, nothing due:** a calm screen — round ✓ "All done for now" (or "Nothing to take right now"), a card with
+  **every** medicine at the next time ("Next · 9:00 PM", or tomorrow's first time), and at most one button, "Check the
+  strips for 9:00 PM". No medicines yet: "Add a medicine".
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".
