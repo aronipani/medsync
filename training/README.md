@@ -23,7 +23,17 @@ A GPU helps but isn't required: 50–100 photos train in about 30–60 minutes o
 ## 2. Get the photos
 
 In the app: **Settings → Training photos → Export (.zip)**, share it to your computer and unzip it, e.g. to `~/medsync-training`.
-It contains `images/`, `labels/` (boxes the phone labelled automatically), `manifest.json` and `data.yaml`.
+It contains `images/`, `labels/` (boxes the phone labelled automatically), `manifest.json` and `data.yaml`, and for
+photos taken from build ios-28 / build-31 on, both steps of each scan (spec 12):
+* `boxed/<photo>.svg` — the photo with the region detector's boxes drawn on it and the text of every step beside it
+  (open in a browser; the clean photo stays in `images/` or `unlabelled/`)
+* `predictions/<photo>.txt` — the detector's boxes, YOLO-OBB with the confidence last (load into CVAT as a start)
+* `scans/<photo>.txt` — what was read at each step: whole photo upright and turned, each box crop, each re-read
+
+```bash
+python review.py --export ~/medsync-training --only-failed   # boxed JPEGs of the failed scans → review/
+```
+No box on the name/strength → the detector (finding) failed; box in place but wrong text → the reader failed.
 
 `unlabelled/` holds photos of scans nobody confirmed (red result, unreadable, or closed); `reason` in `manifest.json`
 says why. These are the hardest strips, so the most useful to train on: name each one (CVAT, or
@@ -91,3 +101,4 @@ Photos where no box was found are left out of the dataset (an empty label would 
 | `train.py` | Fine-tunes YOLO11n-OBB with strip-specific augmentation |
 | `predict.py` | Draws detections on new photos |
 | `export.py` | LiteRT/TFLite export for the app (copies into `assets/models/`) |
+| `review.py` | Draws detector boxes, labels and the text of each scan step onto exported photos |

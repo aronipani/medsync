@@ -6,6 +6,7 @@ import type { OcrLine } from './label.ts';
 import { cropFor } from './obb.ts';
 import { detectorState, detectRegions, pickRegions, regionDetectorEnabled } from './regionModel.ts';
 import { padBox, rereadCandidates, unrotateBox, type Box } from './regions.ts';
+import { addRegions, addStep, newTrace, type ScanTrace } from './scanTrace.ts';
 
 const WORK_WIDTH = 1600; // copies are resized to this width before rotating
 
@@ -135,6 +136,20 @@ export function boxesFor(uri: string) {
   return photoInfo.get(uri);
 }
 
+// What each step saw on each photo (detector boxes, text per reading), kept with training photos (spec 12).
+const traces = new Map<string, ScanTrace>();
+export function traceFor(uri: string): ScanTrace | undefined {
+  return traces.get(uri);
+}
+
+/** Reads one image and records the step in the photo's trace. */
+async function readStep(trace: ScanTrace | undefined, step: string, uri: string): Promise<OcrLine[]> {
+  const t0 = Date.now();
+  const lines = await recognize(uri);
+  if (trace) addStep(trace, step, last, lines.map((l) => l.text), Date.now() - t0);
+  return lines;
+}
+
 const toBox = (l: OcrLine): Box | undefined =>
   l.left !== undefined && l.top !== undefined && l.width !== undefined && l.height !== undefined
     ? { text: l.text, left: l.left, top: l.top, width: l.width, height: l.height, ...(l.corners ? { corners: l.corners } : {}) }
@@ -160,12 +175,6 @@ class LineSet {
  */
 async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[]; reread: boolean }) {
   const boxes: Box[] = [];
-  const upright = await recognize(uri);
-  set.add(upright);
-  for (const b of upright) {
-    const x = toBox(b);
-    if (x) boxes.push(x);
-  }
   let size: { width: number; height: number } | undefined;
   try {
     const ref = await ImageManipulator.manipulate(uri).renderAsync();
@@ -173,7 +182,18 @@ async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[];
   } catch {
     // size unknown: skip rotation mapping and re-reading
   }
-  if (size && (await readFoundAreas(uri, size, set))) {
+  const trace = size ? newTrace(size.width, size.height) : undefined;
+  if (trace) {
+    traces.set(uri, trace);
+    if (traces.size > 40) traces.delete(traces.keys().next().value!); // only recent scans can still be saved
+  }
+  const upright = await readStep(trace, 'whole photo, upright', uri);
+  set.add(upright);
+  for (const b of upright) {
+    const x = toBox(b);
+    if (x) boxes.push(x);
+  }
+  if (size && trace && (await readFoundAreas(uri, size, set, trace))) {
     photoInfo.set(uri, { ...size, boxes });
     return; // name and strength areas were found and read; the slow every-way-up reading isn't needed
   }
@@ -182,7 +202,7 @@ async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[];
     try {
       const ref = await ImageManipulator.manipulate(uri).resize({ width: WORK_WIDTH }).rotate(degrees).renderAsync();
       const img = await ref.saveAsync({ compress: 0.9, format: SaveFormat.JPEG });
-      const lines = await recognize(img.uri);
+      const lines = await readStep(trace, `whole photo, turned ${degrees}°`, img.uri);
       set.add(lines);
       if (size) {
         for (const l of lines) {
@@ -208,7 +228,7 @@ async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[];
         const turn = turnedText.get(b);
         if (turn) ctx = ctx.rotate(turn); // read it the way up it was readable
         const img = await (await ctx.renderAsync()).saveAsync({ compress: 0.95, format: SaveFormat.JPEG });
-        set.add(await recognize(img.uri));
+        set.add(await readStep(trace, `re-read enlarged: “${b.text.slice(0, 30)}”`, img.uri));
       } catch {
         // Re-reading is a bonus; ignore failures.
       }
@@ -223,7 +243,7 @@ async function readPhoto(uri: string, set: LineSet, opts: { rotations: number[];
  * caller also reads the whole photo every way up, so a weak detector never makes a scan worse — its crops are
  * then extra readings on top.
  */
-async function readFoundAreas(uri: string, size: { width: number; height: number }, set: LineSet): Promise<boolean> {
+async function readFoundAreas(uri: string, size: { width: number; height: number }, set: LineSet, trace: ScanTrace): Promise<boolean> {
   if (!regionDetectorEnabled()) return false;
   let regions;
   try {
@@ -231,10 +251,17 @@ async function readFoundAreas(uri: string, size: { width: number; height: number
   } catch {
     regions = null;
   }
-  if (!regions) return false;
+  if (!regions) {
+    trace.detector = 'missing';
+    return false;
+  }
   detector.photos++;
   const picked = pickRegions(regions);
-  if (!picked.length) return false;
+  addRegions(trace, regions, picked);
+  if (!picked.length) {
+    trace.detector = 'nothing';
+    return false;
+  }
   detector.found++;
   detector.areas += picked.length;
   for (const r of picked) {
@@ -250,13 +277,15 @@ async function readFoundAreas(uri: string, size: { width: number; height: number
           .resize({ width })
           .renderAsync();
         const img = await ref.saveAsync({ compress: 0.95, format: SaveFormat.JPEG });
-        set.add(await recognize(img.uri));
+        set.add(await readStep(trace, `${r.cls} area (${r.score.toFixed(2)}), ${turn === c.rotate ? 'level' : 'upside down'}`, img.uri));
       } catch {
         // one area failing to read is fine; the others and the upright reading remain
       }
     }
   }
-  return picked.some((r) => r.cls === 'brand' || r.cls === 'contents') && picked.some((r) => r.cls === 'strength');
+  const enough = picked.some((r) => r.cls === 'brand' || r.cls === 'contents') && picked.some((r) => r.cls === 'strength');
+  trace.detector = enough ? 'used' : 'extra';
+  return enough;
 }
 
 /**

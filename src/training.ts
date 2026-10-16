@@ -6,7 +6,8 @@ import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as MailComposer from 'expo-mail-composer';
 import * as Sharing from 'expo-sharing';
 import { lookupBrand } from './drugdb.ts';
-import { boxesFor, lastReader } from './ocr.ts';
+import { boxesFor, lastReader, traceFor } from './ocr.ts';
+import { describeTrace, regionsToYolo, traceSvg, type ScanTrace } from './scanTrace.ts';
 import { labelRegions, REGION_CLASSES, toYolo } from './regions.ts';
 import { makeZip } from './zip.ts';
 
@@ -26,6 +27,8 @@ export interface TrainingEntry {
   regions?: { cls: string; text: string }[]; // what each box said, to help when checking labels
   reader?: string; // which text reader read it: "apple-vision" or "ml-kit"
   sentAt?: string; // when it was emailed with "Send for training"
+  /** What each scan step saw on this photo: detector boxes and the text of every reading (spec 12). */
+  trace?: ScanTrace;
 }
 
 const dir = () => new Directory(Paths.document, 'training');
@@ -116,6 +119,7 @@ async function saveLabelled(uris: string[], label: { name: string; strength: str
         yolo: info && regions.length ? toYolo(regions, info) : undefined,
         regions: regions.map((r) => ({ cls: r.cls, text: r.text })),
         reader: lastReader(),
+        trace: traceFor(uris[i]),
       });
     }
   } catch {
@@ -145,7 +149,7 @@ export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 
           const img = await ref.saveAsync({ compress: 0.85, format: SaveFormat.JPEG });
           const fileName = `${at.replace(/[:.]/g, '-')}-${i + 1}.jpg`;
           await new File(img.uri).copy(new File(folder, fileName));
-          added.push({ file: `${UNLABELLED}/${fileName}`, medicine: '', name: '', strength: '', how, unlabelled: true, reason, ocrText: ocrText.slice(0, 2000), at, reader: lastReader() });
+          added.push({ file: `${UNLABELLED}/${fileName}`, medicine: '', name: '', strength: '', how, unlabelled: true, reason, ocrText: ocrText.slice(0, 2000), at, reader: lastReader(), trace: traceFor(uris[i]) });
         } catch {
           // The camera's copy may already be gone; keep the others.
         }
@@ -209,11 +213,27 @@ function buildZip(entries: TrainingEntry[], name: string): { file: File; photos:
   const included: TrainingEntry[] = [];
   let labelled = 0;
   let unlabelled = 0;
+  let traced = 0;
   for (const e of entries) {
     const f = new File(dir(), ...e.file.split('/'));
     if (!f.exists) continue;
     included.push(e);
     const stem = e.file.replace(/\.jpg$/i, '').replace(/[\/]+/g, '__');
+    if (e.trace) {
+      // Both steps of the scan, for every photo: the detector's boxes (to load into CVAT and correct) and a readable
+      // account of what was read at each step — so a failed scan shows whether finding or reading went wrong.
+      traced++;
+      if (e.trace.regions.length) files.push({ name: `predictions/${stem}.txt`, data: enc.encode(regionsToYolo(e.trace)) });
+      const header = [
+        `Photo: ${e.unlabelled ? 'unlabelled' : 'images'}/${stem}.jpg`,
+        `Medicine: ${e.medicine || '(not known)'} · how: ${e.how}${e.reason ? ` · ${e.reason}` : ''}`,
+        `When: ${e.at}`,
+        '',
+      ];
+      files.push({ name: `scans/${stem}.txt`, data: enc.encode(describeTrace(e.trace, header)) });
+      // The same photo with the boxes drawn on it (the clean photo stays in images/ or unlabelled/).
+      files.push({ name: `boxed/${stem}.svg`, data: enc.encode(traceSvg(e.trace, `../${e.unlabelled ? 'unlabelled' : 'images'}/${stem}.jpg`, header)) });
+    }
     if (e.unlabelled) {
       // Kept out of images/ so training never takes them for photos with nothing on them.
       files.push({ name: `unlabelled/${stem}.jpg`, data: f.bytesSync() });
@@ -239,7 +259,11 @@ function buildZip(entries: TrainingEntry[], name: string): { file: File; photos:
         'Photos without a label file: run training/autolabel.py to label them.\n' +
         `unlabelled/ — ${unlabelled} photos from scans nobody confirmed (red, unreadable or closed); "reason" in manifest.json says why. ` +
         'Name them (CVAT, or training/autolabel.py --folder … --label "Name 10"), then add them to images/ and labels/.\n' +
-        'manifest.json — each photo with its medicine, how it was confirmed, the text read, which reader read it and the region texts.\n',
+        `Each photo comes twice: clean (images/ or unlabelled/) and with the boxes drawn on it (boxed/<photo>.svg — open in a browser; ` +
+        'solid boxes were cropped and read, dashed ones were not). ' +
+        `predictions/ — the region detector's boxes (YOLO-OBB with the confidence last; load into CVAT to correct). scans/ — ${traced} readable accounts of each scan: what the detector found and the text read at every step. ` +
+        'training/review.py makes JPEG versions of the boxed photos.\n' +
+        'manifest.json — each photo with its medicine, how it was confirmed, the text read, which reader read it, the region texts and "trace" (the scan steps).\n',
     ),
   });
   const out = new File(Paths.cache, name);

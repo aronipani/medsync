@@ -91,6 +91,10 @@ misses the line.
   * The detector path reads the upright photo plus up to 6 found areas (2 brand, 2 strength, 1 contents, 1 expiry),
     each level and upside down. It falls back to the old path when no brand or contents area scores ≥ 0.35.
   * Settings → Strip reading → "Use the region detector" switches it off to compare. Scan results say what it did.
+* **Done:** scan traces (spec 12). Every photo read keeps what both steps saw — the detector's boxes with confidence
+  and the text of every reading — and training photos carry it: `predictions/`, `scans/` and a boxed copy of each
+  photo (`boxed/*.svg`) in the export, next to the clean photo. A failed scan now shows whether finding (detector) or
+  reading (text reader) went wrong. The flow is drawn in spec 12.
 * **Next:** step 4. Check the auto-labels by hand (CVAT), collect more photos (strength and expiry boxes are few),
   retrain at 960 px if small print is missed, and compare scans with the detector on and off.
 

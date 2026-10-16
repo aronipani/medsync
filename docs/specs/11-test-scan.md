@@ -26,7 +26,7 @@ that's the worst moment to find out.
 
 Every test's photos are kept exactly once when training photos are on (Settings → Training photos): labelled when
 the medicine is known, otherwise unlabelled with what the test read — including when the person leaves or starts
-the next test without answering. They go out with Export or Send for training like other training photos.
+the next test without answering. They go out with Export or Send for training like other training photos. Each carries the scan's trace (spec 12): the detector's boxes and the text read at each step, plus a copy of the photo with the boxes drawn on it.
 
 Nothing is logged, stock doesn't change, and the app learns nothing (no "teach") from a test scan.
 The Scan tab shows "N of M medicines for the next 24 hours tested" when nothing is due.
