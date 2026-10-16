@@ -49,6 +49,9 @@ jobs:
         run: |
           mkdir -p out
           cp android/app/build/outputs/apk/release/app-release.apk "out/MedSync-${{ github.run_number }}.apk"
+          # Same file under a fixed name, so one link always gets the newest build:
+          # https://github.com/aronipani/medsync/releases/latest/download/MedSync.apk
+          cp android/app/build/outputs/apk/release/app-release.apk out/MedSync.apk
 
       - uses: actions/upload-artifact@v4
         with:

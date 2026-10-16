@@ -4,6 +4,7 @@ import { router, useFocusEffect, useIsFocused } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
+import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
@@ -294,7 +295,13 @@ export default function Scan() {
       </>
     ) : null;
 
-  if (!state.meds.length) return <Empty title="No medicines scheduled" body="Add medicines in the Schedule tab first." />;
+  if (!state.meds.length)
+    return (
+      <ScrollView contentContainerStyle={{ padding: 16 }}>
+        <Empty title="No medicines scheduled" body="Add medicines in the Schedule tab first." />
+        <CollectCard />
+      </ScrollView>
+    );
 
   const todayOccs = occurrencesForDate(state, dateKey(now), now, memberId);
   const next = todayOccs.find((o) => o.status === 'upcoming');

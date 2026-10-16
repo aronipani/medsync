@@ -27,7 +27,7 @@ interface Done {
 
 export default function ImportPhotos() {
   const t = useTheme();
-  const { state } = useStore();
+  const { state, saveSettings } = useStore();
   const [medId, setMedId] = useState<string | 'typed' | 'unknown'>('typed');
   const [name, setName] = useState('');
   const [strength, setStrength] = useState('');
@@ -103,6 +103,29 @@ export default function ImportPhotos() {
     setProgress('');
     setBusy(false);
   };
+
+  if (!state.settings.collectConsent)
+    return (
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+        <Stack.Screen options={{ title: 'Collect strip photos' }} />
+        <Card>
+          <Text style={{ color: t.text, fontSize: 18, fontWeight: '800' }}>Before you start</Text>
+          {[
+            'You photograph medicine strips and say which medicine each one is. The photos help train the app’s strip scanner.',
+            `Photos stay on this phone until you tap Send for training. Then they go, with the medicine names and the text the scanner read, to ${TRAINING_EMAIL} — you see the email or share sheet and send it yourself.`,
+            'Photograph only the strip. Keep prescriptions, names, faces, addresses and anything else personal out of the picture.',
+            'Medicines say something about someone’s health: only photograph strips you are allowed to share.',
+            'You can delete the photos any time: Settings → Training photos → Delete all.',
+          ].map((x) => (
+            <View key={x} style={[s.row, { marginTop: 10, alignItems: 'flex-start' }]}>
+              <Text style={{ color: t.text, width: 18 }}>•</Text>
+              <Text style={{ color: t.text, flex: 1, lineHeight: 21 }}>{x}</Text>
+            </View>
+          ))}
+          <Button title="I understand — start" onPress={() => saveSettings({ ...state.settings, collectConsent: new Date().toISOString() })} style={{ marginTop: 16 }} />
+        </Card>
+      </ScrollView>
+    );
 
   const scanColor = (r: ImportScan) => (r === 'recognised' ? t.ok : r === 'name only' ? t.warn : t.bad);
 

@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { router } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
@@ -88,7 +89,10 @@ export default function Today() {
         )}
 
         {!state.meds.length ? (
-          <Empty title="No medicines yet" body="Add each medicine with its strength and when it is taken. Reminders start automatically." />
+          <>
+            <Empty title="No medicines yet" body="Add each medicine with its strength and when it is taken. Reminders start automatically." />
+            <CollectCard />
+          </>
         ) : !occs.length ? (
           <Empty title="Nothing scheduled" body="No doses on this day." />
         ) : (

@@ -53,6 +53,7 @@ export interface Settings {
   dueWindowMin: number; // a dose becomes scannable this many minutes before its time
   missedAfterMin: number; // a dose is logged "missed" this many minutes after its time
   followUpMin: number; // "still not taken" reminder after this many minutes (0 = off)
+  collectConsent?: string; // when the person agreed to the photo-collection notice (spec 13)
   testReminderMin: number; // "test-scan first" reminder this long before a dose with an untested or failed medicine (0 = off)
   snoozeMin: number;
   regionDetector?: boolean; // use the strip-region detector when scanning (on unless switched off; spec 10)

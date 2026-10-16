@@ -49,6 +49,14 @@ the frame, and don't share the photos further. Imported photos stay on the phone
 `app/import-photos.tsx` (screen, route `/import-photos`), `src/importPhotos.ts` (pure: `judgeImport`, `parseTypedLabel`, `importSummary`),
 `src/training.ts` (`how: "imported"`, `scan`). Tests: `tests/importPhotos.test.ts`.
 
-## Later
-* "Contribute photos" mode for friends who install the app (Android APK / TestFlight): photograph any strip without a
-  schedule, name it, consent screen, Send for training.
+## Sharing the app with friends who collect
+* **Android:** one link always gets the newest build —
+  `https://github.com/aronipani/medsync/releases/latest/download/MedSync.apk` (the CI also publishes the APK under this
+  fixed name). Open it on the phone, allow installing from that source.
+* **iPhone:** needs TestFlight (Apple Developer account, $99/yr; `ios.yml` + spec 08). Until then iPhone friends send
+  plain photos, added with "From library".
+* A new user with no medicines sees **"Help train the strip scanner → Collect strip photos"** on the Today and Scan tabs,
+  so friends don't have to find it in Settings. `medsync://import-photos` opens the screen directly.
+* The first time, Collect strip photos shows **"Before you start"**: what is collected, that photos go to the training
+  address only when they press Send, to keep personal details out of the frame, to photograph only strips they may
+  share, and how to delete photos. Agreeing is stored as `settings.collectConsent` (time).
