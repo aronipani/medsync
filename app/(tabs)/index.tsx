@@ -48,6 +48,15 @@ export default function Today() {
       ]);
       return;
     }
+    if (o.date < today) {
+      // A past day: scanning makes no sense now — just record what happened.
+      Alert.alert(label, 'What happened with this dose?', [
+        { text: 'I took it', onPress: () => record([o], 'taken', 'manual') },
+        { text: 'It was skipped', onPress: () => record([o], 'skipped', 'manual') },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+      return;
+    }
     if (atTime(o.date, o.time).getTime() - now.getTime() > 6 * 3600e3) {
       Alert.alert(label, 'This dose is more than 6 hours away.');
       return;
@@ -141,11 +150,11 @@ export default function Today() {
         </Text>
       </View>
 
-      {offset !== 0 && <Button title="Back to today" onPress={() => setOffset(0)} style={{ marginBottom: 8 }} />}
+      {offset !== 0 && <Button title="‹ Back to today" kind="secondary" onPress={() => setOffset(0)} style={{ marginBottom: 8 }} />}
 
       <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
 
-      {low.length > 0 && (
+      {offset === 0 && low.length > 0 && (
         // One short line, not a list: the medicines come first; Stock has the details.
         <Pressable
           accessibilityRole="button"
@@ -197,18 +206,12 @@ export default function Today() {
           )}
 
           {offset !== 0 ? (
-            <>
-              {groups.map(([time, list]) => (
-                <View key={time}>
-                  <Section title={fmt12(time)} />
-                  <Card style={{ paddingVertical: 4 }}>
-                    {list.map((o, i) => (
-                      <Row key={o.key} o={o} last={i === list.length - 1} />
-                    ))}
-                  </Card>
-                </View>
+            // Another day: one list, time on the left — the same shape as "Earlier today".
+            <Card style={{ paddingVertical: 4, marginTop: 12 }}>
+              {occs.map((o, i) => (
+                <Row key={o.key} o={o} last={i === occs.length - 1} time />
               ))}
-            </>
+            </Card>
           ) : (
             <>
               {later.length > 0 && (

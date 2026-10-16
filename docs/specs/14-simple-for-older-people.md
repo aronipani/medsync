@@ -129,6 +129,9 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
   time on the left; missed text is quiet ("Missed") — the red ! mark carries it, no wall of red. Low stock is one line
   ("! 7 medicines running low ›" → Stock) instead of a paragraph listing every medicine.
 
+* **Today, another day:** one list with times on the left (no card per time), a quiet "‹ Back to today", no low-stock
+  notice (it's about now); tapping a past dose asks "I took it / It was skipped" instead of offering a scan.
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".
