@@ -1,8 +1,8 @@
-# MedSync privacy policy
+# DoseSure privacy policy
 
 _Last updated: 15 October 2026_
 
-MedSync is a free app that helps a family keep track of medicines: schedules, reminders, checking strips and
+DoseSure is a free app that helps a family keep track of medicines: schedules, reminders, checking strips and
 bottles by photo, and stock. It has **no account**, **no ads** and **no tracking**, and the developer runs **no server**
 that receives your data.
 
@@ -39,11 +39,11 @@ The app never sends any of these anywhere by itself.
 * **Notifications** — for medicine reminders.
 
 ## Children
-MedSync is meant to be set up by adults for themselves and their family. It does not knowingly collect anything
+DoseSure is meant to be set up by adults for themselves and their family. It does not knowingly collect anything
 from anyone, because it collects nothing.
 
 ## Medical safety
-MedSync helps you remember and check; it does not replace your doctor or pharmacist. The scanner can be wrong —
+DoseSure helps you remember and check; it does not replace your doctor or pharmacist. The scanner can be wrong —
 always read the name and strength on the strip yourself. Follow your prescription and ask your doctor before
 changing anything.
 

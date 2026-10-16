@@ -9,7 +9,7 @@ export const NOTICE_VERSION = 1;
 export const PRIVACY_URL = 'https://github.com/aronipani/medsync/blob/main/PRIVACY.md';
 export const ISSUES_URL = 'https://github.com/aronipani/medsync/issues';
 
-export const SAFETY_HEADLINE = 'MedSync helps you remember and check — it does not replace your doctor or pharmacist.';
+export const SAFETY_HEADLINE = 'DoseSure helps you remember and check — it does not replace your doctor or pharmacist.';
 
 export const SAFETY_POINTS = [
   'The scanner can be wrong. Always read the name and strength on the strip yourself before taking it.',

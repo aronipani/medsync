@@ -1,4 +1,9 @@
-# MedSync — family medicine schedule, scan-to-verify and inventory
+# DoseSure — know which medicine to take
+
+<img src="docs/brand/dosesure-logo-preview.png" alt="DoseSure logo" width="480">
+
+Family medicine schedule, scan-to-verify and inventory. (Formerly MedSync; the repository, app id `com.medsync.family`
+and `medsync://` links keep the old name so existing installs and backups carry on.)
 
 Expo (React Native, SDK 57) app for iPhone and Android. All data stays on the phone.
 
@@ -79,9 +84,9 @@ npx expo start --dev-client        # then open the installed app
 ## Install from the cloud
 
 **Android** — every push to `main` builds an APK on GitHub Actions and publishes it under **Releases**.
-1. On the phone, open the repo's Releases page (signed in to GitHub) and tap `MedSync-N.apk`.
+1. On the phone, open the repo's Releases page (signed in to GitHub) and tap `DoseSure-N.apk`.
 2. Allow "Install unknown apps" for the browser when Android asks, then install.
-3. Open MedSync and allow notifications and camera.
+3. Open DoseSure and allow notifications and camera.
 Updates: install the newer APK over the old one; data is kept.
 
 **iPhone** — Apple only allows installs through TestFlight or the App Store, which needs an Apple Developer account ($99/year).
@@ -93,7 +98,7 @@ Updates: install the newer APK over the old one; data is kept.
 ## Notes and limits
 
 - **Reminders vs alarms:** iPhone apps can't ring a true alarm. Reminders are notifications with sound and follow Focus/silent mode. Breaking through silent needs Apple's Critical Alerts entitlement (apply separately).
-- **Android:** allow notifications and "Alarms & reminders", and turn off battery optimisation for MedSync (important on Xiaomi, Oppo, Vivo, Samsung).
+- **Android:** allow notifications and "Alarms & reminders", and turn off battery optimisation for DoseSure (important on Xiaomi, Oppo, Vivo, Samsung).
 - **Strip reading** works best with the name filling the frame and no foil glare — tilt the strip slightly. Add other names printed on the strip (e.g. the generic name) under "Other names on the strip" for more reliable matches.
 - Reminders are rebuilt every time the app opens or the schedule changes. A course with an end date stops reminding after the next app open past that date.
 - This app helps people keep track of medicines. It doesn't replace a doctor's or pharmacist's instructions.

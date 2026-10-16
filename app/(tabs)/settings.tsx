@@ -53,7 +53,7 @@ export default function SettingsScreen() {
       {tab === 'timing' && <Timing />}
       {tab === 'helper' && <Helper />}
       <Text style={{ color: t.sub, textAlign: 'center', marginTop: 28, fontSize: 14 }} selectable>
-        MedSync {buildLabel()}
+        DoseSure {buildLabel()}
       </Text>
     </ScrollView>
   );
@@ -65,7 +65,7 @@ function Everyday() {
   const { state, saveSettings } = useStore();
   const test = async () => {
     const ok = await setupNotifications();
-    if (!ok) return Alert.alert('Reminders are off', 'Turn on notifications for MedSync in your phone’s Settings.');
+    if (!ok) return Alert.alert('Reminders are off', 'Turn on notifications for DoseSure in your phone’s Settings.');
     await Notifications.scheduleNotificationAsync({
       content: { title: '💊 Test reminder', body: 'This is how medicine reminders look and sound.', sound: 'default', categoryIdentifier: 'dose' },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.TIME_INTERVAL, seconds: 5, channelId: 'medicine-reminders' },
@@ -101,7 +101,7 @@ function Everyday() {
       <Card>
         <Button title="Send a test reminder" onPress={test} />
         <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>
-          {Platform.OS === 'ios' ? 'Reminders follow your phone’s silent and Focus settings.' : 'Allow “Alarms & reminders” for MedSync so reminders come on time.'}
+          {Platform.OS === 'ios' ? 'Reminders follow your phone’s silent and Focus settings.' : 'Allow “Alarms & reminders” for DoseSure so reminders come on time.'}
         </Text>
       </Card>
 

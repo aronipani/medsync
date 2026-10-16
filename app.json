@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "MedSync",
+    "name": "DoseSure",
     "slug": "medsync",
     "scheme": "medsync",
     "version": "1.0.0",
@@ -10,7 +10,7 @@
       "bundleIdentifier": "com.medsync.family",
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "MedSync uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
+        "NSCameraUsageDescription": "DoseSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
       }
     },
     "android": {
@@ -20,7 +20,11 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.VIBRATE"
-      ]
+      ],
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#F6F6F3"
+      }
     },
     "plugins": [
       "./plugins/withoutPushEntitlement.js",
@@ -29,21 +33,22 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "MedSync uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
+          "cameraPermission": "DoseSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
         }
       ],
       [
         "expo-notifications",
         {
-          "color": "#0F766E"
+          "color": "#1E7A46",
+          "icon": "./assets/notification-icon.png"
         }
       ],
       "@react-native-community/datetimepicker",
       [
         "expo-image-picker",
         {
-          "photosPermission": "MedSync opens your photos so you can choose a prescription to read.",
-          "cameraPermission": "MedSync uses the camera to photograph prescriptions and scan medicine strips."
+          "photosPermission": "DoseSure opens your photos so you can choose a prescription to read.",
+          "cameraPermission": "DoseSure uses the camera to photograph prescriptions and scan medicine strips."
         }
       ],
       "react-native-fast-tflite"
@@ -54,6 +59,12 @@
     "platforms": [
       "ios",
       "android"
-    ]
+    ],
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#F6F6F3"
+    }
   }
 }

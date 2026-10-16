@@ -152,6 +152,14 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
   phone over."
 * **Earlier today** is folded to one line ("5 taken · 2 missed ⌄"); the rows open on tap.
 
+## Name and logo: DoseSure (Oct 2026)
+* The app is called **DoseSure** ("Know which medicine to take"). The logo is an upright blister strip, six plain pills
+  and one pill solid green with a white tick (same green as "Right medicine"); no medical cross. Source:
+  `docs/brand/dosesure-logo.svg`; app icon `assets/icon.png`, Android `assets/adaptive-icon.png`, white notification
+  icon `assets/notification-icon.png`, splash `assets/splash-icon.png` on paper #F6F6F3.
+* Unchanged on purpose: app id `com.medsync.family`, scheme `medsync://`, backup `app: "medsync"` and training file
+  names — so installed copies update in place and old backups restore.
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".
