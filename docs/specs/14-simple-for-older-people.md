@@ -140,6 +140,18 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
   photo): just *Skip* (default) or *Type a name*, one short intro line.
 * Back buttons say "Back", not the route group "(tabs)".
 
+## Simple view and helper view (Oct 2026)
+* **Simple view (the default, the patient's):** two big tabs, **Today** and **Scan** (larger icons and 16 pt labels).
+  At the bottom of Today, quiet links: **Family helper** and **Report a problem**. Other days are helper-only.
+* **Helper view:** Today · Scan · **Medicines** · Settings. Opened from "Family helper" (with a confirm); goes back to
+  the simple view from Today or Settings, and **by itself when the app has been away 15 minutes**, so the patient
+  always finds the simple view. `settings.helperView`.
+* **Medicines = Schedule + Stock:** each medicine shows its times and "24 left · lasts about 12 days" (amber "!" when
+  low); "Refill or fix a count" opens the stock page (also reached from Today's low-stock line). No Stock tab.
+* **First use:** "Let's add the medicines — Setting this up for someone? Add each of their medicines here, then hand the
+  phone over."
+* **Earlier today** is folded to one line ("5 taken · 2 missed ⌄"); the rows open on tap.
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".

@@ -62,7 +62,7 @@ export default function SettingsScreen() {
 /** What a person may need: who is in the family, a test reminder, a backup, safety information. */
 function Everyday() {
   const t = useTheme();
-  const { state } = useStore();
+  const { state, saveSettings } = useStore();
   const test = async () => {
     const ok = await setupNotifications();
     if (!ok) return Alert.alert('Reminders are off', 'Turn on notifications for MedSync in your phone’s Settings.');
@@ -74,6 +74,13 @@ function Everyday() {
   };
   return (
     <>
+      <Button
+        title="Back to the simple view"
+        kind="secondary"
+        onPress={() => (saveSettings({ ...state.settings, helperView: false }), router.navigate('/'))}
+        style={{ marginTop: 14 }}
+      />
+
       <Label>Family</Label>
       <Card>
         {state.members.map((m) => (

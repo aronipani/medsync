@@ -53,6 +53,7 @@ export interface Settings {
   dueWindowMin: number; // a dose becomes scannable this many minutes before its time
   missedAfterMin: number; // a dose is logged "missed" this many minutes after its time
   followUpMin: number; // "still not taken" reminder after this many minutes (0 = off)
+  helperView?: boolean; // full app (Medicines, Settings) for a family helper; off = simple Today + Scan for the patient
   showScanDetails?: boolean; // helper: show which reader / detector read each scan (off: plain results only)
   collectConsent?: string; // when the person agreed to the photo-collection notice (spec 13)
   testReminderMin: number; // "test-scan first" reminder this long before a dose with an untested or failed medicine (0 = off)

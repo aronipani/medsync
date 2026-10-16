@@ -403,7 +403,7 @@ function Result({
         <Text style={{ color: '#fff', fontSize: 17, lineHeight: 24, marginTop: 14 }}>
           {run.picked && run.picked !== 'none'
             ? `Noted. ${medLabel(run.picked)} needs another try: closer, with less shine.`
-            : 'Noted. Check the medicine’s name and strength in Schedule.'}
+            : 'Noted. Check the medicine’s name and strength in Medicines.'}
         </Text>
       )}
     </View>

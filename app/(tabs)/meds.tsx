@@ -15,6 +15,9 @@ export default function Meds() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      {state.meds.length > 0 && (
+        <Button title="Refill or fix a count" kind="secondary" onPress={() => router.push('/inventory')} style={{ marginBottom: 16 }} />
+      )}
       {state.pending && (
         <Pressable onPress={() => router.push('/rx-review')}>
           <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warn, marginBottom: 16 }}>
@@ -107,7 +110,19 @@ export default function Meds() {
                       {d.days.length ? ` · ${d.days.map((x) => DAY_LABELS[x]).join(', ')}` : ''}
                     </Text>
                   ))}
-                  {!med.doses.length && <Text style={{ color: t.warn, marginTop: 4 }}>No dose times set</Text>}
+                  {!med.doses.length && <Text style={{ color: t.warn, fontSize: 16, marginTop: 4 }}>No dose times set</Text>}
+                  {/* Stock lives here now (no separate tab): how many are left and how long they last. */}
+                  {(() => {
+                    const pd = med.doses.reduce((a, d) => a + d.qty * (d.days.length ? d.days.length / 7 : 1), 0);
+                    const days = pd ? Math.floor(med.stock / pd) : undefined;
+                    const low = med.stock <= med.lowStockAt;
+                    return (
+                      <Text style={{ color: low ? t.warn : t.sub, fontSize: 16, fontWeight: low ? '700' : '400', marginTop: 6 }}>
+                        {low ? '! ' : ''}
+                        {med.stock} left{days !== undefined && med.active ? ` · lasts about ${days} day${days === 1 ? '' : 's'}` : ''}
+                      </Text>
+                    );
+                  })()}
                 </Card>
               </Pressable>
             ))}

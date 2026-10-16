@@ -13,7 +13,16 @@ import { Button, Card, Empty, s, useTheme } from '../../src/ui.tsx';
 
 export default function Today() {
   const t = useTheme();
-  const { state, now, record, undo } = useStore();
+  const { state, now, record, undo, saveSettings } = useStore();
+  const helper = !!state.settings.helperView;
+  const [showEarlier, setShowEarlier] = useState(false);
+  const toggleHelper = () =>
+    helper
+      ? saveSettings({ ...state.settings, helperView: false })
+      : Alert.alert('Open the family helper view?', 'Shows medicines, stock and settings for setting things up. It goes back to the simple view by itself after the app has been closed for 15 minutes.', [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Open', onPress: () => saveSettings({ ...state.settings, helperView: true }) },
+        ]);
   const insets = useSafeAreaInsets();
   const [memberId, setMemberId] = useState<string | undefined>();
   const [offset, setOffset] = useState(0);
@@ -171,7 +180,8 @@ export default function Today() {
 
       {!state.meds.length ? (
         <>
-          <Empty title="No medicines yet" body="Add each medicine and when it is taken. Reminders start by themselves." />
+          {/* First use is a helper's job: say so, then one button. */}
+          <Empty title="Let’s add the medicines" body="Setting this up for someone? Add each of their medicines here, then hand the phone over. Reminders start by themselves." />
           <Button big title="Add a medicine" onPress={() => router.push('/add')} />
           <CollectCard />
         </>
@@ -241,12 +251,36 @@ export default function Today() {
               )}
               {done.length > 0 && (
                 <>
-                  <Section title="Earlier today" />
-                  <Card style={{ paddingVertical: 4 }}>
-                    {done.map((o, i) => (
-                      <Row key={o.key} o={o} last={i === done.length - 1} time />
-                    ))}
-                  </Card>
+                  {/* Folded to one calm line; the rows open on tap. */}
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ expanded: showEarlier }}
+                    onPress={() => setShowEarlier((v) => !v)}
+                    style={{ marginTop: 24 }}
+                  >
+                    <Card style={{ flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 16 }}>
+                      <View style={{ flex: 1 }}>
+                        <Text style={{ color: t.text, fontSize: 18, fontWeight: '600' }}>Earlier today</Text>
+                        <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>
+                          {[
+                            `${done.filter((o) => o.status === 'taken').length} taken`,
+                            done.some((o) => o.status === 'missed') ? `${done.filter((o) => o.status === 'missed').length} missed` : '',
+                            done.some((o) => o.status === 'skipped') ? `${done.filter((o) => o.status === 'skipped').length} skipped` : '',
+                          ]
+                            .filter(Boolean)
+                            .join(' · ')}
+                        </Text>
+                      </View>
+                      <Ionicons name={showEarlier ? 'chevron-up' : 'chevron-down'} size={22} color={t.sub} />
+                    </Card>
+                  </Pressable>
+                  {showEarlier && (
+                    <Card style={{ paddingVertical: 4, marginTop: 8 }}>
+                      {done.map((o, i) => (
+                        <Row key={o.key} o={o} last={i === done.length - 1} time />
+                      ))}
+                    </Card>
+                  )}
                 </>
               )}
             </>
@@ -254,13 +288,24 @@ export default function Today() {
         </>
       )}
 
-      {/* Other days: a family helper's job, so out of the way at the bottom, with words, not just arrows. */}
-      {state.meds.length > 0 && (
+      {/* Other days: a family helper's job, so only in the helper view, at the bottom. */}
+      {helper && state.meds.length > 0 && (
         <View style={[s.between, { marginTop: 24, gap: 10 }]}>
           <Button title="‹ Day before" kind="ghost" onPress={() => setOffset((o) => o - 1)} style={{ flex: 1 }} />
           <Button title="Day after ›" kind="ghost" onPress={() => setOffset((o) => o + 1)} style={{ flex: 1 }} />
         </View>
       )}
+
+      {/* The way into the full app for a family member; quiet, at the very bottom. */}
+      {state.meds.length > 0 && (
+        <Button
+          title={helper ? 'Back to the simple view' : 'Family helper'}
+          kind="ghost"
+          onPress={toggleHelper}
+          style={{ marginTop: helper ? 10 : 28, borderWidth: 0 }}
+        />
+      )}
+      {!helper && <Button title="Report a problem" kind="ghost" onPress={() => router.push('/report')} style={{ borderWidth: 0 }} />}
     </ScrollView>
   );
 }

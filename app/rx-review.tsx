@@ -193,7 +193,7 @@ export default function PrescriptionReview() {
         )}
 
         <Text style={{ color: t.sub, marginTop: 14, lineHeight: 20 }}>
-          Medicine missing from the list? Add it afterwards from Schedule → Add medicine. Set how many are left later in Stock.
+          Medicine missing from the list? Add it afterwards from Medicines → Add a medicine, and set how many are left there too.
         </Text>
         <Button title="Discard prescription" kind="ghost" onPress={discard} style={{ marginTop: 8 }} />
       </ScrollView>

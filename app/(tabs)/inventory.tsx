@@ -33,7 +33,7 @@ export default function Inventory() {
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 40 }}>
         {(!meds.length ? (
-            <Empty title="No medicines" body="Add medicines in the Schedule tab." />
+            <Empty title="No medicines" body="Add medicines first." />
           ) : (
             meds.map((m) => {
               const pd = perDay(m);
