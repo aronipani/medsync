@@ -7,7 +7,7 @@ import { findOverlaps, overlapMessage } from '../../src/overlap.ts';
 import { describeTiming, doseTime, medLabel, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
-import { Button, Card, More, s, useTheme } from '../../src/ui.tsx';
+import { Button, Card, s, useTheme } from '../../src/ui.tsx';
 
 export default function Meds() {
   const t = useTheme();
@@ -102,7 +102,8 @@ export default function Meds() {
                   )}
                   {[...med.doses].sort((a, b) => doseTime(a, member, state.settings).localeCompare(doseTime(b, member, state.settings))).map((d) => (
                     <Text key={d.id} style={{ color: t.sub, fontSize: 16, marginTop: 4 }}>
-                      {fmt12(doseTime(d, member, state.settings))} · {describeTiming(d)} · {qtyLabel(d.qty, med.unit)}
+                      {fmt12(doseTime(d, member, state.settings))}
+                      {d.timing.kind === 'meal' ? ` · ${describeTiming(d)}` : ''} · {qtyLabel(d.qty, med.unit)}
                       {d.days.length ? ` · ${d.days.map((x) => DAY_LABELS[x]).join(', ')}` : ''}
                     </Text>
                   ))}
@@ -114,10 +115,6 @@ export default function Meds() {
           </View>
         );
       })}
-      <More>
-        <Button title="+ Add a family member" kind="secondary" onPress={() => router.push('/member/new')} />
-        <Button title="Earlier versions of the list" kind="secondary" onPress={() => router.push('/history')} />
-      </More>
     </ScrollView>
   );
 }

@@ -12,6 +12,7 @@ import { detectorState, loadRegionModel } from '../../src/regionModel.ts';
 import { clearTraining, exportTraining, TRAINING_EMAIL, trainingSummary, unmarkAllSent } from '../../src/training.ts';
 import { setupNotifications } from '../../src/notifications.ts';
 import { useStore } from '../../src/store.tsx';
+import { shareHistoryCsv } from '../../src/historyExport.ts';
 import { Button, Card, Label, More, NumberField, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
 type TimingKey = 'mealOffsetMin' | 'dueWindowMin' | 'missedAfterMin' | 'followUpMin' | 'snoozeMin' | 'testReminderMin';
@@ -97,6 +98,12 @@ function Everyday() {
         </Text>
       </Card>
 
+      <Label>For the doctor</Label>
+      <Card>
+        <Button title="Share medicine history" kind="secondary" onPress={() => shareHistoryCsv(state, new Date().toISOString().slice(0, 10)).catch((e) => Alert.alert('Could not share', String(e)))} />
+        <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>A spreadsheet of every dose taken, missed or skipped, and refills.</Text>
+      </Card>
+
       <BackupCard />
 
       <Label>Safety and privacy</Label>
@@ -157,6 +164,12 @@ function Helper() {
       <Card>
         <Button title="Check the strips" onPress={() => router.push('/test-scan')} />
         <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>Try a strip before its reminder. Nothing is recorded.</Text>
+      </Card>
+
+      <Label>Medicine list</Label>
+      <Card>
+        <Button title="Earlier versions of the list" kind="secondary" onPress={() => router.push('/history')} />
+        <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>Every change to the medicines is kept; an earlier list can be brought back.</Text>
       </Card>
 
       <Label>Photos for improving the scanner</Label>

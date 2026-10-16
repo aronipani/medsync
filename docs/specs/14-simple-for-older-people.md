@@ -120,6 +120,11 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
   **every** medicine at the next time ("Next · 9:00 PM", or tomorrow's first time), and at most one button, "Check the
   strips for 9:00 PM". No medicines yet: "Add a medicine".
 
+* **Each thing in one right place:** Stock is only "how many left" (soonest to run out first); the dose history tab
+  is gone — Today's "‹ Day before" shows each past day. "Share medicine history" (the doctor's spreadsheet) is in
+  Settings → Everyday; "Earlier versions of the list" in Settings → Helper tools; adding a person only in Settings →
+  Family. Schedule has no "More options" any more. Fixed "8:30 AM · 8:30 AM" (clock-time doses) and "10 mls".
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".

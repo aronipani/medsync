@@ -1,87 +1,38 @@
-import { File, Paths } from 'expo-file-system';
-import * as Sharing from 'expo-sharing';
 import React, { useMemo, useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
-import { MemberDot, MemberPicker, StatusBadge } from '../../src/components.tsx';
+import { MemberDot, MemberPicker } from '../../src/components.tsx';
 import { expiryStatus, formatExpiry } from '../../src/expiry.ts';
 import { medLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
-import { dateKey, fmt12, fmtDay } from '../../src/time.ts';
 import type { Medication } from '../../src/types.ts';
-import { Button, Card, Chip, Empty, NumberField, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
+import { Button, Card, Chip, Empty, NumberField, s, useTheme } from '../../src/ui.tsx';
 
 const perDay = (m: Medication) => m.doses.reduce((a, d) => a + d.qty * (d.days.length ? d.days.length / 7 : 1), 0);
-const timeOf = (iso: string) => new Date(iso).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
-const csv = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`;
 
 export default function Inventory() {
   const t = useTheme();
   const { state, now, adjustStock, setExpiry } = useStore();
-  const [tab, setTab] = useState<'stock' | 'history'>('stock');
   const [memberId, setMemberId] = useState<string | undefined>();
   const [refill, setRefill] = useState<{ med: Medication; qty: number } | null>(null);
-  const today = dateKey(now);
-  const memberName = (id: string) => state.members.find((m) => m.id === id)?.name ?? '—';
 
   // Refill box starts at the amount added last time for this medicine (a strip or box is usually the same size).
   const lastRefill = (medId: string) => {
     const e = [...state.stock].reverse().find((x) => x.medId === medId && x.reason === 'refill' && x.delta > 0);
     return e?.delta ?? 10;
   };
-  const meds = state.meds.filter((m) => !memberId || m.memberId === memberId);
+  // The ones running out soonest first.
+  const daysLeft = (m: Medication) => (perDay(m) ? m.stock / perDay(m) : Infinity);
+  const meds = state.meds.filter((m) => !memberId || m.memberId === memberId).sort((a, b) => daysLeft(a) - daysLeft(b));
 
-  // History: dose logs + refills, newest first, grouped by day.
-  const history = useMemo(() => {
-    type Row = { id: string; at: string; day: string; kind: 'dose' | 'stock'; node: React.ReactNode };
-    const rows: Row[] = [];
-    for (const l of state.logs) {
-      if (memberId && l.memberId !== memberId) continue;
-      rows.push({ id: l.id, at: l.status === 'taken' ? l.at : `${l.date}T${l.time}`, day: l.date, kind: 'dose', node: null });
-    }
-    for (const e of state.stock) {
-      if (e.reason !== 'refill' && e.reason !== 'adjust') continue;
-      if (memberId && e.memberId !== memberId) continue;
-      rows.push({ id: e.id, at: e.at, day: dateKey(new Date(e.at)), kind: 'stock', node: null });
-    }
-    rows.sort((a, b) => (a.day === b.day ? b.at.localeCompare(a.at) : b.day.localeCompare(a.day)));
-    return rows.slice(0, 300);
-  }, [state.logs, state.stock, memberId]);
-
-  const exportCsv = async () => {
-    const lines = [
-      ['Type', 'Person', 'Medicine', 'Scheduled date', 'Scheduled time', 'Status', 'Recorded at', 'Quantity', 'Method'].map(csv).join(','),
-      ...state.logs.map((l) => ['dose', memberName(l.memberId), l.medName, l.date, l.time, l.status, l.at, l.qty, l.method].map(csv).join(',')),
-      ...state.stock
-        .filter((e) => e.reason === 'refill' || e.reason === 'adjust')
-        .map((e) => [e.reason, memberName(e.memberId), e.medName, '', '', '', e.at, e.delta, ''].map(csv).join(',')),
-    ];
-    try {
-      const file = new File(Paths.cache, `medsync-history-${today}.csv`);
-      file.write(lines.join('\n'));
-      await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Export medicine history' });
-    } catch (e) {
-      Alert.alert('Export failed', String(e));
-    }
-  };
 
   return (
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
-        <SegmentTabs
-          tabs={[
-            { key: 'stock', label: 'How many left' },
-            { key: 'history', label: 'What was taken' },
-          ]}
-          value={tab}
-          onChange={setTab}
-        />
-        <View style={{ height: 8 }} />
         <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 40 }}>
-        {tab === 'stock' &&
-          (!meds.length ? (
+        {(!meds.length ? (
             <Empty title="No medicines" body="Add medicines in the Schedule tab." />
           ) : (
             meds.map((m) => {
@@ -139,57 +90,6 @@ export default function Inventory() {
             })
           ))}
 
-        {tab === 'history' &&
-          (!history.length ? (
-            <Empty title="No history yet" body="Taken, missed and skipped doses and refills appear here." />
-          ) : (
-            history.map((row, i) => {
-              const showDay = i === 0 || history[i - 1].day !== row.day;
-              const header = showDay ? (
-                <Text style={{ color: t.sub, fontWeight: '700', fontSize: 16, marginTop: i ? 16 : 4, marginBottom: 6 }}>{fmtDay(row.day, today)}</Text>
-              ) : null;
-              if (row.kind === 'stock') {
-                const e = state.stock.find((x) => x.id === row.id)!;
-                return (
-                  <View key={row.id}>
-                    {header}
-                    <Card style={{ marginBottom: 6, paddingVertical: 10 }}>
-                      <View style={s.between}>
-                        <Text style={{ color: t.text, fontWeight: '600', flex: 1 }}>
-                          {e.reason === 'refill' ? 'Refilled' : 'Count corrected'} · {e.medName}
-                        </Text>
-                        <Text style={{ color: e.delta >= 0 ? t.ok : t.bad, fontWeight: '700' }}>
-                          {e.delta >= 0 ? '+' : ''}
-                          {e.delta}
-                        </Text>
-                      </View>
-                      <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>{timeOf(e.at)} · {memberName(e.memberId)}</Text>
-                    </Card>
-                  </View>
-                );
-              }
-              const l = state.logs.find((x) => x.id === row.id)!;
-              return (
-                <View key={row.id}>
-                  {header}
-                  <Card style={{ marginBottom: 6, paddingVertical: 10 }}>
-                    <View style={s.between}>
-                      <Text style={{ color: t.text, fontWeight: '600', fontSize: 17, flex: 1 }}>{l.medName}</Text>
-                      <StatusBadge status={l.status} />
-                    </View>
-                    <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>
-                      Due {fmt12(l.time)}
-                      {l.status === 'taken' ? ` · taken ${timeOf(l.at)}` : ''}
-                      {state.members.length > 1 ? ` · ${memberName(l.memberId)}` : ''}
-                    </Text>
-                  </Card>
-                </View>
-              );
-            })
-          ))}
-        {tab === 'history' && history.length > 0 && (
-          <Button title="Save history as a file (for the doctor)" kind="ghost" onPress={exportCsv} style={{ marginTop: 12 }} />
-        )}
       </ScrollView>
 
       <Modal visible={!!refill} transparent animationType="fade" onRequestClose={() => setRefill(null)}>

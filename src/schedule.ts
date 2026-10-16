@@ -25,7 +25,9 @@ export function medLabel(med: Pick<Medication, 'name' | 'strength'>): string {
 
 export function qtyLabel(qty: number, unit: string): string {
   const q = qty === 0.5 ? '½' : qty === 0.25 ? '¼' : String(qty);
-  return `${q} ${unit}${qty > 1 && !unit.endsWith('s') ? 's' : ''}`;
+  // "10 ml", not "10 mls"; "2 tablets", "2 puffs".
+  const noPlural = unit === 'ml' || unit.endsWith('s');
+  return `${q} ${unit}${qty > 1 && !noPlural ? 's' : ''}`;
 }
 
 export const occKey = (date: string, medId: string, doseId: string) => `${date}|${medId}|${doseId}`;
