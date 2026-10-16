@@ -141,7 +141,7 @@ export default function AddMedicine() {
       {busy && (
         <View style={[s.row, { marginTop: 20, justifyContent: 'center' }]}>
           <ActivityIndicator color={t.brand} />
-          <Text style={{ color: t.text, marginLeft: 10 }}>Reading prescription…</Text>
+          <Text style={{ color: t.text, fontSize: 17, marginLeft: 10 }}>Reading the prescription…</Text>
         </View>
       )}
     </ScrollView>

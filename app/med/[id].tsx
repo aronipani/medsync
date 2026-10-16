@@ -2,17 +2,16 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
-import { doseTime } from '../../src/schedule.ts';
+import { describeTiming, doseTime, medLabel } from '../../src/schedule.ts';
 import { genericLabel, lookupBrand } from '../../src/drugdb.ts';
 import { reuseDoseIds, sameMedicine } from '../../src/consolidate.ts';
 import { overlapMessage, overlapsFor } from '../../src/overlap.ts';
 import { uid, useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import type { Dose, Meal, MealRelation, Medication } from '../../src/types.ts';
-import { Button, Card, Chip, DateField, Field, Label, More, NumberField, s, TimeField, useTheme } from '../../src/ui.tsx';
+import { Button, Card, Chip, DateField, Field, Label, More, NumberField, s, Steps, TimeField, useTheme } from '../../src/ui.tsx';
+import { UNITS, UNIT_LABEL } from '../../src/units.ts';
 
-const UNITS = ['tablet', 'capsule', 'ml', 'drops', 'puff', 'sachet', 'injection'];
-const UNIT_LABEL: Record<string, string> = { tablet: 'Tablet', capsule: 'Capsule', ml: 'Liquid (ml)', drops: 'Drops', puff: 'Inhaler puff', sachet: 'Sachet', injection: 'Injection' };
 const REL_LABEL: Record<MealRelation, string> = { before: 'Before', with: 'With', after: 'After' };
 const MEAL_LABEL: Record<Meal, string> = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' };
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner'];
@@ -66,6 +65,8 @@ export default function EditMed() {
   const knownAlias = known && med.strength.trim() ? genericLabel(known.ingredients, med.strength.replace(/\s*mg\b/i, '').trim()) : undefined;
   const setDose = (doseId: string, patch: Partial<Dose>) => set({ doses: med.doses.map((d) => (d.id === doseId ? { ...d, ...patch } : d)) });
   const member = state.members.find((m) => m.id === med.memberId);
+  // Came from Scan to add: name, strength and form are already read, so show them as a summary (step 2 of 2).
+  const fromScan = !!prefill && !existing && !pendingItem;
 
   const perDay = useMemo(() => med.doses.reduce((a, d) => a + d.qty * (d.days.length ? d.days.length / 7 : 1), 0), [med.doses]);
 
@@ -138,15 +139,15 @@ export default function EditMed() {
       <Stack.Screen options={{ title: pendingItem ? 'Check medicine' : existing ? 'Edit medicine' : 'New medicine' }} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
         {pendingItem && (
-          <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warnSoft }}>
-            <Text style={{ color: t.warn, fontWeight: '700', marginBottom: 4 }}>On the prescription</Text>
-            <Text style={{ color: t.text, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{pendingItem.source}</Text>
+          <Card style={{ backgroundColor: t.warnSoft }}>
+            <Text style={{ color: t.warn, fontWeight: '700', fontSize: 17, marginBottom: 4 }}>On the prescription</Text>
+            <Text style={{ color: t.text, fontSize: 16, fontFamily: Platform.OS === 'ios' ? 'Menlo' : 'monospace' }}>{pendingItem.source}</Text>
             {pendingItem.warnings.map((w) => (
-              <Text key={w} style={{ color: t.warn, marginTop: 6 }}>
+              <Text key={w} style={{ color: t.warn, fontSize: 16, marginTop: 6 }}>
                 ⚠ {w}
               </Text>
             ))}
-            <Text style={{ color: t.sub, marginTop: 8, fontSize: 15 }}>Compare every field with the prescription, fix anything wrong, then save.</Text>
+            <Text style={{ color: t.text, marginTop: 8, fontSize: 16 }}>Check each part against the prescription, then save.</Text>
           </Card>
         )}
         {state.members.length > 1 && !pendingItem && (
@@ -156,17 +157,26 @@ export default function EditMed() {
           </>
         )}
 
-        <Label>Name on strip</Label>
+        {fromScan && <Steps step={2} total={2} label="When to take it" />}
+        {fromScan ? (
+          <Card>
+            <Text style={{ color: t.text, fontSize: 26, fontWeight: '700', letterSpacing: -0.2 }}>{medLabel(med) || 'New medicine'}</Text>
+            <Text style={{ color: t.sub, fontSize: 17, marginTop: 4 }}>
+              {UNIT_LABEL[med.unit] ?? med.unit}
+              {known ? ` · ${known.ingredients.join(' + ')}` : ''}
+            </Text>
+            <More title="Change name, strength or form">
+        <Label>Name on the strip</Label>
         <Field value={med.name} onChangeText={(name) => set({ name })} placeholder="e.g. Dolo" autoCapitalize="words" />
         {known && (
-          <Card style={{ marginTop: 10, backgroundColor: t.brandSoft, borderColor: t.brandSoft }}>
-            <Text style={{ color: t.text, fontWeight: '700' }}>
+          <Card style={{ marginTop: 10, backgroundColor: t.muted }}>
+            <Text style={{ color: t.text, fontWeight: '700', fontSize: 17 }}>
               {med.name.trim()} usually contains {known.ingredients.join(' + ')}
             </Text>
-            <Text style={{ color: t.sub, marginTop: 2, fontSize: 15 }}>From the app's built-in medicine list — check it against the strip.</Text>
+            <Text style={{ color: t.sub, marginTop: 2, fontSize: 16 }}>Check this against the strip.</Text>
             {known.strengths.length > 0 && (
               <>
-                <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6 }}>Common strengths (tap to use):</Text>
+                <Text style={{ color: t.sub, fontSize: 16, marginTop: 10, marginBottom: 8 }}>Usual strengths — tap one:</Text>
                 <View style={s.wrap}>
                   {known.strengths.map((x) => (
                     <Chip key={x} label={/[a-z]/i.test(x) ? x : `${x} mg`} active={med.strength === x} onPress={() => set({ strength: x })} />
@@ -193,13 +203,58 @@ export default function EditMed() {
           ))}
         </View>
 
-        <Label>When to take</Label>
+            </More>
+          </Card>
+        ) : (
+          <>
+        <Label>Name on the strip</Label>
+        <Field value={med.name} onChangeText={(name) => set({ name })} placeholder="e.g. Dolo" autoCapitalize="words" />
+        {known && (
+          <Card style={{ marginTop: 10, backgroundColor: t.muted }}>
+            <Text style={{ color: t.text, fontWeight: '700', fontSize: 17 }}>
+              {med.name.trim()} usually contains {known.ingredients.join(' + ')}
+            </Text>
+            <Text style={{ color: t.sub, marginTop: 2, fontSize: 16 }}>Check this against the strip.</Text>
+            {known.strengths.length > 0 && (
+              <>
+                <Text style={{ color: t.sub, fontSize: 16, marginTop: 10, marginBottom: 8 }}>Usual strengths — tap one:</Text>
+                <View style={s.wrap}>
+                  {known.strengths.map((x) => (
+                    <Chip key={x} label={/[a-z]/i.test(x) ? x : `${x} mg`} active={med.strength === x} onPress={() => set({ strength: x })} />
+                  ))}
+                </View>
+              </>
+            )}
+            {knownAlias && !aliases.toLowerCase().includes(knownAlias.toLowerCase()) && (
+              <Button
+                title={`Also accept strips that say "${knownAlias}"`}
+                kind="secondary"
+                style={{ marginTop: 6 }}
+                onPress={() => setAliases((a) => [a.trim(), knownAlias].filter(Boolean).join(', '))}
+              />
+            )}
+          </Card>
+        )}
+        <Label>Strength</Label>
+        <Field value={med.strength} onChangeText={(strength) => set({ strength })} placeholder="e.g. 650 (as printed)" />
+        <Label>Form</Label>
+        <View style={s.wrap}>
+          {UNITS.map((u) => (
+            <Chip key={u} label={UNIT_LABEL[u] ?? u} active={med.unit === u} onPress={() => set({ unit: u })} />
+          ))}
+        </View>
+
+          </>
+        )}
+
+        <Label>When to take it</Label>
         {med.doses.map((d, i) => (
           <Card key={d.id} style={{ marginBottom: 10 }}>
             <View style={s.between}>
-              <Text style={{ color: t.text, fontWeight: '700', fontSize: 17 }}>
-                {med.doses.length > 1 ? `Time ${i + 1}` : 'Time'}
-                {member ? ` · ${fmt12(doseTime(d, member, state.settings))}` : ''}
+              {/* The whole dose in one plain line, so the choices below can be checked at a glance. */}
+              <Text style={{ color: t.text, fontWeight: '700', fontSize: 20, flex: 1 }}>
+                {member ? fmt12(doseTime(d, member, state.settings)) : ''}
+                {d.timing.kind === 'meal' ? ` · ${describeTiming(d)}` : ''}
               </Text>
               {med.doses.length > 1 && (
                 <Button
@@ -339,7 +394,7 @@ export default function EditMed() {
         )}
         </More>
 
-        <Button big title={pendingItem ? 'Confirm — this matches the prescription' : 'Save'} onPress={save} style={{ marginTop: 24 }} />
+        <Button big title={pendingItem ? 'Matches the prescription — save' : existing ? 'Save changes' : 'Save medicine'} onPress={save} style={{ marginTop: 24 }} />
         {existing && (
           <Button
             title="Delete medicine"

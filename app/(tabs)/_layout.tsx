@@ -29,13 +29,14 @@ export default function TabsLayout() {
         tabBarActiveTintColor: t.brand,
         tabBarInactiveTintColor: t.sub,
         tabBarStyle: { backgroundColor: t.card, borderTopColor: t.line },
+        headerShadowVisible: false,
         tabBarLabelStyle: { fontSize: 13, fontWeight: '600' },
-        headerStyle: { backgroundColor: t.card },
+        headerStyle: { backgroundColor: t.bg },
         headerTintColor: t.text,
         sceneStyle: { backgroundColor: t.bg },
       }}
     >
-      <Tabs.Screen name="index" options={{ title: 'Today', tabBarIcon: icon('today-outline') }} />
+      <Tabs.Screen name="index" options={{ title: 'Today', headerShown: false, tabBarIcon: icon('today-outline') }} />
       <Tabs.Screen name="scan" options={{ title: 'Scan', tabBarIcon: icon('scan-outline') }} />
       <Tabs.Screen name="meds" options={{ title: 'Schedule', tabBarIcon: icon('list-outline') }} />
       <Tabs.Screen name="inventory" options={{ title: 'Stock', tabBarIcon: icon('cube-outline') }} />

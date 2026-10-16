@@ -13,75 +13,77 @@ import {
   ViewStyle,
 } from 'react-native';
 import { fmt12 } from './time.ts';
-import { PERIOD_DARK, PERIOD_LIGHT, periodOfDate, type Period, type PeriodColors } from './period.ts';
+import { periodOfDate, type Period } from './period.ts';
 
+// "Less, but better": black and white do the work; colour only ever means something.
+// Ink is the one main action. Signal (orange) means "due now". Go / check / stop are the scan results.
 const light = {
-  bg: '#F6F7F5',
+  bg: '#F6F6F3', // paper
   card: '#FFFFFF',
-  text: '#16211F',
-  sub: '#4F5F5B',
-  line: '#E2E7E5',
-  brand: '#0F766E',
-  brandSoft: '#D9F0EC',
-  ok: '#15803D',
-  okSoft: '#DCFCE7',
-  bad: '#B91C1C',
-  badSoft: '#FEE2E2',
-  warn: '#B45309',
-  warnSoft: '#FEF3C7',
-  muted: '#EEF1F0',
-  // Deep fills for anything with white text on it (buttons, scan result cards). The same in light, dark and at
-  // night: the bright dark-mode greens/ambers above are for text and icons only — white on them is unreadable.
-  brandFill: '#0F766E',
-  okFill: '#15803D',
-  warnFill: '#B45309',
-  badFill: '#B91C1C',
+  text: '#111111', // ink
+  sub: '#5C5C57', // quiet ink, 6.4:1 on paper
+  line: '#E4E4DE',
+  muted: '#EEEEE9',
+  brand: '#111111', // links, active tab, outlines: ink, no brand hue
+  brandSoft: '#EEEEE9',
+  ink: '#111111', // main button
+  onInk: '#FFFFFF',
+  now: '#B84A0E', // signal: due now
+  ok: '#1E7A46',
+  okSoft: '#E3F1E8',
+  bad: '#B3261E',
+  badSoft: '#F8E3E1',
+  warn: '#8F5A00',
+  warnSoft: '#F6ECD9',
+  // Deep fills with white text on them (scan results, coloured buttons) — the same in every mode.
+  okFill: '#1E7A46',
+  warnFill: '#8F5A00',
+  badFill: '#B3261E',
 };
 const dark: typeof light = {
-  bg: '#0E1513',
-  card: '#17201E',
-  text: '#ECF2F0',
-  sub: '#94A6A1',
-  line: '#26332F',
-  brand: '#2DD4BF',
-  brandSoft: '#123A35',
-  ok: '#4ADE80',
-  okSoft: '#123D24',
-  bad: '#F87171',
-  badSoft: '#4A1A1A',
-  warn: '#FBBF24',
-  warnSoft: '#43320C',
-  muted: '#1F2A27',
-  brandFill: '#0F766E',
-  okFill: '#15803D',
-  warnFill: '#B45309',
-  badFill: '#B91C1C',
+  bg: '#121212',
+  card: '#1E1E1E',
+  text: '#F2F2EE',
+  sub: '#A8A8A1',
+  line: '#2C2C2A',
+  muted: '#2A2A28',
+  brand: '#F2F2EE',
+  brandSoft: '#2A2A28',
+  ink: '#F2F2EE', // the main button turns light, so it stays the brightest thing on screen
+  onInk: '#111111',
+  now: '#F59A62',
+  ok: '#62C48C',
+  okSoft: '#16301F',
+  bad: '#F2867E',
+  badSoft: '#3A1A18',
+  warn: '#F2B84B',
+  warnSoft: '#36290F',
+  okFill: '#1E7A46',
+  warnFill: '#8F5A00',
+  badFill: '#B3261E',
 };
-export type Theme = typeof light & { period: Period; isDark: boolean; periods: Record<Period, PeriodColors> };
+export type Theme = typeof light & { period: Period; isDark: boolean };
 
 const PeriodCtx = createContext<Period>('morning');
 
-/** Provides the current time-of-day period; screens re-theme when it changes. */
+/** Provides the current time-of-day period; the app goes calm and dark at night. */
 export function PeriodProvider({ now, children }: { now: Date; children: React.ReactNode }) {
   return <PeriodCtx.Provider value={periodOfDate(now)}>{children}</PeriodCtx.Provider>;
 }
 
+/** One steady look all day (no time-of-day tints); dark when the phone is dark, and at night. */
 export function useTheme(): Theme {
   const scheme = useColorScheme();
   const period = useContext(PeriodCtx);
   return useMemo(() => {
-    // Night uses a navy background, so it always takes the light-on-dark text colours.
     const isDark = scheme === 'dark' || period === 'night';
-    const periods = isDark ? PERIOD_DARK : PERIOD_LIGHT;
-    const base = isDark ? dark : light;
-    const p = (scheme === 'dark' ? PERIOD_DARK : PERIOD_LIGHT)[period];
-    return { ...base, bg: p.bg, card: p.card, line: p.line, muted: p.muted, period, isDark, periods };
+    return { ...(isDark ? dark : light), period, isDark };
   }, [scheme, period]);
 }
 
 export function Card({ children, style }: { children: React.ReactNode; style?: ViewStyle }) {
   const t = useTheme();
-  return <View style={[{ backgroundColor: t.card, borderRadius: 16, padding: 16, borderWidth: 1, borderColor: t.line }, style]}>{children}</View>;
+  return <View style={[{ backgroundColor: t.card, borderRadius: 20, padding: 18 }, style]}>{children}</View>;
 }
 
 /** light = white button for the main action on a coloured card (scan results). */
@@ -105,9 +107,9 @@ export function Button({
   big?: boolean;
 }) {
   const t = useTheme();
-  const bg = { primary: t.brandFill, secondary: t.muted, danger: t.badFill, ok: t.okFill, ghost: 'transparent', light: '#FFFFFF' }[kind];
-  // Ghost buttons use the link colour and a thin outline so they still look tappable.
-  const fg = kind === 'secondary' ? t.text : kind === 'light' ? '#16211F' : kind === 'ghost' ? (onColor ? '#FFFFFF' : t.brand) : '#FFFFFF';
+  const bg = { primary: t.ink, secondary: t.muted, danger: t.badFill, ok: t.okFill, ghost: 'transparent', light: '#FFFFFF' }[kind];
+  // Ghost buttons: ink text and a thin outline so they still look tappable.
+  const fg = kind === 'primary' ? t.onInk : kind === 'secondary' ? t.text : kind === 'light' ? '#111111' : kind === 'ghost' ? (onColor ? '#FFFFFF' : t.text) : '#FFFFFF';
   const border = kind === 'ghost' ? (onColor ? '#FFFFFFAA' : t.line) : 'transparent';
   return (
     <Pressable
@@ -122,7 +124,7 @@ export function Button({
           paddingVertical: big ? 18 : 13,
           paddingHorizontal: 16,
           minHeight: big ? 62 : 50, // easy to hit for shaky hands (older users)
-          borderRadius: 14,
+          borderRadius: 18,
           alignItems: 'center',
           justifyContent: 'center',
           opacity: disabled ? 0.45 : pressed ? 0.8 : 1,
@@ -137,7 +139,7 @@ export function Button({
 
 export function Chip({ label, active, color, onPress }: { label: string; active?: boolean; color?: string; onPress?: () => void }) {
   const t = useTheme();
-  const c = color ?? t.brandFill;
+  const c = color ?? t.ink;
   return (
     <Pressable
       onPress={onPress}
@@ -152,7 +154,7 @@ export function Chip({ label, active, color, onPress }: { label: string; active?
         marginBottom: 8,
       }}
     >
-      <Text style={{ color: active ? '#FFFFFF' : t.text, fontWeight: '600', fontSize: 16 }}>{label}</Text>
+      <Text style={{ color: active ? (color ? '#FFFFFF' : t.onInk) : t.text, fontWeight: '600', fontSize: 16 }}>{label}</Text>
     </Pressable>
   );
 }
@@ -190,6 +192,23 @@ export function More({ title = 'More options', color, children }: { title?: stri
         <Text style={{ color: color ?? t.brand, fontWeight: '700', fontSize: 16 }}>{open ? `▾ ${title}` : `▸ ${title}`}</Text>
       </Pressable>
       {open ? <View style={{ gap: 8 }}>{children}</View> : null}
+    </View>
+  );
+}
+
+/** "Step 1 of 2 — What it is": tells the person where they are in a short task and how much is left. */
+export function Steps({ step, total, label }: { step: number; total: number; label: string }) {
+  const t = useTheme();
+  return (
+    <View accessible accessibilityLabel={`Step ${step} of ${total}: ${label}`} style={{ marginBottom: 14 }}>
+      <View style={{ flexDirection: 'row', gap: 6, marginBottom: 8 }}>
+        {Array.from({ length: total }, (_, i) => (
+          <View key={i} style={{ flex: 1, height: 5, borderRadius: 3, backgroundColor: i < step ? t.ink : t.line }} />
+        ))}
+      </View>
+      <Text style={{ color: t.sub, fontSize: 16, fontWeight: '600' }}>
+        Step {step} of {total} · <Text style={{ color: t.text }}>{label}</Text>
+      </Text>
     </View>
   );
 }

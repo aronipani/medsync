@@ -11,10 +11,10 @@ import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts
 import { encode, fingerprint } from '../src/learn.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
 import { useStore } from '../src/store.tsx';
-import { Button, Card, Chip, Field, Label, s, useTheme } from '../src/ui.tsx';
+import { Button, Card, Chip, Field, Label, More, s, Steps, useTheme } from '../src/ui.tsx';
+import { UNITS, UNIT_LABEL } from '../src/units.ts';
 
 const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', 'upc_e', 'code128', 'code39', 'itf14'];
-const UNITS = ['tablet', 'capsule', 'ml', 'drops', 'puff', 'sachet', 'injection'];
 
 export default function ScanToAdd() {
   const t = useTheme();
@@ -124,14 +124,14 @@ export default function ScanToAdd() {
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
       <Stack.Screen options={{ title: 'Scan to add' }} />
 
+      <Steps step={1} total={2} label="What it is" />
+
       {showCamera && (
         <>
-          <Text style={{ color: t.sub, marginBottom: 10 }}>
-            {photos
-              ? 'Photograph another part of the strip — for example the side with the composition ("Each tablet contains…").'
-              : 'Hold the printed side of the strip, bottle or box to the camera. Upside-down or sideways print is fine. Barcodes are picked up automatically.'}
+          <Text style={{ color: t.text, fontSize: 18, marginBottom: 12 }}>
+            {photos ? 'Now show the side that lists what is inside.' : 'Hold the printed side up to the camera. Any way up is fine.'}
           </Text>
-          <View style={{ height: 320, borderRadius: 18, overflow: 'hidden', backgroundColor: '#000' }}>
+          <View style={{ height: 320, borderRadius: 20, overflow: 'hidden', backgroundColor: '#000' }}>
             {!perm ? null : !perm.granted ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
                 <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 12 }}>Camera access is needed to scan medicines.</Text>
@@ -153,9 +153,9 @@ export default function ScanToAdd() {
               <Pressable
                 onPress={() => setTorch((v) => !v)}
                 accessibilityLabel={torch ? 'Turn light off' : 'Turn light on'}
-                style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 20, padding: 8 }}
+                style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 26, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}
               >
-                <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={22} color="#fff" />
+                <Ionicons name={torch ? 'flashlight' : 'flashlight-outline'} size={26} color="#fff" />
               </Pressable>
             )}
             {busy && (
@@ -165,16 +165,16 @@ export default function ScanToAdd() {
               </View>
             )}
           </View>
-          {barcode && <Text style={{ color: t.ok, marginTop: 8, fontWeight: '600' }}>✓ Barcode saved</Text>}
-          {error && <Text style={{ color: t.bad, marginTop: 8 }}>{error}</Text>}
-          <Text style={{ color: t.sub, marginTop: 10, fontSize: 15, lineHeight: 21 }}>
-            Shiny foil? Stand away from overhead lights and window glare, keep the light off unless it's dark, and tilt the strip slowly while the 3 photos are taken.
-          </Text>
+          {barcode && <Text style={{ color: t.ok, marginTop: 10, fontSize: 17, fontWeight: '700' }}>✓ Barcode saved</Text>}
+          {error && <Text style={{ color: t.bad, marginTop: 10, fontSize: 17 }}>{error}</Text>}
           <Button big title={photos ? 'Read this side too' : 'Read the strip'} onPress={takePhoto} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
           {result ? (
-            <Button title="Back to results" kind="ghost" onPress={() => setShowCamera(false)} />
+            <Button title="Back to what was read" kind="ghost" onPress={() => setShowCamera(false)} style={{ marginTop: 10 }} />
           ) : (
-            <Button title="Type it in instead" kind="ghost" onPress={() => router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId } })} />
+            <More title="Shiny strip, or can't scan?">
+              <Text style={{ color: t.sub, fontSize: 16, lineHeight: 22 }}>Move away from ceiling lights and windows, and tilt the strip slowly while it takes 3 photos.</Text>
+              <Button title="Type it in instead" kind="ghost" onPress={() => router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId } })} />
+            </More>
           )}
         </>
       )}
@@ -186,18 +186,16 @@ export default function ScanToAdd() {
             {result.ingredients.length ? (
               <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 4 }}>{result.contents}</Text>
             ) : (
-              <Text style={{ color: t.warn, marginTop: 4 }}>
-                Couldn't read what's inside. Add a photo of the part that says "Each tablet contains…" — or type it in below.
+              <Text style={{ color: t.warn, fontSize: 17, marginTop: 4 }}>
+                Couldn't read what's inside. That's fine — you can carry on.
               </Text>
             )}
 
-            <Label>Name to show in the schedule</Label>
+            <Label>Name</Label>
             <Field value={result.name} onChangeText={(name) => (setEdited(true), setResult({ ...result, name }))} autoCapitalize="words" />
             {result.nameOptions.length > 0 && (
               <>
-                <Text style={{ color: t.sub, marginTop: 8, marginBottom: 6, fontSize: 15 }}>
-                  {result.brand ? `Brand found: ${result.brand}. Tap to choose:` : 'Tap to choose:'}
-                </Text>
+                <Text style={{ color: t.sub, marginTop: 10, marginBottom: 8, fontSize: 16 }}>Or tap the right one:</Text>
                 <View style={s.wrap}>
                   {result.nameOptions.map((n) => (
                     <Chip key={n} label={n} active={n === result.name} onPress={() => setResult({ ...result, name: n })} />
@@ -212,14 +210,15 @@ export default function ScanToAdd() {
             <Label>Form</Label>
             <View style={s.wrap}>
               {UNITS.map((u) => (
-                <Chip key={u} label={u} active={result.unit === u} onPress={() => setResult({ ...result, unit: u })} />
+                <Chip key={u} label={UNIT_LABEL[u] ?? u} active={result.unit === u} onPress={() => setResult({ ...result, unit: u })} />
               ))}
             </View>
-            {barcode && <Text style={{ color: t.ok, marginTop: 12 }}>✓ Barcode linked</Text>}
+            {barcode && <Text style={{ color: t.ok, fontSize: 17, fontWeight: '700', marginTop: 14 }}>✓ Barcode saved</Text>}
           </Card>
 
-          <Button big title="Next — set when to take it" onPress={useIt} disabled={!result.name.trim()} style={{ marginTop: 14 }} />
-          <Button title="Add a photo of another side" kind="secondary" onPress={() => setShowCamera(true)} style={{ marginTop: 8 }} />
+          <Button big title="Next: when to take it" onPress={useIt} disabled={!result.name.trim()} style={{ marginTop: 16 }} />
+          <More>
+          <Button title="Photograph another side" kind="secondary" onPress={() => setShowCamera(true)} />
           <Button
             title="Start again"
             kind="ghost"
@@ -232,6 +231,7 @@ export default function ScanToAdd() {
               setShowCamera(true);
             }}
           />
+          </More>
         </>
       )}
     </ScrollView>

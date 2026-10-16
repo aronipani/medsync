@@ -308,6 +308,13 @@ export default function Scan() {
 
   const todayOccs = occurrencesForDate(state, dateKey(now), now, memberId);
   const next = todayOccs.find((o) => o.status === 'upcoming');
+  // Several medicines at the same time: show which one this is and what is still to take.
+  const matched = result?.kind === 'match' ? result.occs : [];
+  const stillToTake = due.filter((o) => !matched.some((m) => m.key === o.key));
+  const sameTime = matched.length ? todayOccs.filter((o) => matched.some((m) => m.time === o.time)) : [];
+  const takenAtTime = sameTime.filter((o) => o.status === 'taken' || o.status === 'skipped').length;
+  const atTimeProgress =
+    sameTime.length > 1 ? { label: [...new Set(matched.map((m) => fmt12(m.time)))].join(', '), n: Math.min(sameTime.length, takenAtTime + matched.length), total: sameTime.length } : null;
   const doneNow = todayOccs.filter((o) => o.status === 'taken' && Math.abs(now.getTime() - new Date(o.log!.at).getTime()) < 3 * 3600e3);
 
   return (
@@ -329,7 +336,8 @@ export default function Scan() {
         </Card>
       ) : (
         <>
-          {/* Due checklist */}
+          {/* Due checklist (hidden while a result fills the screen) */}
+          {!result && (
           <Card style={{ marginTop: 8, paddingVertical: 12 }}>
             <Text style={{ color: t.sub, fontWeight: '700', fontSize: 16, marginBottom: 6 }}>Due now — scan each one</Text>
             {due.map((o) => (
@@ -347,9 +355,10 @@ export default function Scan() {
               </View>
             ))}
           </Card>
+          )}
 
-          {/* Camera */}
-          <View style={{ height: 300, borderRadius: 18, overflow: 'hidden', marginTop: 12, backgroundColor: '#000' }}>
+          {/* Camera — kept running but folded away while a result shows, so the next scan starts at once */}
+          <View style={{ height: result ? 0 : 300, borderRadius: 20, overflow: 'hidden', marginTop: result ? 0 : 12, backgroundColor: '#000' }}>
             {!perm ? null : !perm.granted ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
                 <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 12 }}>Camera access is needed to scan medicine strips.</Text>
@@ -394,17 +403,24 @@ export default function Scan() {
           {!result && <Button big title="Read strip name" onPress={readStrip} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />}
 
           {/* Result */}
-          {result && voiceOn && (
-            <Pressable accessibilityRole="button" onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'))} style={{ alignSelf: 'flex-end', marginTop: 8, minHeight: 44, flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="volume-high-outline" size={24} color={t.brand} />
-              {/* Why a voice is missing is explained on the family member's screen, not here. */}
-              <Text style={{ color: t.brand, fontWeight: '700', fontSize: 17, marginLeft: 6 }}>Say it again</Text>
-            </Pressable>
-          )}
-
           {result?.kind === 'match' && (
-            <View style={{ backgroundColor: t.okFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✓ Correct medicine</Text>
+            <View style={{ backgroundColor: t.okFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
+              {atTimeProgress && (
+                <View style={{ marginBottom: 18 }}>
+                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '600' }}>
+                    {atTimeProgress.label} · medicine {atTimeProgress.n} of {atTimeProgress.total}
+                  </Text>
+                  <View style={{ flexDirection: 'row', gap: 6, marginTop: 8 }}>
+                    {Array.from({ length: atTimeProgress.total }, (_, i) => (
+                      <View key={i} style={{ flex: 1, height: 6, borderRadius: 3, backgroundColor: i < atTimeProgress.n ? '#fff' : '#ffffff59' }} />
+                    ))}
+                  </View>
+                </View>
+              )}
+              <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
+                <Ionicons name="checkmark" size={46} color={t.okFill} />
+              </View>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '600', marginTop: 20 }}>Right medicine</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
                 <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
@@ -416,8 +432,8 @@ export default function Scan() {
               )}
               {result.occs.map((o) => (
                 <View key={o.key} style={{ marginTop: 10 }}>
-                  <Text style={{ color: '#fff', fontSize: 30, fontWeight: '900' }}>Take {qtyLabel(o.dose.qty, o.med.unit)}</Text>
-                  <Text style={{ color: '#fff', fontSize: 17, fontWeight: '600' }}>
+                  <Text style={{ color: '#fff', fontSize: 46, lineHeight: 50, fontWeight: '800', letterSpacing: -0.5 }}>Take {qtyLabel(o.dose.qty, o.med.unit)}</Text>
+                  <Text style={{ color: '#fff', fontSize: 22, fontWeight: '600', marginTop: 4 }}>
                     {medLabel(o.med)}
                     {lang !== 'en' ? `  ·  ${amountText(lang, o.dose.qty, o.med.unit)}` : ''}
                   </Text>
@@ -440,14 +456,20 @@ export default function Scan() {
               ) : (
                 <Text style={{ color: '#fff', marginTop: 10, fontSize: 16 }}>Check the name on the strip too.</Text>
               )}
-              <Button big title="I took it" kind="light" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 16 }} />
-              <Button title="Not now" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 4 }} />
+              <View style={{ flex: 1, minHeight: 16 }} />
+              {stillToTake.length > 0 && (
+                <Text style={{ color: '#fff', fontSize: 18, marginTop: 12 }}>
+                  Still to take now: <Text style={{ fontWeight: '800' }}>{stillToTake.map((o) => medLabel(o.med)).join(', ')}</Text>
+                </Text>
+              )}
+              <Button big title={stillToTake.length ? 'I took it — next strip' : 'I took it'} kind="light" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 16 }} />
+              <Button title="Not now" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 10 }} />
               <ReadBy />
             </View>
           )}
 
           {result?.kind === 'check' && (
-            <View style={{ backgroundColor: t.warnFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
+            <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>⚠ Check the strength</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
                 <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
@@ -473,7 +495,7 @@ export default function Scan() {
           )}
 
           {result?.kind === 'strength' && (
-            <View style={{ backgroundColor: t.badFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
+            <View style={{ backgroundColor: t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✋ Different strength — don't take</Text>
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
                 This strip says {result.found.map((f) => `${f} mg`).join(' / ')}.
@@ -487,7 +509,7 @@ export default function Scan() {
           )}
 
           {result?.kind === 'nomatch' && (
-            <View style={{ backgroundColor: t.badFill, borderRadius: 18, padding: 18, marginTop: 8 }}>
+            <View style={{ backgroundColor: t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
               <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✗ No match</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.tip ? <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.tip}</Text> : null}
@@ -516,6 +538,14 @@ export default function Scan() {
                 </More>
               )}
             </View>
+          )}
+
+          {result && voiceOn && (
+            <Pressable accessibilityRole="button" onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'))} style={{ alignSelf: 'center', marginTop: 8, minHeight: 44, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="volume-high-outline" size={24} color={t.text} />
+              {/* Why a voice is missing is explained on the family member's screen, not here. */}
+              <Text style={{ color: t.text, fontWeight: '700', fontSize: 17, marginLeft: 6 }}>Say it again</Text>
+            </Pressable>
           )}
 
           {/* Fallback */}

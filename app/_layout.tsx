@@ -85,7 +85,8 @@ function Shell() {
       <ReminderSync />
       <Stack
         screenOptions={{
-          headerStyle: { backgroundColor: t.card },
+          headerStyle: { backgroundColor: t.bg },
+          headerShadowVisible: false,
           headerTintColor: t.text,
           contentStyle: { backgroundColor: t.bg },
         }}

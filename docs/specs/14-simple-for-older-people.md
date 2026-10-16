@@ -87,6 +87,30 @@ understand at a glance and should never make the person read or decide more than
   badges with symbols. Same three meanings everywhere: green = go, amber = check, red = stop.
 * Darker light-mode red (#B91C1C), grey text (#4F5F5B) and afternoon/evening headings.
 
+## Look: "less, but better" (Oct 2026)
+Design board: MedSync — Calm Design (claude.ai artifact). Black and white do the work; colour only means something.
+* **Palette** (`src/ui.tsx`): paper #F6F6F3, white cards, ink #111111, quiet ink #5C5C57. One main button per screen
+  in ink (light in dark mode). Signal orange #B84A0E only for "due now". Go #1E7A46, check #8F5A00, stop #B3261E —
+  always with a symbol and a word. Dark/night: charcoal #121212, cards #1E1E1E. Every pair ≥ 4.5:1.
+* **No time-of-day tints**: one steady background; the app still goes dark at night (21:00–05:00).
+* **No borders or shadows on cards**; rounder corners (20 pt cards, 18 pt buttons); flat headers.
+* **Today**: large title, then a **Now** card holding *every* medicine due at that time — each with a round tick
+  (green ✓ "Taken 9:04 AM", outline when still to take), "1 of 3 done", and one button ("Scan the strips" →
+  "Scan the next strip" → "Scan the last strip"). Then **Later today** grouped by time (several medicines under one
+  time), then **Done**. Other days list each time with its medicines.
+* **Scan result** fills the screen in its colour: big icon, "Right medicine", "Take 1 tablet" at 46 pt, and when
+  several medicines are due together, "9:00 AM · medicine 2 of 3" with a progress bar and "Still to take now: …";
+  the button reads "I took it — next strip". The camera stays running underneath, so the next scan starts at once.
+
+* **Adding a medicine by scan is two clear steps** with a progress line (`Steps` in `src/ui.tsx`): *Step 1 of 2 · What it
+  is* (Scan to add) and *Step 2 of 2 · When to take it* (the editor). Scan to add: one short instruction ("Hold the
+  printed side up to the camera. Any way up is fine."), the shiny-foil tip and "Type it in instead" under "Shiny strip,
+  or can't scan?", "Name" with "Or tap the right one:", sentence-case form chips, big "Next: when to take it"; another
+  side / start again folded away. In step 2 the medicine read in step 1 is a summary card (name, form, what's inside)
+  with "Change name, strength or form" folded; typing a medicine in shows the fields as before.
+* **Medicine editor:** each time reads as one line ("8:30 AM · After breakfast"); "Save medicine" / "Save changes" /
+  "Matches the prescription — save".
+
 ## Checklist for new features
 - [ ] Can the person do the main thing with one obvious tap?
 - [ ] Is anything on screen only useful to a helper or developer? → Helper tools or "More options".
