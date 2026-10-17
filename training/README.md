@@ -41,6 +41,13 @@ says why. These are the hardest strips, so the most useful to train on: name eac
 
 Loose photos (not from the app) also work: put each medicine's photos in its own folder.
 
+**From the TakeSure server** (test builds with `TAKESURE_API_URL` set send photos there instead of email):
+```bash
+aws s3 sync s3://<bucket>/training ./server-training          # bucket = terraform output "bucket"
+python server_photos.py ./server-training ./server-export     # same layout as an app export; rerun after each sync
+```
+Then use `./server-export` wherever this guide says `~/medsync-training`.
+
 ## 3. Auto-label
 
 ```bash
@@ -82,6 +89,54 @@ python export.py  --weights runs/obb/strip-regions/weights/best.pt --imgsz 640  
 `export.py` writes a LiteRT/TFLite model (float32, no built-in NMS) and copies it to `assets/models/strip-regions.tflite`.
 The app runs it with `react-native-fast-tflite` (`src/regionModel.ts`), decodes the boxes in `src/obb.ts`, crops each found
 area, turns it level and reads it (spec 10). Push to `main` and the next build carries the new model.
+
+## Training on the DGX Spark
+
+The Spark (Grace CPU + Blackwell GPU, 128 GB shared memory, DGX OS on **arm64**) trains this model in minutes,
+so use it for the big retrain: all photos, **960 px**, many more epochs. Plain `pip install` on arm64 can pull a
+CPU-only PyTorch, so train inside NVIDIA's PyTorch container, which has the right CUDA build.
+
+**1. Start the container** (Docker and the NVIDIA container toolkit come with DGX OS). Use the newest monthly tag
+listed on NGC (catalog.ngc.nvidia.com → PyTorch), shown here as `<tag>`:
+```bash
+cd ~/medsync                                   # your clone of the repo, photos copied next to it
+docker run --gpus all -it --rm --ipc=host \
+  -v "$PWD":/work -v ~/strip-photos:/photos -w /work/training \
+  nvcr.io/nvidia/pytorch:<tag>-py3
+```
+
+**2. Install the training tools without replacing the container's PyTorch:**
+```bash
+pip freeze | grep -iE '^(torch|torchvision)==' > /tmp/keep-torch.txt
+pip install -c /tmp/keep-torch.txt -r requirements.txt
+python -c "import torch; print(torch.cuda.is_available(), torch.cuda.get_device_name(0))"   # → True NVIDIA GB10
+```
+If it prints `False`, pip replaced torch: start a fresh container and repeat step 2.
+
+**3. Label, prepare and train at 960 px:**
+```bash
+python autolabel.py --export /photos/server-export             # OCR runs on the Grace CPU; previews/ to check
+# (fix the boxes in CVAT — step 4 above — then)
+python prepare.py --src /photos/server-export --src /photos/medsync-training --out dataset
+python train.py --data dataset/data.yaml --imgsz 960 --epochs 200 --batch 32 --device 0
+```
+Settings: `--imgsz 960` reads the small strength and expiry print far better than 640; `--batch 32` fits easily in
+the Spark's memory at 960 (use 64 if you have thousands of photos); 200 epochs with early stopping (Ultralytics
+stops when validation stops improving). Watch **recall** for `strength` and `expiry` — those were 0.04 and 0 on the
+52-photo CPU trial, and are the reason for this retrain.
+
+**4. Try it and export for the phone (same size as training):**
+```bash
+python predict.py --weights runs/obb/strip-regions/weights/best.pt --images /photos/new-photos
+python export.py  --weights runs/obb/strip-regions/weights/best.pt --imgsz 960
+```
+The app reads the model's input size from the model itself (`src/regionModel.ts`), so a 960 px model needs no app
+change. It runs about twice as long per photo on the phone as the 640 one — check scan speed on an older phone with
+**Check the strips** before shipping it. If the TFLite export fails inside the container (it needs TensorFlow,
+which isn't always available for arm64), copy `best.pt` to your PC and run `export.py` there.
+
+**Also useful on the Spark:** run CVAT there (Docker Compose, from github.com/cvat-ai/cvat) to fix labels in the
+browser on your PC, and load the new model's `predictions/` as a first draft so you only correct boxes.
 
 ### Photos without the app
 A folder with `images/` and a `photos.json` saying which medicines each photo shows (several per photo is fine):
