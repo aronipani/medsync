@@ -93,8 +93,17 @@ Not in this version: push notifications. Pushes need a device push token on the 
 that is a separate decision.
 
 ### 4. Training photos (spec 07)
-`POST /v1/photos` with exactly the spec 07 record. The server cleans the JPEG again and files it under
-`training/<month>/`. Photos are deleted after 2 years. This replaces email sending once the app switches over.
+`POST /v1/photos` with the spec 07 record. The server cleans the JPEG again and files it under
+`training/<month>/`. Photos are deleted after 2 years.
+
+**Helper test builds (17 Oct 2026, built):** "Send photos" goes to the server instead of email when the build has a
+server address (`EXPO_PUBLIC_API_URL`, from the GitHub variable `TAKESURE_API_URL`). Each photo also carries the
+training details the phone already has — strength, contents, how it was taken, why a scan failed, reader, text read,
+auto-labelled boxes and the scan trace — under `details`. The server whitelists and caps every field
+(`trainingDetails` in `api.ts`) and drops anything about the person: no time (month only), phone id or family member.
+One photo per request; a photo counts as sent once the server has it; 300 photos per install per day.
+`training/server_photos.py` turns a download into the emailed-export layout for the training scripts.
+Store builds have no training photos at all (`src/edition.ts`); public opt-in sharing comes with v1.1.
 
 ## Why DynamoDB (not Postgres)
 All access is by key (a vault id, a circle id, a catalogue key, a rate counter); there are no joins or reports.
@@ -119,7 +128,7 @@ real app without identifying the person.
 3. **App: strip enrollment** (spec 15 step 3) using the catalogue first, then strip read.
 4. **App: cloud backup** — keys, recovery code, Settings → Backup.
 5. **App: family circle** — join by QR / link, events, a simple "Family" view on Today.
-6. **App: training photos** switch from email to `/v1/photos`.
+6. **App: training photos** switch from email to `/v1/photos` — done for helper test builds (17 Oct 2026).
 Before 3–6 ship: PRIVACY.md (both platforms), the About & safety page (spec 03), store data-safety forms (spec 08).
 
 ## Tests (`server/tests/`, `npm test` in `server/`)

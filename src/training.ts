@@ -12,7 +12,9 @@ import { labelRegions, REGION_CLASSES, toYolo } from './regions.ts';
 import { makeZip } from './zip.ts';
 import { photoFileName, uuid } from './uid.ts';
 
+import { Platform } from 'react-native';
 import { TRAINING_AVAILABLE } from './edition.ts';
+import { post, ServerError } from './server.ts';
 
 export interface TrainingEntry {
   file: string; // path inside the export, e.g. "Monotrate 10/2026-10-12T09-30-00-1.jpg"
@@ -434,6 +436,50 @@ export async function emailTraining(buildLabel: string, via: 'mail' | 'share' = 
   }
   await Sharing.shareAsync(file.uri, { mimeType: 'application/zip', dialogTitle: `Send to ${TRAINING_EMAIL}`, UTI: 'public.zip-archive' });
   return { kind: 'shared', photos, left, files };
+}
+
+export type UploadResult = { sent: number; left: number; stopped?: 'limit' | 'offline' | 'error' };
+
+/**
+ * Sends the photos not sent before to the TakeSure server (spec 16), one at a time, anonymously: the photo and what
+ * the phone knows about the strip — never the time, family member or phone id. Each photo counts as sent as soon as
+ * the server has it, so a broken connection loses nothing. Stops at the server's daily limit; the rest go next time.
+ */
+export async function uploadTraining(appVersion: string, onProgress?: (done: number, total: number) => void): Promise<UploadResult> {
+  recoverOrphans();
+  const unsent = readManifest().filter((e) => !e.sentAt && new File(dir(), ...e.file.split('/')).exists);
+  let sent = 0;
+  for (const e of unsent) {
+    onProgress?.(sent, unsent.length);
+    try {
+      const photo = await new File(dir(), ...e.file.split('/')).base64();
+      await post('/v1/photos', {
+        photo,
+        ...(e.name ? { name: e.name } : {}),
+        appVersion,
+        platform: Platform.OS === 'ios' ? 'ios' : 'android',
+        details: {
+          strength: e.strength,
+          contents: e.contents,
+          how: e.how,
+          scan: e.scan,
+          unlabelled: e.unlabelled,
+          reason: e.reason,
+          reader: e.reader,
+          ocrText: e.ocrText,
+          yolo: e.yolo,
+          regions: e.regions,
+          trace: e.trace,
+        },
+      });
+      markSent([e.file]);
+      sent++;
+    } catch (err) {
+      const stopped = err instanceof ServerError ? (err.status === 429 ? 'limit' : 'error') : 'offline';
+      return { sent, left: unsent.length - sent, stopped };
+    }
+  }
+  return { sent, left: 0 };
 }
 
 export function clearTraining() {

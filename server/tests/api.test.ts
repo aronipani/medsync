@@ -211,6 +211,27 @@ test('training photo: cleaned, filed by month, record holds only the allowed fie
   assert.deepEqual(record, { name: 'Clopilet 75', month: '2026-10', appVersion: '1.0.0 · build-30', platform: 'android' });
 });
 
+test('training photo: helper details are whitelisted and capped; nothing about the person is kept', async () => {
+  const { call, install, deps } = setup();
+  const details = {
+    strength: '75', contents: 'Clopidogrel 75 mg', how: 'failed-scan', unlabelled: true, reason: 'Red: looks like Clopitab',
+    reader: 'apple-vision', ocrText: 'CLOPILET 75 Batch 123', yolo: '0 0.1 0.1 0.5 0.1 0.5 0.2 0.1 0.2',
+    regions: [{ cls: 'brand', text: 'CLOPILET', extra: 'x' }], trace: { regions: [], steps: [] },
+    phone: 'abc-install-id', at: '2026-10-16T09:05:00Z', member: 'Ma', how2: 'nope',
+  };
+  const r = await call('POST', '/v1/photos', { body: { photo: JPEG.toString('base64'), name: 'Clopilet', details }, headers: await install() });
+  assert.equal(r.status, 201);
+  const record = JSON.parse([...(deps.blobs as MemoryBlobs).files.entries()].find(([k]) => k.endsWith('.json'))![1].toString());
+  assert.equal(record.strength, '75');
+  assert.equal(record.how, 'failed-scan');
+  assert.equal(record.unlabelled, true);
+  assert.deepEqual(record.regions, [{ cls: 'brand', text: 'CLOPILET' }]);
+  for (const k of ['phone', 'at', 'member', 'how2']) assert.equal(record[k], undefined, k);
+  // A bad "how" and a non-numeric label are dropped.
+  const r2 = await call('POST', '/v1/photos', { body: { photo: JPEG.toString('base64'), details: { how: 'other', yolo: 'rm -rf' } }, headers: await install() });
+  assert.equal(r2.status, 201);
+});
+
 test('nothing stored links data to an install token', async () => {
   const { call, install, deps } = setup();
   const h = await install();

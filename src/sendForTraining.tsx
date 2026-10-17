@@ -1,7 +1,26 @@
 // "Send for training" with the follow-up questions, shared by Settings and the Collect photos screen.
 import { Alert } from 'react-native';
 import { buildLabel } from './buildInfo.ts';
-import { emailTraining, mailAppAvailable, markSent, TRAINING_EMAIL } from './training.ts';
+import { serverAvailable } from './server.ts';
+import { emailTraining, mailAppAvailable, markSent, TRAINING_EMAIL, uploadTraining } from './training.ts';
+
+/** Where "Send photos" sends them in this build: the TakeSure server when the build has one, otherwise email. */
+export const trainingDestination = (): string => (serverAvailable() ? 'the TakeSure server (anonymous)' : TRAINING_EMAIL);
+
+/** Sends to the TakeSure server: no email, no account; the photos go one by one and the rest follow next time. */
+async function sendToServer(): Promise<void> {
+  const r = await uploadTraining(buildLabel());
+  if (!r.sent && !r.left) return Alert.alert('Nothing new to send', 'All training photos have been sent already.');
+  const done = `${r.sent} photo${r.sent === 1 ? '' : 's'} sent.`;
+  if (!r.stopped) return Alert.alert('Sent', `${done} Thank you!`);
+  const why =
+    r.stopped === 'limit'
+      ? 'The server takes a limited number of photos a day from each phone.'
+      : r.stopped === 'offline'
+        ? 'The phone seems to be offline.'
+        : 'The server had a problem.';
+  Alert.alert(r.sent ? 'Partly sent' : 'Not sent', `${r.sent ? `${done} ` : ''}${why} ${r.left} photo${r.left === 1 ? '' : 's'} will go when you tap Send again${r.stopped === 'limit' ? ' tomorrow' : ''}.`);
+}
 
 /** Asks how to send: the Mail app (when set up) or another app through the share sheet (Gmail, Outlook, WhatsApp…). */
 async function chooseWay(): Promise<'mail' | 'share' | null> {
@@ -22,6 +41,7 @@ async function chooseWay(): Promise<'mail' | 'share' | null> {
 /** Sends unsent training photos; after a share-sheet send, asks whether it went out before marking them sent. */
 export async function sendForTraining(onDone?: () => void): Promise<void> {
   try {
+    if (serverAvailable()) return await sendToServer();
     const way = await chooseWay();
     if (!way) return;
     const r = await emailTraining(buildLabel(), way);

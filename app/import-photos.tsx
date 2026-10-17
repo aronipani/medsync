@@ -14,6 +14,7 @@ import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts
 import { medLabel } from '../src/schedule.ts';
 import { useStore } from '../src/store.tsx';
 import { sendForTraining } from '../src/sendForTraining.tsx';
+import { serverAvailable } from '../src/server.ts';
 import { labelSavedPhoto, saveTrainingPhotos, saveUnlabelledPhotos, TRAINING_EMAIL, trainingSummary } from '../src/training.ts';
 import { Button, Card, Chip, Field, Label, s, useTheme } from '../src/ui.tsx';
 
@@ -136,7 +137,9 @@ function ImportPhotos() {
           <Text style={{ color: t.text, fontSize: 18, fontWeight: '800' }}>Before you start</Text>
           {[
             'You photograph medicine strips and say which medicine each one is. The photos help train the app’s strip scanner.',
-            `Photos stay on this phone until you tap Send for training. Then they go, with the medicine names and the text the scanner read, to ${TRAINING_EMAIL} — you see the email or share sheet and send it yourself.`,
+            serverAvailable()
+              ? 'Photos stay on this phone until you tap Send for training. Then they go to the TakeSure server, with the medicine names and the text the scanner read — anonymously: no name, phone number, account or exact time.'
+              : `Photos stay on this phone until you tap Send for training. Then they go, with the medicine names and the text the scanner read, to ${TRAINING_EMAIL} — you see the email or share sheet and send it yourself.`,
             'Photograph only the strip. Keep prescriptions, names, faces, addresses and anything else personal out of the picture.',
             'Medicines say something about someone’s health: only photograph strips you are allowed to share.',
             'You can delete the photos any time: Settings → Training photos → Delete all.',
@@ -217,7 +220,9 @@ function ImportPhotos() {
 
       <Label>3 · Send</Label>
       <Button title={unsent ? `Send for training (${unsent} not sent yet)` : 'Send for training'} kind="secondary" disabled={busy || !unsent} onPress={() => sendForTraining(() => setUnsent(trainingSummary().unsent))} />
-      <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>Emails a zip to {TRAINING_EMAIL}, or opens the share sheet — pick Gmail and send it to that address.</Text>
+      <Text style={{ color: t.sub, marginTop: 6, fontSize: 13 }}>
+        {serverAvailable() ? 'Sends to the TakeSure server, anonymously. No email needed.' : `Emails a zip to ${TRAINING_EMAIL}, or opens the share sheet — pick Gmail and send it to that address.`}
+      </Text>
 
       {done.length > 0 && (
         <>

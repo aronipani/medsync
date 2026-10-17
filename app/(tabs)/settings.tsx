@@ -7,10 +7,10 @@ import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBacku
 import { DEFAULT_SETTINGS } from '../../src/store.tsx';
 import { buildLabel } from '../../src/buildInfo.ts';
 import { TRAINING_AVAILABLE } from '../../src/edition.ts';
-import { sendForTraining } from '../../src/sendForTraining.tsx';
+import { sendForTraining, trainingDestination } from '../../src/sendForTraining.tsx';
 import { appleVisionAvailable } from '../../src/ocr.ts';
 import { detectorState, loadRegionModel } from '../../src/regionModel.ts';
-import { clearTraining, exportTraining, TRAINING_EMAIL, trainingSummary, unmarkAllSent } from '../../src/training.ts';
+import { clearTraining, exportTraining, trainingSummary, unmarkAllSent } from '../../src/training.ts';
 import { setupNotifications } from '../../src/notifications.ts';
 import { useStore } from '../../src/store.tsx';
 import { shareHistoryCsv } from '../../src/historyExport.ts';
@@ -196,7 +196,7 @@ function Helper() {
           <More>
             {toggle('Also keep photos from everyday scans', !!state.settings.collectTraining, (v) => saveSettings({ ...state.settings, collectTraining: v }), 'Each scan keeps 1–3 photos. Off: only photos from Collect strip photos.')}
             <Text style={{ color: t.sub, fontSize: 14 }}>
-              {labelled} with a medicine name · {summary.unlabelled} without · sent to {TRAINING_EMAIL}
+              {labelled} with a medicine name · {summary.unlabelled} without · sent to {trainingDestination()}
             </Text>
             {summary.photos > summary.unsent && (
               <Button

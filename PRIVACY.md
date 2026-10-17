@@ -34,8 +34,10 @@ your phone.
   WhatsApp app with the medicine name; what happens there is covered by those apps' own policies.
 
 The App Store and Play Store versions keep no training photos. Test versions shared directly with family and friends
-(not from a store) can, if the helper switches it on, keep photos of strips and let them be exported or emailed to
-the developer to improve the scanner — again only when that person presses Send.
+(not from a store) can, if the helper switches it on, keep photos of strips and send them to improve the scanner —
+only when that person presses Send. They go to the TakeSure server anonymously (the photo, the medicine name and
+what the scanner read; no name, account, phone id or exact time), or by email in builds without the server. The
+server removes photo metadata and deletes training photos after 2 years.
 
 The app never sends any of these anywhere by itself.
 

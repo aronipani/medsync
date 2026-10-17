@@ -1,0 +1,71 @@
+name: Server deploy (AWS)
+
+# Run by hand: Actions → Server deploy (AWS) → Run workflow. Deploys server/ to your AWS account.
+# Needs repository secrets AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY (an IAM user that may deploy),
+# optional secret ANTHROPIC_API_KEY (stored in SSM; only needed when strip reading is switched on),
+# and optional repository variable AWS_REGION (default ap-south-1, Mumbai). See server/README.md.
+on:
+  workflow_dispatch:
+    inputs:
+      model_calls_per_day:
+        description: 'Daily cap on model calls for strip reading (0 = off: training photos only)'
+        default: '0'
+        required: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ${{ vars.AWS_REGION || 'ap-south-1' }}
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci
+      - run: npm run typecheck && npm test
+      - uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ env.AWS_REGION }}
+      - uses: aws-actions/setup-sam@v2
+        with:
+          use-installer: true
+      - name: Secrets in SSM (created once; the install secret is never shown)
+        env:
+          MODEL_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if ! aws ssm get-parameter --name /takesure/install-secret >/dev/null 2>&1; then
+            aws ssm put-parameter --name /takesure/install-secret --type SecureString --value "$(openssl rand -base64 48)" >/dev/null
+            echo "Created /takesure/install-secret"
+          fi
+          if [ -n "$MODEL_KEY" ]; then
+            aws ssm put-parameter --name /takesure/model-key --type SecureString --value "$MODEL_KEY" --overwrite >/dev/null
+            echo "Stored /takesure/model-key"
+          fi
+      - name: Build and deploy
+        run: |
+          sam build
+          sam deploy --stack-name takesure --resolve-s3 --no-confirm-changeset --no-fail-on-empty-changeset \
+            --capabilities CAPABILITY_IAM CAPABILITY_AUTO_EXPAND \
+            --parameter-overrides ModelCallsPerDay=${{ inputs.model_calls_per_day }}
+      - name: Server address
+        run: |
+          URL=$(aws cloudformation describe-stacks --stack-name takesure --query "Stacks[0].Outputs[?OutputKey=='ApiUrl'].OutputValue" --output text)
+          BUCKET=$(aws cloudformation describe-stacks --stack-name takesure --query "Stacks[0].Outputs[?OutputKey=='Bucket'].OutputValue" --output text)
+          curl -sf "$URL/v1/health" && echo
+          {
+            echo "### TakeSure server is up"
+            echo ""
+            echo "Server address: \`$URL\`"
+            echo ""
+            echo "Next: Settings → Secrets and variables → Actions → Variables → New variable **TAKESURE_API_URL** = \`$URL\`, then push any app change (or re-run the iPhone/Android build) so test builds send photos to it."
+            echo ""
+            echo "Training photos bucket: \`$BUCKET\` (download: \`aws s3 sync s3://$BUCKET/training ./server-training\`)"
+          } >> "$GITHUB_STEP_SUMMARY"

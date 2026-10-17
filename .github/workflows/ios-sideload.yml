@@ -19,6 +19,8 @@ jobs:
       EXPO_PUBLIC_BUILD: ios-${{ github.run_number }}
       EXPO_PUBLIC_COMMIT: ${{ github.sha }}
       EXPO_PUBLIC_BUILT_AT: ${{ github.event.head_commit.timestamp }}
+      # TakeSure server for helper test builds (training photos). Empty until the GitHub variable is set.
+      EXPO_PUBLIC_API_URL: ${{ vars.TAKESURE_API_URL }}
     steps:
       - uses: actions/checkout@v5
 

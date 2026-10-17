@@ -37,7 +37,27 @@ curl -s localhost:8787/v1/strip/read -H "Authorization: Install $TOKEN" \
   -H 'content-type: application/json' -d "{\"photos\":[\"$(base64 -w0 strip.jpg)\"]}" | jq
 ```
 
-## Deploy (first time)
+## Deploy from GitHub (no tools on your PC) — start here
+Phase 1 is **training photos only**: strip reading by the model stays off (cap 0), so the bill is a few cents.
+1. **AWS account** (aws.amazon.com), region **Asia Pacific (Mumbai) ap-south-1**. Turn on MFA for the root user.
+2. **A deploy user:** IAM → Users → Create user `takesure-deploy` → Attach policies directly →
+   `AdministratorAccess` (simplest for a one-person account; narrow it later) → Create. Open the user →
+   Security credentials → Create access key → "Application running outside AWS" → copy both keys.
+3. **GitHub:** repo → Settings → Secrets and variables → Actions → **New repository secret**:
+   `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`. (Later, for strip reading: `ANTHROPIC_API_KEY`.)
+4. **Deploy:** Actions → **Server deploy (AWS)** → Run workflow (daily model cap `0`). It creates the install
+   secret, deploys, checks `/v1/health` and prints the **server address** on the run's summary page.
+5. **Point test builds at it:** Settings → Secrets and variables → Actions → **Variables** → New variable
+   `TAKESURE_API_URL` = the server address. The next iPhone/Android test build sends training photos there instead of
+   email (Settings → Helper → Send photos). Store builds don't use it.
+6. **Get the photos:** `aws s3 sync s3://<bucket>/training ./server-training` (bucket name is on the summary page),
+   then `python training/server_photos.py ./server-training ./server-export` and `python training/autolabel.py
+   --export ./server-export`.
+
+Turning on strip reading later: add the `ANTHROPIC_API_KEY` secret and run the deploy again with a daily cap
+(e.g. 200). The key stays in SSM on the server; phones never see it.
+
+## Deploy (first time, from a computer with the AWS CLI)
 Needs an AWS account, the AWS CLI (`aws configure`) and the SAM CLI.
 ```bash
 # 1. Secrets (once). Pick your region, e.g. ap-south-1 (Mumbai).
@@ -49,7 +69,8 @@ cd server
 sam build
 sam deploy --guided        # stack name: takesure; accept defaults; saves samconfig.toml for next time
 ```
-The output `ApiUrl` is the base URL for the app (`EXPO_PUBLIC_API_URL`, set in the build workflows later).
+The output `ApiUrl` is the base URL for the app (`EXPO_PUBLIC_API_URL`; for test builds set the GitHub variable
+`TAKESURE_API_URL`).
 Later deploys: `sam build && sam deploy`.
 
 Parameters you can change in `sam deploy --guided`: `Model` (default `claude-sonnet-5-5`) and `ModelCallsPerDay`

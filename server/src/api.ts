@@ -263,12 +263,46 @@ async function circleDelete(req: Req, d: Required<Deps>, [rawId]: string[]): Pro
 }
 
 // ---------- Training photos (spec 07) ----------
-// Opt-in, one photo at a time, the exact record of spec 07: the photo, a typed or picked medicine name,
-// month, app version and platform. The server cleans the JPEG again and files it by month.
+// Opt-in, one photo at a time: the photo, a typed or picked medicine name, month, app version and platform.
+// Helper test builds also send what the phone already knows about the strip (spec 16, "training details"): its
+// strength and contents, how the photo was taken, why a scan failed, the text read and the auto-labelled boxes.
+// Every field is whitelisted and capped; nothing about the person (no time, phone id or family member) is kept.
+// The server cleans the JPEG again and files it by month.
+
+const TRAINING_HOW = ['dose-check', 'taught', 'scan-to-add', 'test-scan', 'failed-scan', 'failed-add', 'imported'];
+const TRAINING_DETAILS_MAX = 60_000; // bytes of JSON for the details of one photo
+
+const str = (v: unknown, max: number) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, max) : undefined);
+
+/** Keeps only the known training fields, each capped. Unknown fields are dropped. */
+export function trainingDetails(v: unknown): Record<string, unknown> {
+  if (!isObj(v)) return {};
+  const o = v as Record<string, unknown>;
+  const out: Record<string, unknown> = {};
+  const strength = str(o.strength, 30);
+  if (strength) out.strength = strength;
+  const contents = str(o.contents, 120);
+  if (contents) out.contents = contents;
+  if (typeof o.how === 'string' && TRAINING_HOW.includes(o.how)) out.how = o.how;
+  if (o.scan === 'recognised' || o.scan === 'name only' || o.scan === 'not recognised') out.scan = o.scan;
+  if (o.unlabelled === true) out.unlabelled = true;
+  const reason = str(o.reason, 200);
+  if (reason) out.reason = reason;
+  if (o.reader === 'apple-vision' || o.reader === 'ml-kit') out.reader = o.reader;
+  if (typeof o.ocrText === 'string') out.ocrText = o.ocrText.slice(0, 2000);
+  if (typeof o.yolo === 'string' && /^[\d.\s-]*$/.test(o.yolo)) out.yolo = o.yolo.slice(0, 4000);
+  if (Array.isArray(o.regions))
+    out.regions = o.regions
+      .filter(isObj)
+      .slice(0, 20)
+      .map((r) => ({ cls: str((r as Record<string, unknown>).cls, 20) ?? '', text: str((r as Record<string, unknown>).text, 120) ?? '' }));
+  if (isObj(o.trace) && JSON.stringify(o.trace).length <= TRAINING_DETAILS_MAX / 2) out.trace = o.trace;
+  return JSON.stringify(out).length <= TRAINING_DETAILS_MAX ? out : { ...out, trace: undefined, ocrText: undefined };
+}
 
 async function photoAdd(req: Req, d: Required<Deps>): Promise<Res> {
   const who = installFrom(req, d.installSecret);
-  const body = json<Record<string, unknown>>(req, 1.4 * PHOTO_MAX + 2_000);
+  const body = json<Record<string, unknown>>(req, 1.4 * PHOTO_MAX + TRAINING_DETAILS_MAX + 2_000);
   if (!isObj(body) || typeof body.photo !== 'string') throw new HttpError(400, 'need_photo');
   const photo = cleanJpeg(Buffer.from(body.photo, 'base64'), PHOTO_MAX);
   const name = typeof body.name === 'string' ? body.name.replace(/\s+/g, ' ').trim().slice(0, 60) : '';
@@ -277,6 +311,7 @@ async function photoAdd(req: Req, d: Required<Deps>): Promise<Res> {
     month: month(d),
     appVersion: typeof body.appVersion === 'string' ? body.appVersion.slice(0, 40) : '',
     platform: body.platform === 'ios' || body.platform === 'android' ? body.platform : 'unknown',
+    ...trainingDetails(body.details),
   };
   await spend(d.kv, who, LIMITS.photo, d.now());
   const key = `training/${record.month}/${randomBytes(12).toString('base64url')}`;

@@ -17,7 +17,7 @@ export const LIMITS = {
   vaultRead: { name: 'vr', perMinute: 10, perDay: 100 },
   circleWrite: { name: 'cw', perMinute: 30, perDay: 1000 },
   circleRead: { name: 'cr', perMinute: 60, perDay: 5000 },
-  photo: { name: 'photo', perMinute: 10, perDay: 100 },
+  photo: { name: 'photo', perMinute: 30, perDay: 300 }, // helpers send a backlog of training photos in one go
 } satisfies Record<string, Limit>;
 
 /** Counts one request for `who` (an install hash, or 'all'); throws 429 when over the limit. */
