@@ -30,6 +30,9 @@ function ReminderSync() {
         state.settings,
         state.logs.filter((l) => l.date >= today).map((l) => l.key),
         today,
+        // what's to buy and orders to collect (spec 17)
+        state.meds.map((m) => [m.stock <= m.lowStockAt, m.found?.[m.found.length - 1]]),
+        state.pharmacies?.map((p) => p.name),
       ]),
     [state, today],
   );
@@ -48,7 +51,8 @@ function ReminderSync() {
         return;
       }
       // "Test-scan first" reminders open the Test scan screen; dose reminders open Scan.
-      router.navigate(res.notification.request.content.data?.screen === 'test-scan' ? '/test-scan' : '/scan');
+      const screen = res.notification.request.content.data?.screen;
+      router.navigate(screen === 'test-scan' ? '/test-scan' : screen === 'buy' ? '/buy' : '/scan');
     });
     // Reminder arrives while the app is open: say it in the language of whoever has a dose due.
     const received = Notifications.addNotificationReceivedListener(() => {

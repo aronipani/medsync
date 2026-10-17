@@ -62,6 +62,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="settings" options={{ title: 'Settings', href: helper ? undefined : null, tabBarIcon: icon('settings-outline') }} />
       {/* Stock is part of Medicines now; this page opens from a medicine or the low-stock line on Today. */}
       <Tabs.Screen name="inventory" options={{ href: null, title: 'Stock', headerLeft: back }} />
+      <Tabs.Screen name="buy" options={{ href: null, title: 'Buy medicines', headerLeft: back }} />
       {/* Pages that open from a tab but keep the tab bar visible (no tab of their own). */}
       <Tabs.Screen name="member/[id]" options={{ href: null, title: 'Family member', headerLeft: back }} />
       <Tabs.Screen name="about" options={{ href: null, title: 'About & safety', headerLeft: back }} />

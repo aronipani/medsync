@@ -32,6 +32,26 @@ export interface Medication {
   profile?: StripProfile; // made when the strip was scanned once on purpose (spec 15)
   expiry?: string; // YYYY-MM printed on the strip in use (read when a scan is confirmed)
   overlapOk?: string[]; // ids of medicines a doctor confirmed this one is meant to be taken with (same ingredient)
+  found?: FoundRecord[]; // what pharmacies said when asked for this medicine, newest last, at most 8 (spec 17)
+  buyLeadDays?: number; // "Time to buy" this many days before it runs out (default 7, or 14 when hard to find)
+}
+
+/** A pharmacy the family buys from (spec 17). Kept on the phone only; nothing is looked up online. */
+export interface Pharmacy {
+  id: string;
+  name: string;
+  phone?: string;
+  whatsapp?: boolean; // takes orders on WhatsApp at the same number
+}
+
+export type FoundAnswer = 'has' | 'no' | 'order';
+
+/** One pharmacy's answer for one medicine. */
+export interface FoundRecord {
+  pharmacyId: string;
+  answer: FoundAnswer;
+  at: string; // ISO time of the answer
+  readyOn?: string; // YYYY-MM-DD, for 'order'
 }
 
 /**
@@ -147,6 +167,7 @@ export interface AppState {
   settings: Settings;
   pending?: PendingRx;
   history?: ScheduleVersion[]; // newest last
+  pharmacies?: Pharmacy[]; // My pharmacies (spec 17)
 }
 
 export type OccurrenceStatus = 'upcoming' | 'due' | LogStatus;

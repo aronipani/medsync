@@ -5,6 +5,7 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MemberDot, MemberPicker } from '../../src/components.tsx';
+import { buyList } from '../../src/buylist.ts';
 import { describeTiming, medLabel, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { addDays, atTime, dateKey, fmt12, fmtDay } from '../../src/time.ts';
@@ -37,7 +38,8 @@ export default function Today() {
   }, [occs]);
   const dueCount = offset === 0 ? occs.filter((o) => o.status === 'due').length : 0;
   const taken = occs.filter((o) => o.status === 'taken').length;
-  const low = state.meds.filter((m) => m.active && (!memberId || m.memberId === memberId) && m.stock <= m.lowStockAt);
+  // Running low, or due to buy within the week (two for hard-to-find medicines): spec 17.
+  const low = useMemo(() => buyList(state, now, memberId).map((i) => i.med), [state, now, memberId]);
 
   const act = (o: Occurrence) => {
     const label = `${medLabel(o.med)} · ${fmt12(o.time)}`;
@@ -167,12 +169,12 @@ export default function Today() {
         // One short line, not a list: the medicines come first; Stock has the details.
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.navigate('/inventory')}
+          onPress={() => router.navigate('/buy')}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 16, borderRadius: 16, backgroundColor: t.warnSoft, marginTop: 8 }}
         >
           <Text style={{ color: t.warn, fontSize: 18, fontWeight: '900' }}>!</Text>
           <Text style={{ color: t.warn, fontSize: 17, fontWeight: '700', flex: 1 }} numberOfLines={1}>
-            {low.length === 1 ? `${medLabel(low[0])} is running low` : `${low.length} medicines running low`}
+            {low.length === 1 ? `Time to buy ${medLabel(low[0])}` : `Time to buy ${low.length} medicines`}
           </Text>
           <Ionicons name="chevron-forward" size={20} color={t.warn} />
         </Pressable>

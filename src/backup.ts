@@ -66,6 +66,9 @@ export function parseBackup(text: string, defaults: Settings): ParseResult {
     logs: arr(s.logs),
     stock: arr(s.stock),
     history: arr(s.history),
+    ...(Array.isArray(s.pharmacies)
+      ? { pharmacies: arr<NonNullable<AppState['pharmacies']>[number]>(s.pharmacies).filter((p) => p && typeof p.id === 'string' && typeof p.name === 'string') }
+      : {}),
     settings: { ...defaults, ...(s.settings ?? {}) },
   };
   delete state.pending;

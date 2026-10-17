@@ -180,6 +180,21 @@ the circle: **Ask family to buy**. Other phones see "Need to buy for Papa: clopi
 **I'll get it** (others then see "Rina is getting it") and **Bought**. New circle event kinds, inside the ciphertext
 only: `needBuy`, `buying`, `bought`. The server sees nothing new.
 
+### Built (Oct 2026)
+* `src/buylist.ts` (pure, `tests/buylist.test.ts`): `needsBuying` (7 days, 14 when hard to find, `buyLeadDays`
+  per medicine; courses ending first are left out), `buyItem` (contents first, 30 days' quantity, confirmed brands
+  from other names, "only" for ask-before-swap), `pharmacyMessage`, `pharmacyOrder`, WhatsApp/SMS links,
+  `withAnswer`, `pickups`.
+* **Buy medicines** page (`app/(tabs)/buy.tsx`), opened from Today ("Time to buy …", replacing "running low"),
+  Stock (*Buy list and pharmacies*) and the reminders: the list, **Show to pharmacist**, **Bought — add to stock**,
+  *Buy something else too*, **Ask a pharmacy** (Call / WhatsApp or SMS with the list, then *What did they say?*:
+  Has it / Doesn't have it / Will order + ready day), **My pharmacies** (name, phone, WhatsApp yes/no).
+* Reminders: "🛒 Time to buy …" at 9 am, repeated every 3 days while something is still to buy; "Pick up from …
+  today" at 9 am on the ready day (skipped if it was bought meanwhile).
+* `AppState.pharmacies`, `Medication.found` (last 8 answers), `Medication.buyLeadDays` — in backups.
+* Still to do: the message in the app language (English only for now), a lead-days setting on the medicine page,
+  family hand-off (B6, after the family circle's app side).
+
 ### Not in scope (for now)
 * **Shared "who has it in stock" map.** Crowd reports tie a medicine to a place and time — close to identifying,
   and stale within days. Not without a separate privacy review.

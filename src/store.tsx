@@ -6,7 +6,8 @@ import { applyPrescription, duplicateGroups, mergeGroup, planPrescription, remap
 import { describeMedTimes } from './describe.ts';
 import { addLearned, fingerprint } from './learn.ts';
 import { confirmPair } from './overlap.ts';
-import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, ScheduleVersion, Settings, StripProfile } from './types.ts';
+import type { AppState, DoseLog, FoundAnswer, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, Pharmacy, ScheduleVersion, Settings, StripProfile } from './types.ts';
+import { withAnswer } from './buylist.ts';
 
 const KEY = 'medsync:v1';
 
@@ -75,6 +76,10 @@ interface Store {
   linkBarcode(medId: string, code: string): void;
   /** Adds a name the scanner accepts for this medicine (another brand the pharmacy gave, spec 17). */
   addOtherName(medId: string, name: string): void;
+  /** My pharmacies (spec 17). */
+  savePharmacies(list: Pharmacy[]): void;
+  /** What a pharmacy said about these medicines: has it, doesn't, or will order (ready on a date). */
+  recordAnswer(medIds: string[], pharmacyId: string, answer: FoundAnswer, readyOn?: string): void;
   saveSettings(s: Settings): void;
   replaceAll(s: AppState): void;
   setPending(p: PendingRx | undefined): void;
@@ -275,6 +280,9 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
               : m,
           ),
         })),
+      savePharmacies: (pharmacies) => update((s) => ({ ...s, pharmacies })),
+      recordAnswer: (medIds, pharmacyId, answer, readyOn) =>
+        update((s) => ({ ...s, meds: s.meds.map((m) => (medIds.includes(m.id) ? withAnswer(m, pharmacyId, answer, new Date(), readyOn) : m)) })),
       saveSettings: (settings) => update((s) => ({ ...s, settings })),
       replaceAll: (next) => update(() => next),
       setPending: (pending) => update((s) => ({ ...s, pending })),

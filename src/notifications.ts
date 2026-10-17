@@ -5,6 +5,11 @@ import { testReminders } from './testScan.ts';
 import { loadTestRecords } from './testScanStore.ts';
 import { addDays, atTime, dateKey, fmt12 } from './time.ts';
 import type { AppState } from './types.ts';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import { buyList, pickups } from './buylist.ts';
+
+const BUY_KEY = 'dosesure:buy-reminder'; // YYYY-MM-DD of the last "Time to buy" reminder scheduled
+const BUY_EVERY_DAYS = 3; // while something is still to buy, remind again after this many days
 
 const CHANNEL = 'medicine-reminders';
 const CATEGORY = 'dose';
@@ -93,6 +98,44 @@ async function doReschedule(state: AppState) {
         data: { lines: r.lines, screen: 'test-scan' },
       },
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.when, channelId },
+    });
+    count++;
+  }
+
+  // Buying (spec 17): "Time to buy" at 9 in the morning, again every few days while something is still to buy;
+  // "Pick up … today" on the day an ordered medicine is ready.
+  const morning = (date: string) => atTime(date, '09:00');
+  const n0 = new Date();
+  const toBuy = buyList(state, n0);
+  if (toBuy.length && count < 56) {
+    const day = dateKey(n0.getTime() < morning(dateKey(n0)).getTime() ? n0 : addDays(n0, 1));
+    const last = await AsyncStorage.getItem(BUY_KEY).catch(() => null);
+    const gap = last ? (atTime(day, '12:00').getTime() - atTime(last, '12:00').getTime()) / 864e5 : Infinity;
+    if (last === day || gap >= BUY_EVERY_DAYS) {
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: toBuy.length === 1 ? `🛒 Time to buy ${toBuy[0].med.name}` : `🛒 Time to buy ${toBuy.length} medicines`,
+          body: toBuy.map((i) => `${i.ask}${i.daysLeft !== undefined ? ` — lasts ${i.daysLeft} day${i.daysLeft === 1 ? '' : 's'}` : ''}`).join('\n'),
+          sound: 'default',
+          data: { screen: 'buy' },
+        },
+        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: morning(day), channelId },
+      });
+      count++;
+      await AsyncStorage.setItem(BUY_KEY, day).catch(() => {});
+    }
+  }
+  for (const p of pickups(state, n0)) {
+    const when = morning(p.date);
+    if (when <= n0 || count >= 58) continue;
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: `🛒 Pick up from ${p.pharmacy.name} today`,
+        body: p.meds.map((m) => `${m.name} ${m.strength}`.trim()).join('\n'),
+        sound: 'default',
+        data: { screen: 'buy' },
+      },
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId },
     });
     count++;
   }

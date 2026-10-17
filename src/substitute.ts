@@ -82,7 +82,7 @@ const baseName = (name: string) => name.split(/\s+/).filter((w) => !FORM_WORDS[w
 const entryOf = (p: Product): DrugEntry | undefined =>
   lookupBrand(p.name) ?? lookupBrand(baseName(p.name)) ?? (p.aliases ?? []).map((a) => lookupBrand(a)).find(Boolean);
 
-const ingredientsOf = (p: Product, withPrinted: boolean): string[] => {
+export const ingredientsOf = (p: Product, withPrinted = false): string[] => {
   const aliases = [...(p.aliases ?? []), ...(withPrinted && p.printed ? [p.printed] : [])];
   const direct = contentsOf({ name: p.name, aliases });
   if (direct.length) return direct;

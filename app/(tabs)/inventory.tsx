@@ -1,4 +1,5 @@
-import React, { useMemo, useState } from 'react';
+import { router } from 'expo-router';
+import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberDot, MemberPicker } from '../../src/components.tsx';
 import { expiryStatus, formatExpiry } from '../../src/expiry.ts';
@@ -29,6 +30,7 @@ export default function Inventory() {
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
         <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
+        <Button title="Buy list and pharmacies" kind="secondary" onPress={() => router.navigate('/buy')} style={{ marginTop: 8 }} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 40 }}>
