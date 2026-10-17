@@ -154,7 +154,7 @@ export default function Today() {
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 40 }}>
       <View style={{ marginTop: 8, marginBottom: 12 }}>
-        <Text style={{ color: t.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.3 }}>{fmtDay(date, today)}</Text>
+        <Text maxFontSizeMultiplier={1.4} style={{ color: t.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.3 }}>{fmtDay(date, today)}</Text>
         <Text style={{ color: t.sub, fontSize: 18, marginTop: 2 }}>
           {atTime(date, '12:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
           {occs.length ? ` · ${taken} of ${occs.length} taken` : ''}

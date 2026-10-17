@@ -329,7 +329,7 @@ export default function Scan() {
         <Text style={{ color: '#fff', fontSize: 16 }}>Checked the strip yourself? Tap its name so the app knows it next time:</Text>
         <View style={s.wrap}>
           {due.map((o) => (
-            <Pressable
+            <Pressable accessibilityRole="button"
               key={o.key}
               onPress={() => teachAs(o)}
               style={whiteChip}
@@ -375,7 +375,7 @@ export default function Scan() {
           <View style={{ width: 64, height: 64, borderRadius: 32, backgroundColor: doneNow.length ? t.okFill : t.muted, alignItems: 'center', justifyContent: 'center' }}>
             <Ionicons name={doneNow.length ? 'checkmark' : 'time-outline'} size={36} color={doneNow.length ? '#fff' : t.text} />
           </View>
-          <Text style={{ color: t.text, fontSize: 30, fontWeight: '700', letterSpacing: -0.3, marginTop: 16 }}>
+          <Text maxFontSizeMultiplier={1.4} style={{ color: t.text, fontSize: 30, fontWeight: '700', letterSpacing: -0.3, marginTop: 16 }}>
             {doneNow.length ? 'All done for now' : 'Nothing to take right now'}
           </Text>
 
@@ -453,7 +453,7 @@ export default function Scan() {
               />
             ) : null}
             {perm?.granted && focused && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => setTorch((v) => !v)}
                 accessibilityLabel={torch ? 'Turn light off' : 'Turn light on'}
                 style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 26, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}
@@ -508,7 +508,7 @@ export default function Scan() {
               )}
               {result.occs.map((o) => (
                 <View key={o.key} style={{ marginTop: 10 }}>
-                  <Text style={{ color: '#fff', fontSize: 46, lineHeight: 50, fontWeight: '800', letterSpacing: -0.5 }}>Take {qtyLabel(o.dose.qty, o.med.unit)}</Text>
+                  <Text maxFontSizeMultiplier={1.4} style={{ color: '#fff', fontSize: 46, lineHeight: 50, fontWeight: '800', letterSpacing: -0.5 }}>Take {qtyLabel(o.dose.qty, o.med.unit)}</Text>
                   <Text style={{ color: '#fff', fontSize: 22, fontWeight: '600', marginTop: 4 }}>
                     {medLabel(o.med)}
                     {lang !== 'en' ? `  ·  ${amountText(lang, o.dose.qty, o.med.unit)}` : ''}
@@ -639,7 +639,7 @@ export default function Scan() {
                   <Text style={{ color: '#fff', fontSize: 16 }}>Checked the strip yourself? Tap its name so this barcode is known next time:</Text>
                   <View style={s.wrap}>
                     {due.map((o) => (
-                      <Pressable
+                      <Pressable accessibilityRole="button"
                         key={o.key}
                         onPress={() => {
                           linkBarcode(o.med.id, result.code!);

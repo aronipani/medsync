@@ -141,7 +141,7 @@ export function Chip({ label, active, color, onPress }: { label: string; active?
   const t = useTheme();
   const c = color ?? t.ink;
   return (
-    <Pressable
+    <Pressable accessibilityRole="button"
       onPress={onPress}
       style={{
         paddingVertical: 10,
@@ -236,7 +236,7 @@ export function Field(props: TextInputProps) {
 export function NumberField({ value, onChange, step = 1, min = 0 }: { value: number; onChange: (n: number) => void; step?: number; min?: number }) {
   const t = useTheme();
   const btn = (d: number, s: string) => (
-    <Pressable onPress={() => onChange(Math.max(min, +(value + d).toFixed(2)))} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: t.muted, alignItems: 'center', justifyContent: 'center' }}>
+    <Pressable accessibilityRole="button" accessibilityLabel={d < 0 ? 'Less' : 'More'} onPress={() => onChange(Math.max(min, +(value + d).toFixed(2)))} style={{ width: 44, height: 44, borderRadius: 12, backgroundColor: t.muted, alignItems: 'center', justifyContent: 'center' }}>
       <Text style={{ color: t.text, fontSize: 22, fontWeight: '700' }}>{s}</Text>
     </Pressable>
   );
@@ -324,7 +324,7 @@ export function DateField({ value, onChange, emptyText = 'Not set' }: { value?: 
       )}
       {Platform.OS === 'ios' && (
         <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
-          <Pressable style={{ flex: 1, backgroundColor: '#0006' }} onPress={() => setOpen(false)} />
+          <Pressable accessibilityRole="button" accessibilityLabel="Close" style={{ flex: 1, backgroundColor: '#0006' }} onPress={() => setOpen(false)} />
           <View style={{ backgroundColor: t.card, paddingBottom: 30 }}>
             <DateTimePicker value={date} mode="date" display="inline" onChange={(_, d) => apply(d)} />
             <Button title="Done" onPress={() => setOpen(false)} style={{ marginHorizontal: 16 }} />

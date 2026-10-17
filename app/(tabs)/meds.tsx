@@ -19,7 +19,7 @@ export default function Meds() {
         <Button title="Refill or fix a count" kind="secondary" onPress={() => router.push('/inventory')} style={{ marginBottom: 16 }} />
       )}
       {state.pending && (
-        <Pressable onPress={() => router.push('/rx-review')}>
+        <Pressable accessibilityRole="button" onPress={() => router.push('/rx-review')}>
           <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warn, marginBottom: 16 }}>
             <Text style={{ color: t.warn, fontWeight: '700', fontSize: 17 }}>
               A prescription is waiting to be checked ›
@@ -92,7 +92,7 @@ export default function Meds() {
             )}
             {!meds.length && <Text style={{ color: t.sub, fontSize: 16, marginBottom: 8 }}>No medicines yet.</Text>}
             {meds.map((med) => (
-              <Pressable key={med.id} onPress={() => router.push(`/med/${med.id}`)}>
+              <Pressable accessibilityRole="button" key={med.id} onPress={() => router.push(`/med/${med.id}`)}>
                 <Card style={{ marginBottom: 8, backgroundColor: med.active ? t.card : t.muted }}>
                   <View style={s.between}>
                     <Text style={{ color: t.text, fontSize: 18, fontWeight: '700', flex: 1 }}>{medLabel(med)}</Text>

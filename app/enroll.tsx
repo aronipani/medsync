@@ -130,7 +130,7 @@ export default function Enroll() {
               <CameraView ref={camera} style={{ flex: 1 }} facing="back" autofocus="on" flash="off" enableTorch={torch} />
             )}
             {perm?.granted && (
-              <Pressable
+              <Pressable accessibilityRole="button"
                 onPress={() => setTorch((v) => !v)}
                 accessibilityLabel={torch ? 'Turn light off' : 'Turn light on'}
                 style={{ position: 'absolute', top: 10, right: 10, backgroundColor: '#0008', borderRadius: 26, width: 52, height: 52, alignItems: 'center', justifyContent: 'center' }}

@@ -363,7 +363,7 @@ function Result({
     <View style={{ backgroundColor: fill, borderRadius: 24, padding: 24, marginTop: 14 }}>
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 14 }}>
         <View style={{ width: 56, height: 56, borderRadius: 28, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
-          <Text style={{ color: fill, fontSize: 30, fontWeight: '900' }}>{icon}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={{ color: fill, fontSize: 30, fontWeight: '900' }}>{icon}</Text>
         </View>
         <View style={{ flex: 1 }}>
           <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{title}</Text>

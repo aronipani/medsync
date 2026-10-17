@@ -40,6 +40,23 @@ Sideloading (APK, AltStore) works for family and testers. To give MedSync to any
 * `app.json`: iOS privacy manifest (required-reason APIs), `ITSAppUsesNonExemptEncryption: false`.
 * Icon checked: 1024 × 1024, no transparency.
 
+## Accessibility (done 17 Oct 2026)
+* Every tappable row and icon has a button role and a spoken name for VoiceOver.
+* The very large headings (46 pt "Take 1 tablet", 30 pt titles) grow at most 1.4× with the phone's text size, so
+  they stay on screen at the largest setting; all other text grows freely.
+
+## Phone test before submitting (AltStore build now, TestFlight build after Sunday)
+1. Fresh install: safety notice shows (v2 text), accept it.
+2. Back up in the old MedSync/DoseSure test app, restore in TakeSure; medicines, history and stock all there.
+3. Add a medicine with a dose 3 minutes ahead; the reminder arrives with Scan now and Snooze, then "Not taken yet".
+4. Scan the right strip: green "Matches your list", amount spoken. Scan another strip: red, "scan the next one".
+5. I took it: Today shows taken, Stock goes down by the amount.
+6. Prescription photo: opens as a draft to check; nothing is saved until you save.
+7. Deny camera, then notifications: the app explains how to turn them on and doesn't crash.
+8. Airplane mode: everything above still works.
+9. Settings → Text size at the largest, VoiceOver on: Today and Scan readable, every button announced.
+10. Report a problem opens an email; About & safety opens the privacy policy.
+
 ## Before first release
 * Specs 01–06 shipped; 07 hidden (no server).
 * Medicine list source decided (spec 04).

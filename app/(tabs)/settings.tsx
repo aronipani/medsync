@@ -85,7 +85,7 @@ function Everyday() {
       <Label>Family</Label>
       <Card>
         {state.members.map((m) => (
-          <Pressable key={m.id} onPress={() => router.push(`/member/${m.id}`)} style={[s.between, { minHeight: 52 }]}>
+          <Pressable accessibilityRole="button" key={m.id} onPress={() => router.push(`/member/${m.id}`)} style={[s.between, { minHeight: 52 }]}>
             <View style={s.row}>
               <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: m.color, marginRight: 10 }} />
               <Text style={{ color: t.text, fontSize: 18, fontWeight: '600' }}>{m.name}</Text>

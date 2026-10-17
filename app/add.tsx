@@ -98,7 +98,7 @@ export default function AddMedicine() {
   };
 
   const Option = ({ icon, title, body, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string; onPress: () => void }) => (
-    <Pressable onPress={onPress} disabled={busy}>
+    <Pressable accessibilityRole="button" onPress={onPress} disabled={busy}>
       <Card style={{ marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
         <View style={{ width: 46, height: 46, borderRadius: 23, backgroundColor: t.brandSoft, alignItems: 'center', justifyContent: 'center', marginRight: 14 }}>
           <Ionicons name={icon} size={24} color={t.brand} />

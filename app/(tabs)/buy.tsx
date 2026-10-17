@@ -166,7 +166,7 @@ export default function Buy() {
         <ScrollView style={{ backgroundColor: '#FFFFFF' }} contentContainerStyle={{ padding: 24, paddingTop: 64 }}>
           {items.map((i) => (
             <View key={i.med.id} style={{ marginBottom: 28 }}>
-              <Text style={{ color: '#000', fontSize: 30, fontWeight: '800' }}>{i.ask}</Text>
+              <Text maxFontSizeMultiplier={1.4} style={{ color: '#000', fontSize: 30, fontWeight: '800' }}>{i.ask}</Text>
               <Text style={{ color: '#000', fontSize: 26 }}>× {i.med.unit === 'ml' ? `${i.qty} ml` : i.qty}</Text>
               <Text style={{ color: '#333', fontSize: 22, marginTop: 4 }}>
                 {i.only ? `${i.brands[0]} ONLY` : i.brands.join(' / ')}

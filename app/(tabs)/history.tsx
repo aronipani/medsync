@@ -60,7 +60,7 @@ function History() {
         <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
         {!versions.length && <Empty title="No changes yet" body="Changes to the schedule will be listed here." />}
         {versions.map((v) => (
-          <Pressable key={v.id} onPress={() => setOpen(v)}>
+          <Pressable accessibilityRole="button" key={v.id} onPress={() => setOpen(v)}>
             <Card style={{ marginTop: 10 }}>
               <View style={s.between}>
                 <Text style={{ color: t.text, fontWeight: '700', flex: 1 }}>{v.reason}</Text>

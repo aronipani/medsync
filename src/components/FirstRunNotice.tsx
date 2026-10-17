@@ -14,7 +14,7 @@ export function FirstRunNotice() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top, paddingBottom: insets.bottom + 12 }}>
       <ScrollView contentContainerStyle={{ padding: 22 }}>
-        <Text style={{ color: t.brand, fontSize: 30, fontWeight: '800', marginBottom: 4 }}>TakeSure</Text>
+        <Text maxFontSizeMultiplier={1.4} style={{ color: t.brand, fontSize: 30, fontWeight: '800', marginBottom: 4 }}>TakeSure</Text>
         <Text style={{ color: t.sub, fontSize: 16, marginBottom: 22 }}>Before you start</Text>
         <SafetyText />
       </ScrollView>

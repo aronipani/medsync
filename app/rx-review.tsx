@@ -93,7 +93,7 @@ export default function PrescriptionReview() {
 
         <ScrollView horizontal style={{ marginTop: 12 }} showsHorizontalScrollIndicator={false}>
           {p.imageUris.map((u) => (
-            <Pressable key={u} onPress={() => setZoom(u)}>
+            <Pressable accessibilityRole="button" accessibilityLabel="Prescription photo, tap to enlarge" key={u} onPress={() => setZoom(u)}>
               <Image source={{ uri: u }} style={{ width: 110, height: 150, borderRadius: 10, marginRight: 8, backgroundColor: t.muted }} />
             </Pressable>
           ))}
@@ -211,7 +211,7 @@ export default function PrescriptionReview() {
       </View>
 
       <Modal visible={!!zoom} transparent animationType="fade" onRequestClose={() => setZoom(undefined)}>
-        <Pressable style={{ flex: 1, backgroundColor: '#000' }} onPress={() => setZoom(undefined)}>
+        <Pressable accessibilityRole="button" accessibilityLabel="Close the photo" style={{ flex: 1, backgroundColor: '#000' }} onPress={() => setZoom(undefined)}>
           <ScrollView maximumZoomScale={4} minimumZoomScale={1} contentContainerStyle={{ flexGrow: 1, justifyContent: 'center' }}>
             {zoom && <Image source={{ uri: zoom }} style={{ width: '100%', aspectRatio: 0.7 }} resizeMode="contain" />}
           </ScrollView>
