@@ -46,6 +46,7 @@ Sideloading (APK, AltStore) works for family and testers. To give MedSync to any
   they stay on screen at the largest setting; all other text grows freely.
 
 ## Phone test before submitting (AltStore build now, TestFlight build after Sunday)
+Step-by-step version with exact buttons: `docs/store/phone-test-script.md`.
 1. Fresh install: safety notice shows (v2 text), accept it.
 2. Back up in the old MedSync/DoseSure test app, restore in TakeSure; medicines, history and stock all there.
 3. Add a medicine with a dose 3 minutes ahead; the reminder arrives with Scan now and Snooze, then "Not taken yet".
