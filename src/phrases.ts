@@ -35,7 +35,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'English',
     tts: ['en-IN', 'en-GB', 'en-US'],
     phrases: {
-      correct: 'Correct medicine: {name}.',
+      correct: 'Matches your list: {name}.',
       take: 'Take {amount} now.',
       wrong: 'Wrong medicine. Do not take this one.',
       notNow: 'This medicine is not due now.',

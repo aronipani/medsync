@@ -12,6 +12,7 @@ import { encode, fingerprint } from '../src/learn.ts';
 import { saveReference } from '../src/profileFiles.ts';
 import { buildProfile } from '../src/stripProfile.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
+import { keepsTraining } from '../src/edition.ts';
 import { useStore } from '../src/store.tsx';
 import { Button, Card, Chip, Field, Label, More, s, Steps, useTheme } from '../src/ui.tsx';
 import { UNITS, UNIT_LABEL } from '../src/units.ts';
@@ -45,7 +46,7 @@ export default function ScanToAdd() {
     },
     [],
   );
-  leaving.current = { collect: !!state.settings.collectTraining, text: lines.map((l) => l.text).join('\n'), error: error ?? '' };
+  leaving.current = { collect: keepsTraining(state.settings), text: lines.map((l) => l.text).join('\n'), error: error ?? '' };
   const [result, setResult] = useState<LabelResult>();
   const [showCamera, setShowCamera] = useState(true);
   const [edited, setEdited] = useState(false);
@@ -124,7 +125,7 @@ export default function ScanToAdd() {
         // the words are what matter today
       }
     }
-    if (state.settings.collectTraining && photoUris.current.length) {
+    if (keepsTraining(state.settings) && photoUris.current.length) {
       saveTrainingPhotos(photoUris.current, { name: prefill.name, strength: prefill.strength, contents: result.contents }, 'scan-to-add', lines.map((l) => l.text).join('\n')).catch(() => {});
     }
     photoUris.current = []; // saved with their label; nothing left to keep as unlabelled

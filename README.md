@@ -2,8 +2,9 @@
 
 <img src="docs/brand/dosesure-logo-preview.png" alt="DoseSure logo" width="480">
 
-Family medicine schedule, scan-to-verify and inventory. (Formerly MedSync; the repository, app id `com.medsync.family`
-and `medsync://` links keep the old name so existing installs and backups carry on.)
+Family medicine schedule, scan-to-verify and inventory. (Formerly MedSync; the repository and `medsync://`
+links keep the old name. The app id became `com.dosesure.app` on 17 Oct 2026 for the store release: builds before
+that install as a separate app, so save a backup in the old one and restore it in the new one.)
 
 Expo (React Native, SDK 57) app for iPhone and Android. All data stays on the phone.
 

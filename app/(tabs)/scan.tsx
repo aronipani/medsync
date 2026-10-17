@@ -17,6 +17,7 @@ import { readinessSummary, upcomingReadiness, type TestRecords } from '../../src
 import { loadTestRecords } from '../../src/testScanStore.ts';
 import { bestLearned } from '../../src/learn.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../../src/training.ts';
+import { keepsTraining } from '../../src/edition.ts';
 import { Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { describeTiming, dueNow, medLabel, notDueToday, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
@@ -73,7 +74,7 @@ export default function Scan() {
     loadRegionModel(); // load the model before the first scan, not during it
   }, [state.settings.regionDetector]);
   const collectTraining = useRef(false);
-  collectTraining.current = !!state.settings.collectTraining;
+  collectTraining.current = keepsTraining(state.settings);
 
   /** Photos of a scan nobody confirmed (red, unreadable, closed) are the hardest strips — keep them, unlabelled, for retraining. */
   const keepUnconfirmed = (reason?: string) => {
@@ -274,7 +275,7 @@ export default function Scan() {
 
   const keepPhotos = (o: Occurrence, how: 'dose-check' | 'taught') => {
     const { lines, photos, kept } = lastRead.current;
-    if (state.settings.collectTraining && photos.length && !kept) {
+    if (keepsTraining(state.settings) && photos.length && !kept) {
       lastRead.current.kept = true; // teaching then confirming the same scan must not save it twice
       saveTrainingPhotos(photos, { name: o.med.name, strength: o.med.strength }, how, lines.join('\n')).catch(() => {});
     }
@@ -495,7 +496,7 @@ export default function Scan() {
               <View style={{ width: 76, height: 76, borderRadius: 38, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center' }}>
                 <Ionicons name="checkmark" size={46} color={t.okFill} />
               </View>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '600', marginTop: 20 }}>Right medicine</Text>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '600', marginTop: 20 }}>Matches your list</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
                 <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>

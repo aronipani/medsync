@@ -24,6 +24,22 @@ Sideloading (APK, AltStore) works for family and testers. To give MedSync to any
   reminders are a listed use case; otherwise rely on inexact + the follow-up reminder.
 * Screenshots in English, Bengali and Hindi; short description mentions offline, free, no account.
 
+## Medical category (App Store) — see docs/store/app-store.md
+* Listing text, review notes, age rating and App Privacy answers are written out in `docs/store/app-store.md`, with
+  the review guidelines a Medical app is checked against (1.4.1, 1.4.2, 2.1, 2.3, 5.1.1, 5.1.3).
+* The app never calculates doses (guideline 1.4.2): amounts come only from what the person entered. Keep it so.
+* No accuracy claims: the green result says "Matches your list". Safety notice v2 adds "not a medical device",
+  "does not work out doses" and "prescription photos are a draft".
+* v1 is offered in **India only**, which also keeps Apple's regulated-medical-device declaration (EU/EEA, UK, US) out
+  of scope. Declare **No** per region if those countries are added.
+
+## Store builds (done 17 Oct 2026)
+* App id `com.dosesure.app` on both platforms (test builds were `com.medsync.family`: back up and restore once).
+* `eas.json` production profile: `EXPO_PUBLIC_STORE_BUILD=1` (no training photos, `src/edition.ts`), build numbers
+  kept by EAS (`appVersionSource: remote`, `autoIncrement`).
+* `app.json`: iOS privacy manifest (required-reason APIs), `ITSAppUsesNonExemptEncryption: false`.
+* Icon checked: 1024 × 1024, no transparency.
+
 ## Before first release
 * Specs 01–06 shipped; 07 hidden (no server).
 * Medicine list source decided (spec 04).

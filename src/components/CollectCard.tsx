@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
 import { Text, View } from 'react-native';
+import { TRAINING_AVAILABLE } from '../edition.ts';
 import { Button, useTheme } from '../ui.tsx';
 
 /**
@@ -9,6 +10,7 @@ import { Button, useTheme } from '../ui.tsx';
  */
 export function CollectCard() {
   const t = useTheme();
+  if (!TRAINING_AVAILABLE) return null; // store builds leave out training photos (src/edition.ts)
   return (
     <View style={{ marginTop: 24, alignItems: 'center' }}>
       <Text style={{ color: t.sub, fontSize: 15 }}>Helping to improve the scanner?</Text>

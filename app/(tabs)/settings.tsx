@@ -6,6 +6,7 @@ import { ageText, backupOverdue } from '../../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../../src/backupFile.ts';
 import { DEFAULT_SETTINGS } from '../../src/store.tsx';
 import { buildLabel } from '../../src/buildInfo.ts';
+import { TRAINING_AVAILABLE } from '../../src/edition.ts';
 import { sendForTraining } from '../../src/sendForTraining.tsx';
 import { appleVisionAvailable } from '../../src/ocr.ts';
 import { detectorState, loadRegionModel } from '../../src/regionModel.ts';
@@ -183,44 +184,48 @@ function Helper() {
         <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>Every change to the medicines is kept; an earlier list can be brought back.</Text>
       </Card>
 
-      <Label>Photos for improving the scanner</Label>
-      <Card>
-        <Text style={{ color: t.text, fontSize: 17, fontWeight: '600' }}>
-          {summary.photos ? `${summary.photos} photo${summary.photos === 1 ? '' : 's'} · ${summary.unsent ? `${summary.unsent} not sent` : 'all sent'}` : 'No photos yet'}
-        </Text>
-        <Button title="Collect strip photos" onPress={() => router.push('/import-photos')} style={{ marginTop: 10 }} />
-        <Button title="Send photos" kind="secondary" disabled={!summary.unsent} onPress={() => sendForTraining(() => setSummary(trainingSummary()))} style={{ marginTop: 8 }} />
-        <More>
-          {toggle('Also keep photos from everyday scans', !!state.settings.collectTraining, (v) => saveSettings({ ...state.settings, collectTraining: v }), 'Each scan keeps 1–3 photos. Off: only photos from Collect strip photos.')}
-          <Text style={{ color: t.sub, fontSize: 14 }}>
-            {labelled} with a medicine name · {summary.unlabelled} without · sent to {TRAINING_EMAIL}
+      {TRAINING_AVAILABLE && (
+        <>
+        <Label>Photos for improving the scanner</Label>
+        <Card>
+          <Text style={{ color: t.text, fontSize: 17, fontWeight: '600' }}>
+            {summary.photos ? `${summary.photos} photo${summary.photos === 1 ? '' : 's'} · ${summary.unsent ? `${summary.unsent} not sent` : 'all sent'}` : 'No photos yet'}
           </Text>
-          {summary.photos > summary.unsent && (
+          <Button title="Collect strip photos" onPress={() => router.push('/import-photos')} style={{ marginTop: 10 }} />
+          <Button title="Send photos" kind="secondary" disabled={!summary.unsent} onPress={() => sendForTraining(() => setSummary(trainingSummary()))} style={{ marginTop: 8 }} />
+          <More>
+            {toggle('Also keep photos from everyday scans', !!state.settings.collectTraining, (v) => saveSettings({ ...state.settings, collectTraining: v }), 'Each scan keeps 1–3 photos. Off: only photos from Collect strip photos.')}
+            <Text style={{ color: t.sub, fontSize: 14 }}>
+              {labelled} with a medicine name · {summary.unlabelled} without · sent to {TRAINING_EMAIL}
+            </Text>
+            {summary.photos > summary.unsent && (
+              <Button
+                title="Didn’t arrive? Send all again"
+                kind="secondary"
+                onPress={() =>
+                  Alert.alert('Send all again?', 'All photos will count as not sent, so the next Send includes them.', [
+                    { text: 'Cancel', style: 'cancel' },
+                    { text: 'Yes', onPress: () => (unmarkAllSent(), setSummary(trainingSummary())) },
+                  ])
+                }
+              />
+            )}
+            <Button title="Save as a file (.zip)" kind="secondary" disabled={!summary.photos} onPress={() => exportTraining().catch((e) => Alert.alert('Could not save', String(e)))} />
             <Button
-              title="Didn’t arrive? Send all again"
-              kind="secondary"
+              title="Delete all photos"
+              kind="ghost"
+              disabled={!summary.photos}
               onPress={() =>
-                Alert.alert('Send all again?', 'All photos will count as not sent, so the next Send includes them.', [
+                Alert.alert('Delete all photos?', 'This cannot be undone.', [
                   { text: 'Cancel', style: 'cancel' },
-                  { text: 'Yes', onPress: () => (unmarkAllSent(), setSummary(trainingSummary())) },
+                  { text: 'Delete', style: 'destructive', onPress: () => (clearTraining(), setSummary(trainingSummary())) },
                 ])
               }
             />
-          )}
-          <Button title="Save as a file (.zip)" kind="secondary" disabled={!summary.photos} onPress={() => exportTraining().catch((e) => Alert.alert('Could not save', String(e)))} />
-          <Button
-            title="Delete all photos"
-            kind="ghost"
-            disabled={!summary.photos}
-            onPress={() =>
-              Alert.alert('Delete all photos?', 'This cannot be undone.', [
-                { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: () => (clearTraining(), setSummary(trainingSummary())) },
-              ])
-            }
-          />
-        </More>
-      </Card>
+          </More>
+        </Card>
+        </>
+      )}
 
       <Label>Scanner details</Label>
       <Card>

@@ -4,10 +4,11 @@
 // whether the scanner recognised it. "Send for training" emails (or shares) them right from here.
 
 import * as ImagePicker from 'expo-image-picker';
-import { Stack, useFocusEffect } from 'expo-router';
+import { Redirect, Stack, useFocusEffect } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Pressable, ScrollView, Text, View } from 'react-native';
 import { guessFromText, importSummary, judgeImport, parseTypedLabel, suggestBrands, type ImportLabel, type ImportScan } from '../src/importPhotos.ts';
+import { TRAINING_AVAILABLE } from '../src/edition.ts';
 import { readLinesAnyOrientation, startScanStats } from '../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { medLabel } from '../src/schedule.ts';
@@ -28,7 +29,13 @@ interface Done {
   answered?: boolean;
 }
 
-export default function ImportPhotos() {
+export default function ImportPhotosScreen() {
+  // Store builds leave out training photos (src/edition.ts); a stray link lands back where it came from.
+  if (!TRAINING_AVAILABLE) return <Redirect href="/settings" />;
+  return <ImportPhotos />;
+}
+
+function ImportPhotos() {
   const t = useTheme();
   const { state, saveSettings } = useStore();
   // Naming is optional: by default photos are taken without a name and the app offers a guess afterwards.

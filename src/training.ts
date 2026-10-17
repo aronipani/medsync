@@ -12,6 +12,8 @@ import { labelRegions, REGION_CLASSES, toYolo } from './regions.ts';
 import { makeZip } from './zip.ts';
 import { photoFileName, uuid } from './uid.ts';
 
+import { TRAINING_AVAILABLE } from './edition.ts';
+
 export interface TrainingEntry {
   file: string; // path inside the export, e.g. "Monotrate 10/2026-10-12T09-30-00-1.jpg"
   medicine: string; // "Monotrate 10"
@@ -106,6 +108,7 @@ export async function saveTrainingPhotos(
   ocrText: string,
   extra: Pick<TrainingEntry, 'scan'> = {},
 ): Promise<number> {
+  if (!TRAINING_AVAILABLE) return 0; // store builds keep no training photos (src/edition.ts)
   if (!uris.length) return 0;
   return serial(() => saveLabelled(uris, label, how, ocrText, extra));
 }
@@ -168,6 +171,7 @@ const UNLABELLED = '_unlabelled';
  * so the most useful ones for retraining. No medicine label; exported separately under unlabelled/.
  */
 export async function saveUnlabelledPhotos(uris: string[], how: 'failed-scan' | 'failed-add' | 'test-scan' | 'imported', reason: string, ocrText: string): Promise<string[]> {
+  if (!TRAINING_AVAILABLE) return []; // store builds keep no training photos (src/edition.ts)
   if (!uris.length) return [];
   return serial(async () => {
     const added: TrainingEntry[] = [];

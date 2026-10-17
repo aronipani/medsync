@@ -20,6 +20,7 @@ import { classifyTest, recordFor, upcomingReadiness, type Readiness, type TestOu
 import { loadTestRecords, saveTestRecord } from '../src/testScanStore.ts';
 import { dateKey, fmt12, fmtDay } from '../src/time.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
+import { keepsTraining } from '../src/edition.ts';
 import { Button, Card, More, s, useTheme } from '../src/ui.tsx';
 
 interface Run {
@@ -66,7 +67,7 @@ export default function TestScan() {
   const keep = (r: Run, label?: { name: string; strength: string }, reason?: string) => {
     if (r.kept || !r.photos.length) return;
     r.kept = true;
-    if (!state.settings.collectTraining) return;
+    if (!keepsTraining(state.settings)) return;
     if (label) saveTrainingPhotos(r.photos, label, 'test-scan', r.text).catch(() => {});
     else saveUnlabelledPhotos(r.photos, 'test-scan', reason ?? 'Test scan, not confirmed.', r.text).catch(() => {});
   };
@@ -295,7 +296,7 @@ export default function TestScan() {
           Strip area finder:{' '}
           {state.settings.regionDetector === false ? 'off' : detector === 'ready' ? 'on' : detector === 'missing' ? 'not in this version' : 'starting…'}
         </Text>
-        {state.settings.collectTraining && <Button title="Send photos for training" kind="ghost" onPress={() => sendForTraining()} disabled={busy} />}
+        {keepsTraining(state.settings) && <Button title="Send photos for training" kind="ghost" onPress={() => sendForTraining()} disabled={busy} />}
       </More>
     </ScrollView>
   );

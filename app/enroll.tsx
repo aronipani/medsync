@@ -16,6 +16,7 @@ import { medLabel } from '../src/schedule.ts';
 import { useStore } from '../src/store.tsx';
 import { buildProfile, checkEnroll, type EnrollCheck } from '../src/stripProfile.ts';
 import { saveTrainingPhotos } from '../src/training.ts';
+import { keepsTraining } from '../src/edition.ts';
 import { Button, Card, More, useTheme } from '../src/ui.tsx';
 
 export default function Enroll() {
@@ -90,7 +91,7 @@ export default function Enroll() {
       teach(med.id, lines);
       const ym = parseExpiry(lines.join('\n'));
       if (ym) setExpiry(med.id, ym);
-      if (state.settings.collectTraining) {
+      if (keepsTraining(state.settings)) {
         const photos = sides.current.flatMap((x) => x.photos);
         saveTrainingPhotos(photos, { name: med.name, strength: med.strength }, 'taught', lines.join('\n')).catch(() => {});
       }

@@ -13,7 +13,7 @@ what happens to their health data. App stores require a privacy policy for healt
 
 ## First-run notice ("Before you start")
 Shown full-screen on first launch, before anything else, until **I understand** is tapped.
-Stored as `settings.acceptedNotice = NOTICE_VERSION` (currently 1). Raising `NOTICE_VERSION` shows it again.
+Stored as `settings.acceptedNotice = NOTICE_VERSION` (currently 2: adds not-a-medical-device, doses come from the prescription, prescription drafts). Raising `NOTICE_VERSION` shows it again.
 
 Content (short):
 * **MedSync helps you remember and check — it does not replace your doctor or pharmacist.**
