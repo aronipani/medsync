@@ -29,8 +29,22 @@ export interface Medication {
   active: boolean;
   createdAt: string;
   learned?: string[]; // fingerprints of strips a person confirmed ("Teach this strip")
+  profile?: StripProfile; // made when the strip was scanned once on purpose (spec 15)
   expiry?: string; // YYYY-MM printed on the strip in use (read when a scan is confirmed)
   overlapOk?: string[]; // ids of medicines a doctor confirmed this one is meant to be taken with (same ingredient)
+}
+
+/**
+ * What the app knows about how a medicine's strip looks, from scanning a fresh strip once on purpose
+ * ("Scan this strip once", or Scan to add). Used at dose time on the phone, offline (spec 15, section 2a).
+ */
+export interface StripProfile {
+  version: 1;
+  source: 'phone' | 'server';
+  at: string; // ISO time it was made or last renewed
+  words: string[]; // distinctive words printed on the strip (brand, contents, maker, unusual print), upper case
+  sides: number; // how many sides were scanned (1 or 2)
+  refs?: string[]; // reference photo file names on this phone (profiles/), newest first, at most 6 — not in backups
 }
 
 export interface MealTimes {

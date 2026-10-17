@@ -6,6 +6,7 @@ import { describeTiming, doseTime, medLabel } from '../../src/schedule.ts';
 import { genericLabel, lookupBrand } from '../../src/drugdb.ts';
 import { reuseDoseIds, sameMedicine } from '../../src/consolidate.ts';
 import { overlapMessage, overlapsFor } from '../../src/overlap.ts';
+import { deleteReferences } from '../../src/profileFiles.ts';
 import { uid, useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import type { Dose, Meal, MealRelation, Medication } from '../../src/types.ts';
@@ -65,6 +66,7 @@ export default function EditMed() {
   const knownAlias = known && med.strength.trim() ? genericLabel(known.ingredients, med.strength.replace(/\s*mg\b/i, '').trim()) : undefined;
   const setDose = (doseId: string, patch: Partial<Dose>) => set({ doses: med.doses.map((d) => (d.id === doseId ? { ...d, ...patch } : d)) });
   const member = state.members.find((m) => m.id === med.memberId);
+  const live = existing ? state.meds.find((x) => x.id === existing.id) : undefined;
   // Came from Scan to add: name, strength and form are already read, so show them as a summary (step 2 of 2).
   const fromScan = !!prefill && !existing && !pendingItem;
 
@@ -79,8 +81,12 @@ export default function EditMed() {
       const changed = !old || JSON.stringify([old.timing, old.days]) !== JSON.stringify([d.timing, d.days]) || existing?.memberId !== med.memberId;
       return changed && old ? { ...d, since: now } : d;
     });
+    // The strip profile, taught strips and expiry are changed by other screens (Scan the strip once, the Scan tab)
+    // while this one is open: keep their latest values.
+    const live = state.meds.find((x) => x.id === med.id);
     const final = {
       ...med,
+      ...(live ? { profile: live.profile, learned: live.learned, expiry: live.expiry } : {}),
       name: med.name.trim(),
       strength: med.strength.trim(),
       aliases: aliases.split(',').map((a) => a.trim()).filter(Boolean),
@@ -113,6 +119,8 @@ export default function EditMed() {
                 barcodes: [...new Set([...dup.barcodes, ...final.barcodes])],
                 notes: final.notes ?? dup.notes,
                 endDate: final.endDate,
+                profile: dup.profile ?? final.profile,
+                learned: [...new Set([...(dup.learned ?? []), ...(final.learned ?? [])])],
                 active: true,
               });
               router.back();
@@ -330,6 +338,26 @@ export default function EditMed() {
           <Switch value={med.active} onValueChange={(active) => set({ active })} />
         </View>
 
+        {existing && (
+          <Card style={{ marginTop: 20 }}>
+            {live?.profile ? (
+              <>
+                <Text style={{ color: t.ok, fontSize: 17, fontWeight: '800' }}>✓ Strip scanned</Text>
+                <Text style={{ color: t.sub, fontSize: 15, marginTop: 4 }}>
+                  On {new Date(live.profile.at).toLocaleDateString(undefined, { day: 'numeric', month: 'short' })}. The scanner knows how this strip looks.
+                </Text>
+                <Button title="Scan a new strip" kind="ghost" onPress={() => router.push({ pathname: '/enroll', params: { medId: existing.id } })} />
+              </>
+            ) : (
+              <>
+                <Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>Scan this strip once</Text>
+                <Text style={{ color: t.sub, fontSize: 15, marginTop: 4 }}>Makes worn and cut strips easier to recognise at dose time. Takes a minute.</Text>
+                <Button title="Scan the strip" onPress={() => router.push({ pathname: '/enroll', params: { medId: existing.id } })} style={{ marginTop: 10 }} />
+              </>
+            )}
+          </Card>
+        )}
+
         {/* Rarely needed; sensible defaults, so folded away. */}
         <More>
         <Label>Other names on the strip</Label>
@@ -403,7 +431,7 @@ export default function EditMed() {
             onPress={() =>
               Alert.alert('Delete medicine?', 'Its history stays in the log.', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: () => (deleteMed(med.id), router.back()) },
+                { text: 'Delete', style: 'destructive', onPress: () => (deleteReferences(live?.profile?.refs), deleteMed(med.id), router.back()) },
               ])
             }
           />

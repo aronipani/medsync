@@ -100,3 +100,12 @@ test('a hint pointing to a different medicine than the raw reading makes it unsu
   const v = householdMatch('CLOPIL', household, ['PANTODAC 40']);
   assert.equal(v.kind, 'unsure');
 });
+
+test('profile words help find the medicine, but alone give amber, never green', () => {
+  // The brand is torn off; only the maker line read from the fresh strip is left.
+  const withProfile = { ...med('clopilet', 'Clopilet', '75'), profile: { version: 1 as const, source: 'phone' as const, at: '', words: ['CLOPILET', 'ZYPHARMO'], sides: 1 } };
+  const v = householdMatch('ZYPHARMO 75', [withProfile, med('pantodac', 'Pantodac', '40')]);
+  assert.deepEqual([v.kind, v.kind === 'likely' ? v.medId : ''], ['likely', 'clopilet']);
+  // With the brand readable as well, green as before.
+  assert.equal(householdMatch('LOPILET ZYPHARMO 75', [withProfile, med('pantodac', 'Pantodac', '40')]).kind, 'sure');
+});

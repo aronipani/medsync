@@ -212,8 +212,20 @@ there are ~1,500 checked photos.
 1. **Built (Oct 2026): fuzzy closed-set matching on the phone** (`src/household.ts`, used by the Scan tab after the
    strict matcher in `src/match.ts`): household-wide candidates, trigram + alignment text
    score, margin rule, look-alike rule, "someone else's medicine" result. No server, no new model. Biggest quick win.
-2. **Strip profiles** on the phone: `profile` on `Medication`, two-photo Add a strip (offline-capable), reference
-   crops refreshed on confirmed scans, backup support.
+2. **Built (Oct 2026): strip profiles on the phone** (`src/stripProfile.ts`, `src/profileFiles.ts`):
+   * **Scan this strip once** (medicine screen → `app/enroll.tsx`): reads a fresh strip (one or both sides,
+     3 photos each), checks it really is this medicine against the whole household (`checkEnroll`: wrong medicine
+     or wrong strength → nothing saved; name not found → "scan again", or a helper's explicit "It is … — save"),
+     then keeps the profile: distinctive words, sides scanned, date, and the first photo of each side as a
+     reference picture. Also teaches the strip and records its expiry.
+   * **Scan to add** keeps a profile too (it is the strip being scanned on purpose).
+   * **Confirmed dose scans** add that photo as the newest reference (480 px, ≤6 per medicine, oldest deleted).
+   * **Matching:** profile words join the medicine's name words (household matching and Vision's word list), but
+     a match on strip words alone (not the brand, an alias or the contents name) is amber at most — strip print
+     can include words other medicines share, such as a maker's name.
+   * Backups keep the profile; reference photos are not in backups (spec 01) and are collected again.
+   * The phone profile is smaller than section 1's full profile: `{ version, source, at, words, sides, refs }`.
+     Grid, colours, regions and look-alikes come with the server reading and later steps.
 3. **Household index** (`src/householdIndex.ts`) and `household.ts` reading profile words, unique-word weighting,
    strength and expiry from it (section 2a, steps 0 and 4).
 4. **Built (Oct 2026): second look on a miss** — ML Kit on iPhone, Vision word-list pass and Vision's alternative

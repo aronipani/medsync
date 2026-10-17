@@ -6,7 +6,7 @@ import { applyPrescription, duplicateGroups, mergeGroup, planPrescription, remap
 import { describeMedTimes } from './describe.ts';
 import { addLearned, fingerprint } from './learn.ts';
 import { confirmPair } from './overlap.ts';
-import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, ScheduleVersion, Settings } from './types.ts';
+import type { AppState, DoseLog, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, ScheduleVersion, Settings, StripProfile } from './types.ts';
 
 const KEY = 'medsync:v1';
 
@@ -90,6 +90,8 @@ interface Store {
   confirmOverlap(aId: string, bId: string): void;
   /** The expiry (YYYY-MM) of the strip in use; undefined clears it. */
   setExpiry(medId: string, ym: string | undefined): void;
+  /** The medicine's strip profile (spec 15); undefined clears it. */
+  setProfile(medId: string, profile: StripProfile | undefined): void;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -194,6 +196,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           return { ...next, meds };
         }),
       setExpiry: (medId, ym) => update((s) => ({ ...s, meds: s.meds.map((m) => (m.id === medId ? { ...m, expiry: ym } : m)) })),
+      setProfile: (medId, profile) => update((s) => ({ ...s, meds: s.meds.map((m) => (m.id === medId ? { ...m, profile } : m)) })),
       confirmOverlap: (aId, bId) =>
         update((s) => {
           const a = s.meds.find((x) => x.id === aId);

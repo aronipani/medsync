@@ -6,6 +6,7 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { householdMatch, householdWords } from '../../src/household.ts';
+import { withNewReference } from '../../src/profileFiles.ts';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
@@ -37,7 +38,7 @@ type Result =
 export default function Scan() {
   const t = useTheme();
   const focused = useIsFocused();
-  const { state, now, record, linkBarcode, teach, setExpiry } = useStore();
+  const { state, now, record, linkBarcode, teach, setExpiry, setProfile } = useStore();
   const [perm, requestPerm] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
 
@@ -279,6 +280,10 @@ export default function Scan() {
     // A strip read by camera and confirmed as one medicine: remember it, so it's recognised more easily next time.
     if (occs.length === 1 && lastRead.current.lines.length) {
       teach(occs[0].med.id, lastRead.current.lines);
+      // Strips wear slowly: today's photo is the best picture for tomorrow's scan (spec 15). Oldest of six goes.
+      const prof = occs[0].med.profile;
+      const photo = lastRead.current.photos[0];
+      if (prof && photo) withNewReference(prof, photo).then((p) => setProfile(occs[0].med.id, p)).catch(() => {});
       if (expiry) setExpiry(occs[0].med.id, expiry);
       keepPhotos(occs[0], 'dose-check');
     } else if (occs.length > 1) keepUnconfirmed('Matched several medicines at once; which one the strip is was not confirmed.');

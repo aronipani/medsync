@@ -9,7 +9,7 @@ import { relatedNames } from './drugdb.ts';
 import { decode } from './learn.ts';
 import type { Medication } from './types.ts';
 
-type Med = Pick<Medication, 'id' | 'name' | 'strength' | 'aliases'> & { learned?: string[] };
+type Med = Pick<Medication, 'id' | 'name' | 'strength' | 'aliases'> & Partial<Pick<Medication, 'learned' | 'profile'>>;
 
 // Words printed on many strips; they say nothing about which medicine it is.
 const COMMON = new Set([
@@ -27,16 +27,22 @@ const SURE_COVER = 0.6; // name coverage needed (with strength and no look-alike
 /** OCR reads O as 0, I as 1 inside words. */
 const letters = (t: string) => t.replace(/0/g, 'O').replace(/1/g, 'I').replace(/5/g, 'S').replace(/8/g, 'B');
 
-/**
- * Distinctive name words of a medicine: brand words, alias words, its contents from the built-in medicine list
- * (CLOPIDOGREL often survives when the brand is torn off), taught-strip words. No numbers, no common print.
- */
-export function nameWords(med: Med): string[] {
+/** Name words a person or the medicine list gave: brand, aliases, contents from the built-in list. */
+export function primaryWords(med: Med): string[] {
   const generic = med.name ? relatedNames({ name: med.name, strength: med.strength }).generic : undefined;
   const src = [med.name.replace(/\s*\/\s*/g, ' '), ...med.aliases, ...(generic ? [generic] : [])];
-  const words = src.flatMap(tokenize).filter((w) => /^[A-Z]+$/.test(w) && w.length >= MIN_RUN && !COMMON.has(w));
+  return [...new Set(src.flatMap(tokenize).filter((w) => /^[A-Z]+$/.test(w) && w.length >= MIN_RUN && !COMMON.has(w)))];
+}
+
+/**
+ * Distinctive name words of a medicine: the primary words above, plus words read from its own strip (strip
+ * profile, taught strips). Strip words can include print other medicines share (a maker's name), so a match on
+ * them alone gives amber at most (see decide). No numbers, no common print.
+ */
+export function nameWords(med: Med): string[] {
   const taught = (med.learned ?? []).flatMap(decode).filter((w) => /^[A-Z]{5,}$/.test(w) && !COMMON.has(w));
-  return [...new Set([...words, ...taught])];
+  const profiled = (med.profile?.words ?? []).filter((w) => /^[A-Z]{4,}$/.test(w) && !COMMON.has(w));
+  return [...new Set([...primaryWords(med), ...profiled, ...taught])];
 }
 
 /**
@@ -93,8 +99,8 @@ export function strengthSeen(text: string, strength: string): 'same' | 'other' |
 export function lookAlike(a: Med, b: Med): boolean {
   if (a.id === b.id) return false;
   if (sameMedicine(a, b)) return true;
-  const an = nameWords({ ...a, aliases: [], learned: [] });
-  const bn = nameWords({ ...b, aliases: [], learned: [] });
+  const an = primaryWords({ ...a, aliases: [] });
+  const bn = primaryWords({ ...b, aliases: [] });
   return an.some((x) => bn.some((y) => x.slice(0, 4) === y.slice(0, 4) || levenshtein(x, y) <= 2));
 }
 
@@ -102,6 +108,7 @@ export interface Candidate {
   medId: string;
   cover: number; // 0…1 of the best-matching name word
   word: string; // which name word
+  primary: boolean; // the brand, an alias or the contents name was seen (not only print read from the strip)
   strength: 'same' | 'other' | 'unknown';
   score: number;
 }
@@ -135,16 +142,19 @@ function decide(text: string, meds: Med[]): Verdict {
   const fragments = [...new Set(tokenize(text).map(letters).filter((t) => /^[A-Z]{4,}$/.test(t) && !COMMON.has(t)))];
   const candidates: Candidate[] = [];
   for (const med of meds) {
+    const primary = new Set(primaryWords(med));
     let best = { cover: 0, word: '' };
+    let primaryCover = 0;
     for (const w of nameWords(med)) {
       const c = nameCover(fragments, w);
       if (c > best.cover) best = { cover: c, word: w };
+      if (primary.has(w)) primaryCover = Math.max(primaryCover, c);
     }
     if (best.cover < MIN_COVER) continue;
     const strength = strengthSeen(text, med.strength);
     if (strength === 'other') continue; // a different strength printed: not this one
     const score = best.cover * (strength === 'same' ? 1.5 : 1);
-    candidates.push({ medId: med.id, cover: best.cover, word: best.word, strength, score });
+    candidates.push({ medId: med.id, cover: best.cover, word: best.word, primary: primaryCover >= SURE_COVER, strength, score });
   }
   candidates.sort((a, b) => b.score - a.score);
   if (!candidates.length) return { kind: 'none', candidates };
@@ -152,6 +162,6 @@ function decide(text: string, meds: Med[]): Verdict {
   if (second && top.score < second.score * MARGIN) return { kind: 'unsure', candidates };
   const med = meds.find((m) => m.id === top.medId)!;
   const hasLookAlike = meds.some((m) => lookAlike(med, m));
-  if (top.strength === 'same' && top.cover >= SURE_COVER && !hasLookAlike) return { kind: 'sure', medId: top.medId, candidates };
+  if (top.strength === 'same' && top.cover >= SURE_COVER && top.primary && !hasLookAlike) return { kind: 'sure', medId: top.medId, candidates };
   return { kind: 'likely', medId: top.medId, candidates };
 }

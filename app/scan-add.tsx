@@ -9,6 +9,8 @@ import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
 import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { encode, fingerprint } from '../src/learn.ts';
+import { saveReference } from '../src/profileFiles.ts';
+import { buildProfile } from '../src/stripProfile.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
 import { useStore } from '../src/store.tsx';
 import { Button, Card, Chip, Field, Label, More, s, Steps, useTheme } from '../src/ui.tsx';
@@ -97,7 +99,7 @@ export default function ScanToAdd() {
     }
   };
 
-  const useIt = () => {
+  const useIt = async () => {
     if (!result) return;
     const aliases = [...result.aliases];
     // Keep the medicine contents as a second name so a torn strip still verifies.
@@ -112,7 +114,16 @@ export default function ScanToAdd() {
       notes: result.contents ? `Contains ${result.contents}.` : undefined,
       learned: lines.length ? [encode(fingerprint(lines.map((l) => l.text)))] : [],
       expiry: parseExpiry(lines.map((l) => l.text).join('\n')),
+      // Scanning to add is the strip being scanned on purpose: keep its profile (spec 15).
+      profile: lines.length ? buildProfile(lines.map((l) => l.text), Math.min(2, photos)) : undefined,
     };
+    if (prefill.profile && photoUris.current[0]) {
+      try {
+        prefill.profile = { ...prefill.profile, refs: [await saveReference(photoUris.current[0])] };
+      } catch {
+        // the words are what matter today
+      }
+    }
     if (state.settings.collectTraining && photoUris.current.length) {
       saveTrainingPhotos(photoUris.current, { name: prefill.name, strength: prefill.strength, contents: result.contents }, 'scan-to-add', lines.map((l) => l.text).join('\n')).catch(() => {});
     }
