@@ -3,7 +3,7 @@
 
 import { sameMedicine } from './consolidate.ts';
 import { DRUGS, lookupBrand, lookupIngredients, relatedNames } from './drugdb.ts';
-import { exchangeable, formLabel } from './substitute.ts';
+import { differenceMessage, exchangeable, formLabel } from './substitute.ts';
 import type { Medication } from './types.ts';
 
 const NOISE = new Set([
@@ -162,6 +162,8 @@ export interface MatchDetail {
   via?: string; // the name that matched, e.g. "Clopidogrel 75" or "Plavix 75"
   foundStrengths?: string[]; // strengths printed on the strip when they differ from the prescription
   looksLike?: string; // conflict: what the strip appears to be instead
+  askDoctor?: boolean; // substitute of a medicine where a change of maker needs the doctor (spec 17)
+  note?: string; // nameOnly: why a person has to check ("Can't tell if this is the same as Metolar 25.")
 }
 
 const STRENGTH_IN_TEXT = /(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug|iu|k)\b/gi;
@@ -268,6 +270,7 @@ function checkedRelated(text: string, med: Med, via: string, generic: boolean): 
     const form = c.reasons.includes('form') ? formLabel(c.form.strip) : c.reasons.includes('salt') ? c.salt.strip : undefined;
     return { level: 'conflict', looksLike: form ? `${via} (${form})` : via };
   }
-  if (c.unknown.length || (!generic && c.askBeforeSwap)) return { level: 'nameOnly', via };
-  return { level: generic ? 'match' : 'substitute', via };
+  if (c.unknown.length) return { level: 'nameOnly', via, note: differenceMessage(c, { name: med.name, strength: med.strength }, { name: brand, strength: med.strength }) };
+  if (generic) return { level: 'match', via };
+  return c.askBeforeSwap ? { level: 'substitute', via, askDoctor: true } : { level: 'substitute', via };
 }

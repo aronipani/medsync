@@ -18,4 +18,4 @@
 | [14](14-simple-for-older-people.md) | Simple for older people: Settings tabs, less on each screen, bigger controls, rules for new features | Built |
 | [15](15-closed-set-strip-matching.md) | Recognise the household's own strips: closed-set matching, strip profiles, enrollment via the DoseSure server | Household matching built; enrollment to build |
 | [16](16-dosesure-server.md) | DoseSure server: one anonymous backend for strip reading, catalogue, encrypted backups, family circle, training photos (`server/`) | Server built, not deployed; app side to build |
-| [17](17-substitute-brands-and-finding-stock.md) | Substitute brands at the scan; buy list, pharmacies and family hand-off when a medicine runs out | Same-medicine check built; scan, stock and buy list to build |
+| [17](17-substitute-brands-and-finding-stock.md) | Substitute brands at the scan; buy list, pharmacies and family hand-off when a medicine runs out | Part A built (substitute brands at the scan and in other names); part B (buy list, pharmacies) to build |

@@ -120,9 +120,28 @@ test('scan: another brand goes through only when it is exactly the same medicine
   assert.equal(xl.level, 'conflict');
   assert.match(xl.looksLike ?? '', /extended-release/);
   // Generic name printed, salt not readable → a person checks, not green
-  assert.equal(matchDetail('Metoprolol 25 mg tablets', med('Metolar', '25')).level, 'nameOnly');
+  assert.deepEqual(matchDetail('Metoprolol 25 mg tablets', med('Metolar', '25')), { level: 'nameOnly', via: 'Metoprolol 25', note: "Can't tell if this is the same as your Metolar 25." });
   assert.equal(matchDetail('Metoprolol Tartrate Tablets IP 25 mg', med('Metolar', '25')).level, 'match');
   // Amiodarone from another maker: recognised, but a person checks
   assert.equal(matchDetail('TACHYRA 200 Amiodarone Hydrochloride Tablets 200 mg', med('Cordarone X', '200', ['Amiodarone 200'])).level, 'match');
-  assert.equal(matchDetail('TACHYRA 200', med('Cordarone X', '200')).level, 'nameOnly');
+  assert.deepEqual(matchDetail('TACHYRA 200', med('Cordarone X', '200')), { level: 'substitute', via: 'Tachyra 200', askDoctor: true });
+});
+
+test('other names on the strip: only ones that are a different medicine are flagged', async () => {
+  const { otherNameProblems, splitName } = await import('../src/substitute.ts');
+  assert.deepEqual(splitName('Met XL 25'), { brand: 'Met XL', strength: '25' });
+  assert.deepEqual(splitName('Telma-H 40/12.5 mg'), { brand: 'Telma-H', strength: '40/12.5 mg' });
+  assert.deepEqual(splitName('Clopitab'), { brand: 'Clopitab', strength: '' });
+  const metolar = { name: 'Metolar', strength: '25' };
+  const [xl] = otherNameProblems(metolar, ['Met XL 25'], 'Papa');
+  assert.equal(xl.message, "Met XL 25: This is the extended-release kind. Papa's Metolar is the plain kind.");
+  const clopilet = { name: 'Clopilet', strength: '75' };
+  assert.deepEqual(otherNameProblems(clopilet, ['Plavix 75', 'Clopitab', 'Clopidogrel 75', 'Clopilet 75', 'Hospital code 4411']), []);
+  assert.equal(otherNameProblems(clopilet, ['Clopitab 150'])[0].message, 'Clopitab 150: This is clopidogrel 150 mg. You take 75.');
+  assert.match(otherNameProblems(clopilet, ['Clopitab A 75'])[0].message, /also contains aspirin/);
+  // Generic name of a salt-sensitive medicine: unknown salt is not a problem when typed by hand
+  assert.deepEqual(otherNameProblems(metolar, ['Metoprolol 25']), []);
+  const [amio] = otherNameProblems({ name: 'Cordarone X', strength: '200' }, ['Tachyra 200', 'Amiodarone 200']);
+  assert.equal(amio.askDoctor, true);
+  assert.equal(otherNameProblems({ name: 'Cordarone X', strength: '200' }, ['Tachyra 200', 'Amiodarone 200']).length, 1);
 });

@@ -6,6 +6,7 @@ import { describeTiming, doseTime, medLabel } from '../../src/schedule.ts';
 import { genericLabel, lookupBrand } from '../../src/drugdb.ts';
 import { reuseDoseIds, sameMedicine } from '../../src/consolidate.ts';
 import { overlapMessage, overlapsFor } from '../../src/overlap.ts';
+import { otherNameProblems } from '../../src/substitute.ts';
 import { deleteReferences } from '../../src/profileFiles.ts';
 import { profileFilesOf } from '../../src/stripProfile.ts';
 import { uid, useStore } from '../../src/store.tsx';
@@ -93,6 +94,25 @@ export default function EditMed() {
       aliases: aliases.split(',').map((a) => a.trim()).filter(Boolean),
       doses,
     };
+    // The scanner accepts any other name: warn when a newly typed one is a different medicine (spec 17).
+    const added = final.aliases.filter((a) => !existing?.aliases.includes(a));
+    const problems = otherNameProblems({ name: final.name, strength: final.strength, unit: final.unit }, added, member?.name);
+    if (problems.length) {
+      const doctorOnly = problems.every((p) => p.askDoctor);
+      return Alert.alert(
+        doctorOnly ? 'Check with the doctor' : 'Not the same medicine?',
+        `${problems.map((p) => p.message).join('\n\n')}\n\nThe scanner would accept ${problems.length > 1 ? 'these strips' : 'this strip'} as ${final.name} ${final.strength}.`.trim(),
+        [
+          { text: 'Cancel', style: 'cancel' },
+          { text: doctorOnly ? 'Doctor said it\u2019s fine' : 'Save anyway', style: 'destructive', onPress: () => finish(final) },
+        ],
+      );
+    }
+    finish(final);
+  };
+
+  const finish = (final: Medication) => {
+    const now = new Date().toISOString();
     if (pendingItem) {
       updatePendingItem(pendingItem.id, { med: final, checked: true, include: true });
       return router.back();

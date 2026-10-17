@@ -8,6 +8,7 @@ import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { householdMatch, householdWords } from '../../src/household.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
 import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
+import { exchangeable, splitName, substituteCard } from '../../src/substitute.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
 import { readBurst, readLinesAnyOrientation, readSecondLook, scanDetectorLabel, scanHints, scanReaderLabel, setHouseholdWords, startScanStats } from '../../src/ocr.ts';
@@ -31,14 +32,15 @@ const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', '
 
 type Result =
   | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean; expiry?: string } // green
-  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean } // amber: name matches, strength unreadable (partial: only part of the name read)
+  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean; note?: string } // amber: name matches, strength unreadable (partial: only part of the name read; note: why else to check)
+  | { kind: 'brand'; occ: Occurrence; method: LogMethod; via: string; askDoctor?: boolean } // amber: another brand of exactly this medicine, first time (spec 17)
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
   | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey }; // red; detail = raw text read (helpers only), tip = what to try
 
 export default function Scan() {
   const t = useTheme();
   const focused = useIsFocused();
-  const { state, now, record, linkBarcode, teach, setExpiry, setProfile } = useStore();
+  const { state, now, record, linkBarcode, addOtherName, teach, setExpiry, setProfile } = useStore();
   const [perm, requestPerm] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
 
@@ -131,6 +133,8 @@ export default function Scan() {
             : phrase(lang, 'checkStrength', { strength: spokenStrength(r.occ.med.strength) })) +
           (r.expiry && expiryStatus(r.expiry) === 'expired' ? ` ${phrase(lang, 'expired')}` : '')
         );
+      case 'brand':
+        return phrase(lang, 'substitute');
       case 'strength':
         return phrase(lang, 'otherStrength');
       case 'nomatch':
@@ -174,7 +178,8 @@ export default function Scan() {
     const hits = checked.filter((x) => x.d.level === 'match');
     if (hits.length) return show({ kind: 'match', occs: hits.map((x) => x.o), method });
     const subs = checked.filter((x) => x.d.level === 'substitute');
-    if (subs.length) return show({ kind: 'match', occs: subs.map((x) => x.o), method, substitute: subs[0].d.via });
+    // Another brand of exactly the same medicine, seen for the first time: a person confirms once (spec 17).
+    if (subs.length) return show({ kind: 'brand', occ: subs[0].o, method, via: subs[0].d.via ?? '', askDoctor: subs[0].d.askDoctor });
     const other = checked.find((x) => x.d.level === 'otherStrength');
     if (other) return show({ kind: 'strength', occ: other.o, found: other.d.foundStrengths ?? [], detail: text });
     // The strip looks like a different medicine than the one due: say what it looks like.
@@ -192,7 +197,7 @@ export default function Scan() {
     const learnedOcc = learned && due.find((o) => o.med.id === learned.medId);
     if (learnedOcc && !findConflict(text, learnedOcc.med, household)) return show({ kind: 'match', occs: [learnedOcc], method, learned: true });
     const nameOnly = checked.find((x) => x.d.level === 'nameOnly');
-    if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method });
+    if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method, note: nameOnly.d.note });
     // Worn or cut strip: decide among the household's own medicines from fragments ("…LOPIL… 75"), spec 15.
     // Being due is not part of the decision; it only decides what the result says.
     const hh = householdMatch(text, household, method === 'text' ? scanHints() : []);
@@ -540,7 +545,7 @@ export default function Scan() {
 
           {result?.kind === 'check' && (
             <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{result.partial ? '⚠ Check the name' : '⚠ Check the strength'}</Text>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{result.note ? '⚠ Check with the pharmacist' : result.partial ? '⚠ Check the name' : '⚠ Check the strength'}</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
                 <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
@@ -548,7 +553,9 @@ export default function Scan() {
                 </View>
               )}
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
-                {result.partial
+                {result.note
+                  ? result.note
+                  : result.partial
                   ? `Only part of the name could be read. It looks like ${result.occ.med.name}.`
                   : `The name matches ${result.occ.med.name}, but the strength couldn't be read (torn or shiny).`}
               </Text>
@@ -567,6 +574,40 @@ export default function Scan() {
               <ReadBy />
             </View>
           )}
+
+          {result?.kind === 'brand' && (() => {
+            const usual = { name: result.occ.med.name, strength: result.occ.med.strength, aliases: result.occ.med.aliases, unit: result.occ.med.unit };
+            const parts = splitName(result.via);
+            const strip = { name: parts.brand, strength: parts.strength || usual.strength, unit: result.occ.med.unit };
+            const card = substituteCard(exchangeable(usual, strip), usual, strip, member?.name);
+            const accept = () => {
+              addOtherName(result.occ.med.id, result.via);
+              show({ kind: 'match', occs: [result.occ], method: result.method });
+            };
+            const Row = ({ label, name, generic }: { label: string; name: string; generic: string }) => (
+              <View style={{ backgroundColor: '#0002', borderRadius: 14, padding: 14, marginTop: 10 }}>
+                <Text style={{ color: '#fff', fontSize: 16 }}>{label}</Text>
+                <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>{name}</Text>
+                <Text style={{ color: '#fff', fontSize: 17 }}>{generic}</Text>
+              </View>
+            );
+            return (
+              <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
+                <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>{card.title}</Text>
+                <Row label="This strip" name={card.strip.name} generic={card.strip.generic} />
+                <Row label="Usual" name={card.usual.name} generic={card.usual.generic} />
+                {card.note ? (
+                  <Text style={{ color: '#fff', fontSize: 18, fontWeight: '700', marginTop: 12 }}>{card.note}</Text>
+                ) : (
+                  <Text style={{ color: '#fff', fontSize: 17, marginTop: 12 }}>Same medicine and strength. Only the maker is different.</Text>
+                )}
+                <View style={{ flex: 1, minHeight: 16 }} />
+                <Button big title={card.yes} kind="light" onPress={accept} style={{ marginTop: 14 }} />
+                <Button title={card.no} kind="ghost" onColor onPress={dismiss} style={{ marginTop: 8 }} />
+                <ReadBy />
+              </View>
+            );
+          })()}
 
           {result?.kind === 'strength' && (
             <View style={{ backgroundColor: t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>

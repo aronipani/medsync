@@ -73,6 +73,8 @@ interface Store {
   undo(key: string): void;
   adjustStock(medId: string, delta: number, reason: 'refill' | 'adjust'): void;
   linkBarcode(medId: string, code: string): void;
+  /** Adds a name the scanner accepts for this medicine (another brand the pharmacy gave, spec 17). */
+  addOtherName(medId: string, name: string): void;
   saveSettings(s: Settings): void;
   replaceAll(s: AppState): void;
   setPending(p: PendingRx | undefined): void;
@@ -263,6 +265,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         update((s) => ({
           ...s,
           meds: s.meds.map((m) => (m.id === medId && !m.barcodes.includes(code) ? { ...m, barcodes: [...m.barcodes, code] } : m)),
+        })),
+      addOtherName: (medId, name) =>
+        update((s) => ({
+          ...s,
+          meds: s.meds.map((m) =>
+            m.id === medId && !m.aliases.some((a) => a.toLowerCase().replace(/\s+/g, ' ') === name.toLowerCase().replace(/\s+/g, ' '))
+              ? { ...m, aliases: [...m.aliases, name] }
+              : m,
+          ),
         })),
       saveSettings: (settings) => update((s) => ({ ...s, settings })),
       replaceAll: (next) => update(() => next),

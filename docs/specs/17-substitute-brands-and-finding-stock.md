@@ -105,7 +105,12 @@ Metolar schedule would still have gone green for a Met XL strip. Now (`checkedRe
 * exactly the same medicine → green, as before;
 * a different form or salt → **conflict** (red): "looks like Met XL 25 (extended-release)";
 * salt can't be read, or an ask-before-swap medicine from another maker → **check** (amber), a person decides.
-The amber "Different brand of …?" card that adds the brand to other names is still to build.
+**Built (Oct 2026):** the amber **Different brand of …?** card (Scan tab, `kind: 'brand'`): this strip and the usual
+medicine side by side with their generic names; **Yes, the pharmacy gave this** adds the brand to other names
+(`addOtherName`) and shows the green result; ask-before-swap medicines show the doctor line and *Doctor said it's
+fine*. A strip whose salt can't be read shows amber *Check with the pharmacist* with the reason. On the medicine
+page, newly typed other names are checked on save (`otherNameProblems`): *Not the same medicine?* with the difference,
+or *Check with the doctor*; Cancel / Save anyway.
 
 ### Shared catalogue (spec 16)
 A confirmed substitution adds nothing new to the catalogue except the new brand's profile (as spec 15). The

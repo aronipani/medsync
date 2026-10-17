@@ -213,3 +213,37 @@ export function substituteCard(c: SwapCheck, usual: Product, strip: Product, who
     no: 'No',
   };
 }
+
+// ——— "Other names on the strip" (spec 17): the scanner accepts any of them, so check new ones ———
+
+/** "Met XL 25" → { brand: "Met XL", strength: "25" }; "Clopitab" → { brand: "Clopitab", strength: "" }. */
+export function splitName(text: string): { brand: string; strength: string } {
+  const m = /^(.*?)[\s-]*(\d+(?:\.\d+)?(?:\s*\/\s*\d+(?:\.\d+)?)*\s*(?:mg|mcg|µg|ml|iu|k)?)\s*$/i.exec(text.trim());
+  return m && m[1].trim() ? { brand: m[1].trim(), strength: m[2].trim() } : { brand: text.trim(), strength: '' };
+}
+
+export interface OtherNameProblem {
+  name: string; // as typed
+  message: string; // "Met XL 25: This is the extended-release kind. Papa's Metolar is the plain kind."
+  askDoctor: boolean; // same medicine, but one where a change of maker needs the doctor
+}
+
+/**
+ * Other names that would let the scanner accept a strip that is NOT the same medicine (another strength, release
+ * form, salt or contents), or a brand of an ask-before-swap medicine. Only names the app can tell something about
+ * are checked: free text it doesn't know ("Paracetamol 650", a hospital code) passes as today.
+ */
+export function otherNameProblems(usual: Product, names: string[], who?: string): OtherNameProblem[] {
+  const out: OtherNameProblem[] = [];
+  for (const name of names) {
+    const { brand, strength } = splitName(name);
+    if (!brand || norm(brand) === norm(usual.name)) continue;
+    const strip: Product = { name: brand, strength: strength || usual.strength };
+    const c = exchangeable({ ...usual, aliases: [] }, strip);
+    if (!c.ingredients.strip.length) continue; // nothing known about this name
+    const isBrand = !!(lookupBrand(brand) ?? lookupBrand(baseName(brand)));
+    if (c.reasons.length) out.push({ name, message: `${name}: ${differenceMessage(c, usual, strip, who)}`, askDoctor: false });
+    else if (isBrand && c.askBeforeSwap) out.push({ name, message: `${name}: ${ASK_DOCTOR_LINE}`, askDoctor: true });
+  }
+  return out;
+}
