@@ -44,7 +44,9 @@ export interface StripProfile {
   at: string; // ISO time it was made or last renewed
   words: string[]; // distinctive words printed on the strip (brand, contents, maker, unusual print), upper case
   sides: number; // how many sides were scanned (1 or 2)
-  refs?: string[]; // reference photo file names on this phone (profiles/), newest first, at most 6 — not in backups
+  anchors?: string[]; // photos of the fresh strip from "Scan this strip once" (one per side): always kept
+  refs?: string[]; // photos from confirmed dose scans, newest first, at most 4; the oldest goes
+  // (both: file names in profiles/ on this phone — not in backups)
 }
 
 export interface MealTimes {

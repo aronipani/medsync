@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { addRef, buildProfile, checkEnroll, MAX_REFS, profileWords } from '../src/stripProfile.ts';
+import { addRef, buildProfile, checkEnroll, MAX_REFS, profileFilesOf, profileWords } from '../src/stripProfile.ts';
 import type { Medication } from '../src/types.ts';
 
 const med = (id: string, name: string, strength: string, extra: Partial<Medication> = {}): Medication => ({
@@ -17,22 +17,24 @@ test('profile words: brand and contents, not addresses, prices or batch', () => 
 
 test('a new scan keeps the words an earlier one read', () => {
   const first = buildProfile(['CLOPILET 75', 'Clopidogrel'], 1, undefined, new Date('2026-10-16'));
-  const again = buildProfile(['CLOPILET'], 2, { ...first, refs: ['a.jpg'] }, new Date('2026-10-20'));
+  const again = buildProfile(['CLOPILET'], 2, { ...first, anchors: ['fresh.jpg'], refs: ['a.jpg'] }, new Date('2026-10-20'));
   assert.ok(again.words.includes('CLOPIDOGREL'));
   assert.equal(again.sides, 2);
   assert.deepEqual(again.refs, ['a.jpg']);
+  assert.deepEqual(again.anchors, ['fresh.jpg']); // the fresh-strip photo stays
+  assert.deepEqual(profileFilesOf(again), ['fresh.jpg', 'a.jpg']);
 });
 
-test('reference photos: newest first, at most six, oldest dropped', () => {
+test('rolling reference photos: newest first, at most four, oldest dropped', () => {
   let refs: string[] = [];
   const dropped: string[] = [];
-  for (let i = 1; i <= 8; i++) {
+  for (let i = 1; i <= 6; i++) {
     const r = addRef(refs, `${i}.jpg`);
     refs = r.refs;
     dropped.push(...r.drop);
   }
   assert.equal(refs.length, MAX_REFS);
-  assert.equal(refs[0], '8.jpg');
+  assert.equal(refs[0], '6.jpg');
   assert.deepEqual(dropped, ['1.jpg', '2.jpg']);
 });
 

@@ -119,7 +119,7 @@ export default function ScanToAdd() {
     };
     if (prefill.profile && photoUris.current[0]) {
       try {
-        prefill.profile = { ...prefill.profile, refs: [await saveReference(photoUris.current[0])] };
+        prefill.profile = { ...prefill.profile, anchors: [await saveReference(photoUris.current[0])] };
       } catch {
         // the words are what matter today
       }

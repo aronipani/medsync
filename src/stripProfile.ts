@@ -6,7 +6,7 @@ import { fingerprint } from './learn.ts';
 import { matchDetail } from './match.ts';
 import type { Medication, StripProfile } from './types.ts';
 
-export const MAX_REFS = 6;
+export const MAX_REFS = 4; // rolling photos from dose scans; the fresh-strip anchors are kept besides these
 const MAX_WORDS = 24;
 
 /** Distinctive words from what was read on a fresh strip: brand and contents lines, no addresses/prices/batch. */
@@ -19,8 +19,11 @@ export function profileWords(lines: string[]): string[] {
 export function buildProfile(lines: string[], sides: number, prev?: StripProfile, now = new Date()): StripProfile {
   // Words from an earlier profile are kept: a new scan may miss what an earlier one read.
   const words = [...new Set([...profileWords(lines), ...(prev?.words ?? [])])].slice(0, MAX_WORDS);
-  return { version: 1, source: 'phone', at: now.toISOString(), words, sides: Math.max(sides, prev?.sides ?? 0), refs: prev?.refs };
+  return { version: 1, source: 'phone', at: now.toISOString(), words, sides: Math.max(sides, prev?.sides ?? 0), anchors: prev?.anchors, refs: prev?.refs };
 }
+
+/** Every photo file a profile holds (to delete them with the medicine). */
+export const profileFilesOf = (p: StripProfile | undefined): string[] => [...(p?.anchors ?? []), ...(p?.refs ?? [])];
 
 /** Newest reference first; returns the list to keep and the files to delete. */
 export function addRef(refs: string[] | undefined, file: string): { refs: string[]; drop: string[] } {

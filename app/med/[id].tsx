@@ -7,6 +7,7 @@ import { genericLabel, lookupBrand } from '../../src/drugdb.ts';
 import { reuseDoseIds, sameMedicine } from '../../src/consolidate.ts';
 import { overlapMessage, overlapsFor } from '../../src/overlap.ts';
 import { deleteReferences } from '../../src/profileFiles.ts';
+import { profileFilesOf } from '../../src/stripProfile.ts';
 import { uid, useStore } from '../../src/store.tsx';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import type { Dose, Meal, MealRelation, Medication } from '../../src/types.ts';
@@ -431,7 +432,7 @@ export default function EditMed() {
             onPress={() =>
               Alert.alert('Delete medicine?', 'Its history stays in the log.', [
                 { text: 'Cancel', style: 'cancel' },
-                { text: 'Delete', style: 'destructive', onPress: () => (deleteReferences(live?.profile?.refs), deleteMed(med.id), router.back()) },
+                { text: 'Delete', style: 'destructive', onPress: () => (deleteReferences(profileFilesOf(live?.profile)), deleteMed(med.id), router.back()) },
               ])
             }
           />

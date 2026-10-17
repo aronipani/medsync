@@ -10,7 +10,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { parseExpiry } from '../src/expiry.ts';
 import { isNotLinkedError, readBurst, startScanStats } from '../src/ocr.ts';
-import { withNewReference } from '../src/profileFiles.ts';
+import { withAnchors } from '../src/profileFiles.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { medLabel } from '../src/schedule.ts';
 import { useStore } from '../src/store.tsx';
@@ -85,14 +85,7 @@ export default function Enroll() {
     setBusy(true);
     try {
       const lines = allLines();
-      let profile = buildProfile(lines, sides.current.length, med.profile);
-      for (const side of [...sides.current].reverse()) {
-        try {
-          profile = await withNewReference(profile, side.photo);
-        } catch {
-          // a reference photo is a bonus; the words are what matter today
-        }
-      }
+      const profile = await withAnchors(buildProfile(lines, sides.current.length, med.profile), sides.current.map((x) => x.photo));
       setProfile(med.id, profile);
       teach(med.id, lines);
       const ym = parseExpiry(lines.join('\n'));
