@@ -4,6 +4,7 @@ import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberDot, MemberPicker } from '../../src/components.tsx';
 import { answerText, buyItem, buyList, dialable, pharmacyMessage, pharmacyOrder, smsLink, whatsappLink, type BuyItem } from '../../src/buylist.ts';
+import { openMapsSearch, pickFromContacts } from '../../src/pharmacyFind.ts';
 import { medLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { addDays, dateKey } from '../../src/time.ts';
@@ -284,11 +285,46 @@ function AnswerSheet({ pharmacy, items, today, onSave, onClose }: { pharmacy: Ph
 function PharmacyForm({ value, onSave, onCancel, onRemove }: { value: Pharmacy; onSave: (p: Pharmacy) => void; onCancel: () => void; onRemove?: () => void }) {
   const t = useTheme();
   const [p, setP] = useState(value);
+  const fromContacts = async () => {
+    try {
+      const c = await pickFromContacts();
+      if (c === 'denied') {
+        return Alert.alert('Contacts not allowed', 'Type the name and number instead, or allow Contacts for DoseSure in your phone’s Settings.');
+      }
+      if (!c) return;
+      const fill = (phone?: string) => setP((x) => ({ ...x, name: c.name || x.name, phone: phone ?? x.phone }));
+      if (c.phones.length > 1) {
+        return Alert.alert(c.name || 'Which number?', 'Which number does the pharmacy answer?', [
+          ...c.phones.slice(0, 3).map((n) => ({ text: n, onPress: () => fill(n) })),
+          { text: 'Cancel', style: 'cancel' as const },
+        ]);
+      }
+      fill(c.phones[0]);
+    } catch {
+      Alert.alert('Couldn’t open contacts', 'Type the name and number instead.');
+    }
+  };
+  const fromMaps = () =>
+    Alert.alert(
+      'Find a pharmacy on Google Maps',
+      'Maps opens with pharmacies near you. Find the one you want, copy or note its phone number, then come back here and type it in.',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Open Maps', onPress: () => openMapsSearch().catch(() => Alert.alert('Couldn’t open Google Maps')) },
+      ],
+    );
   return (
     <Modal visible transparent animationType="fade" onRequestClose={onCancel}>
       <View style={{ flex: 1, backgroundColor: '#0008', justifyContent: 'center', padding: 20 }}>
         <Card>
           <Text style={[s.h2, { color: t.text }]}>{value.id ? 'Change pharmacy' : 'Add a pharmacy'}</Text>
+          {!value.id && (
+            <View style={{ gap: 8, marginTop: 12 }}>
+              <Button title="Pick from my contacts" onPress={fromContacts} />
+              <Button title="Find nearby on Google Maps" kind="secondary" onPress={fromMaps} />
+              <Text style={{ color: t.sub, fontSize: 15 }}>Or type it below.</Text>
+            </View>
+          )}
           <Label>Name</Label>
           <Field value={p.name} onChangeText={(name) => setP({ ...p, name })} placeholder="e.g. Apollo, Gariahat" />
           <Label>Phone number</Label>

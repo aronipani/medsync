@@ -19,12 +19,16 @@
         "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
-        "android.permission.VIBRATE"
+        "android.permission.VIBRATE",
+        "android.permission.READ_CONTACTS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F6F6F3"
-      }
+      },
+      "blockedPermissions": [
+        "android.permission.WRITE_CONTACTS"
+      ]
     },
     "plugins": [
       "./plugins/withoutPushEntitlement.js",
@@ -49,6 +53,12 @@
         {
           "photosPermission": "DoseSure opens your photos so you can choose a prescription to read.",
           "cameraPermission": "DoseSure uses the camera to photograph prescriptions and scan medicine strips."
+        }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "DoseSure opens your contacts only when you pick a pharmacy, to fill in its name and phone number. Nothing is uploaded."
         }
       ],
       "react-native-fast-tflite"

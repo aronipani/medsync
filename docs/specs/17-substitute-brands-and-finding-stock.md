@@ -132,8 +132,11 @@ Settings → Helper tools → **My pharmacies**: a short list the family keeps (
 ```ts
 interface Pharmacy { id: string; name: string; phone?: string; whatsapp?: string; note?: string; }
 ```
-Added by typing, picking a phone contact, or from a phone number on a bill photo (later). Nothing is looked up
-online; no map, no location.
+Added by typing, **Pick from my contacts** (the phone's contact picker, `expo-contacts`; read-only permission,
+asked on first use; several numbers → choose one), or **Find nearby on Google Maps** (opens Maps searching
+"pharmacy near me"; the person notes the number and types it). DoseSure itself looks nothing up and sends no
+location: an in-app Google Places search was rejected (location to Google, paid per search, needs the server, and
+small chemists are often missing or without numbers).
 
 ### B3. The buy list — what to ask for
 *Find it* opens the **buy list**: one card per medicine, in big text, written the way a pharmacist searches:
