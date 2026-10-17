@@ -94,6 +94,7 @@ export default function Buy() {
               <Card style={{ marginTop: 10 }}>
                 <Text style={{ color: t.text, fontSize: 17 }}>Add the pharmacies you buy from. Then one tap calls them, or sends this list on WhatsApp.</Text>
                 <Button title="Add a pharmacy" onPress={() => setEditing({ id: '', name: '', whatsapp: true })} style={{ marginTop: 10 }} />
+                <Text style={{ color: t.sub, fontSize: 15, marginTop: 8 }}>Kept on this phone and in backups. Never sent anywhere.</Text>
               </Card>
             ) : (
               ordered.map((p, idx) => {
@@ -139,6 +140,8 @@ export default function Buy() {
           </More>
         )}
 
+        {/* With no pharmacies yet, "Ask a pharmacy" above already offers to add one: don't show the button twice. */}
+        {(pharmacies.length > 0 || !items.length) && (
         <More title="My pharmacies">
           {pharmacies.map((p) => (
             <View key={p.id} style={[s.between, { minHeight: 48 }]}>
@@ -154,6 +157,7 @@ export default function Buy() {
           <Button title="Add a pharmacy" kind="secondary" onPress={() => setEditing({ id: '', name: '', whatsapp: true })} />
           <Text style={{ color: t.sub, fontSize: 15 }}>Kept on this phone and in backups. Never sent anywhere.</Text>
         </More>
+        )}
       </ScrollView>
 
       {/* The list for the counter: big, plain, nothing else. */}
