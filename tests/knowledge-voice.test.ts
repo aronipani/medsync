@@ -78,6 +78,6 @@ test('amounts read naturally', () => {
   assert.equal(spokenStrength('50 mcg'), '50 mcg');
   assert.equal(
     matchAnnouncement('hi', [{ name: 'Clopilet 75', qty: 0.5, unit: 'tablet' }]),
-    'सही दवा: Clopilet 75। अभी आधी गोली लीजिए।',
+    'आपकी सूची की दवा: Clopilet 75। अभी आधी गोली लीजिए।',
   );
 });

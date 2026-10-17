@@ -59,7 +59,7 @@ jobs:
           APP=$(ls -d build/Build/Products/Release-iphoneos/*.app | head -1)
           mkdir -p Payload out
           cp -R "$APP" Payload/
-          zip -qry "out/MedSync-${{ github.run_number }}.ipa" Payload
+          zip -qry "out/TakeSure-${{ github.run_number }}.ipa" Payload
 
       - uses: actions/upload-artifact@v4
         with:
@@ -70,7 +70,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ios-${{ github.run_number }}
-          name: MedSync iPhone build ${{ github.run_number }}
+          name: TakeSure iPhone build ${{ github.run_number }}
           body: Unsigned IPA for AltStore / SideStore. Open in AltStore on the iPhone (My Apps → +), or download on your PC and drag onto AltServer.
           files: out/*.ipa
           make_latest: false

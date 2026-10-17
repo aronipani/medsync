@@ -101,7 +101,10 @@ Answer per data type; the developer receives nothing, but Apple counts what thir
 * **Diagnostics → Performance Data / Other Diagnostic Data:** collected by Google ML Kit (backup text reader on
   iPhone) — **not linked to the user, not used for tracking**, purpose **Analytics / App Functionality** (by Google).
   Google's ML Kit data disclosure lists device and app information and performance metrics.
-  When ML Kit is removed from the iPhone build (after Apple Vision proves itself), switch to **Data Not Collected**.
+  ML Kit stays in the iPhone build for v1: it is the backup reader when Vision fails, and the **second look** at a
+  scan that matched nothing (spec 15, 2a) — the two readers make different mistakes, which helps with worn strips.
+  Remove it only once scan traces show the second look rarely turns a scan green; then switch to **Data Not
+  Collected**.
 * Everything else: **not collected** (health data, photos, contacts and identifiers stay on the phone).
 * Problem reports are emails the user chooses to write and send. Apple lets optional, user-initiated feedback that
   is clearly disclosed stay out of the label; it is described in the privacy policy (done).

@@ -35,7 +35,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'English',
     tts: ['en-IN', 'en-GB', 'en-US'],
     phrases: {
-      correct: 'Matches your list: {name}.',
+      correct: 'Matches your list: {name}.', // never "correct": the app can't be sure (store guideline 1.4.1)
       take: 'Take {amount} now.',
       wrong: 'Wrong medicine. Do not take this one.',
       notNow: 'This medicine is not due now.',
@@ -66,7 +66,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Hindi',
     tts: ['hi-IN'],
     phrases: {
-      correct: 'सही दवा: {name}।',
+      correct: 'आपकी सूची की दवा: {name}।',
       take: 'अभी {amount} लीजिए।',
       wrong: 'यह गलत दवा है। इसे मत लीजिए।',
       notNow: 'यह दवा अभी लेने की नहीं है।',
@@ -87,7 +87,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Bengali',
     tts: ['bn-IN', 'bn-BD'],
     phrases: {
-      correct: 'সঠিক ওষুধ: {name}।',
+      correct: 'আপনার তালিকার ওষুধ: {name}।',
       take: 'এখন {amount} নিন।',
       wrong: 'এটা ভুল ওষুধ। এটা খাবেন না।',
       notNow: 'এই ওষুধ এখন খাওয়ার সময় নয়।',
@@ -108,7 +108,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Punjabi',
     tts: ['pa-IN', 'pa-Guru-IN'],
     phrases: {
-      correct: 'ਸਹੀ ਦਵਾਈ: {name}।',
+      correct: 'ਤੁਹਾਡੀ ਸੂਚੀ ਦੀ ਦਵਾਈ: {name}।',
       take: 'ਹੁਣ {amount} ਲਓ।',
       wrong: 'ਇਹ ਗਲਤ ਦਵਾਈ ਹੈ। ਇਸਨੂੰ ਨਾ ਲਓ।',
       notNow: 'ਇਹ ਦਵਾਈ ਹੁਣ ਲੈਣ ਵਾਲੀ ਨਹੀਂ ਹੈ।',
@@ -129,7 +129,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Telugu',
     tts: ['te-IN'],
     phrases: {
-      correct: 'సరైన మందు: {name}.',
+      correct: 'మీ జాబితాలోని మందు: {name}.',
       take: 'ఇప్పుడు {amount} తీసుకోండి.',
       wrong: 'ఇది తప్పు మందు. దీన్ని తీసుకోకండి.',
       notNow: 'ఈ మందు ఇప్పుడు తీసుకోవలసినది కాదు.',
@@ -150,7 +150,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Gujarati',
     tts: ['gu-IN'],
     phrases: {
-      correct: 'સાચી દવા: {name}.',
+      correct: 'તમારી યાદીની દવા: {name}.',
       take: 'હમણાં {amount} લો.',
       wrong: 'આ ખોટી દવા છે. આ ન લો.',
       notNow: 'આ દવા અત્યારે લેવાની નથી.',
@@ -171,7 +171,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Tamil',
     tts: ['ta-IN'],
     phrases: {
-      correct: 'சரியான மருந்து: {name}.',
+      correct: 'உங்கள் பட்டியலில் உள்ள மருந்து: {name}.',
       take: 'இப்போது {amount} எடுத்துக்கொள்ளுங்கள்.',
       wrong: 'இது தவறான மருந்து. இதை எடுக்க வேண்டாம்.',
       notNow: 'இந்த மருந்தை இப்போது எடுக்க வேண்டியதில்லை.',
@@ -192,7 +192,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Kannada',
     tts: ['kn-IN'],
     phrases: {
-      correct: 'ಸರಿಯಾದ ಔಷಧಿ: {name}.',
+      correct: 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿರುವ ಔಷಧಿ: {name}.',
       take: 'ಈಗ {amount} ತೆಗೆದುಕೊಳ್ಳಿ.',
       wrong: 'ಇದು ತಪ್ಪು ಔಷಧಿ. ಇದನ್ನು ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ.',
       notNow: 'ಈ ಔಷಧಿಯನ್ನು ಈಗ ತೆಗೆದುಕೊಳ್ಳುವ ಸಮಯವಲ್ಲ.',
@@ -213,7 +213,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Assamese',
     tts: ['as-IN', 'bn-IN'], // few phones have an Assamese voice; the Bengali voice reads the same script
     phrases: {
-      correct: 'শুদ্ধ ঔষধ: {name}।',
+      correct: 'আপোনাৰ তালিকাৰ ঔষধ: {name}।',
       take: 'এতিয়া {amount} লওক।',
       wrong: 'এইটো ভুল ঔষধ। এইটো নাখাব।',
       notNow: 'এই ঔষধ এতিয়া খোৱাৰ সময় হোৱা নাই।',
@@ -234,7 +234,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Mandarin',
     tts: ['zh-CN', 'zh-TW'],
     phrases: {
-      correct: '药品正确：{name}。',
+      correct: '这是您清单上的药：{name}。',
       take: '现在服用{amount}。',
       wrong: '药品不对，请不要服用。',
       notNow: '现在不是服用这种药的时间。',
@@ -262,7 +262,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Spanish',
     tts: ['es-ES', 'es-US', 'es-MX'],
     phrases: {
-      correct: 'Medicamento correcto: {name}.',
+      correct: 'Coincide con su lista: {name}.',
       take: 'Tome {amount} ahora.',
       wrong: 'Medicamento equivocado. No lo tome.',
       notNow: 'Ahora no le toca este medicamento.',
@@ -295,7 +295,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Filipino',
     tts: ['fil-PH', 'tl-PH'],
     phrases: {
-      correct: 'Tamang gamot: {name}.',
+      correct: 'Tugma sa iyong listahan: {name}.',
       take: 'Uminom ng {amount} ngayon.',
       wrong: 'Maling gamot. Huwag itong inumin.',
       notNow: 'Hindi pa oras para sa gamot na ito.',
@@ -323,7 +323,7 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Japanese',
     tts: ['ja-JP'],
     phrases: {
-      correct: '正しいお薬です。{name}。',
+      correct: 'リストのお薬と一致しました。{name}。',
       take: '今、{amount}飲んでください。',
       wrong: '違うお薬です。飲まないでください。',
       notNow: 'このお薬は今飲む時間ではありません。',
