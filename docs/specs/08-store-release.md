@@ -34,7 +34,7 @@ Sideloading (APK, AltStore) works for family and testers. To give MedSync to any
   of scope. Declare **No** per region if those countries are added.
 
 ## Store builds (done 17 Oct 2026)
-* App id `com.dosesure.app` on both platforms (test builds were `com.medsync.family`: back up and restore once).
+* App id `com.takesure.app` on both platforms (test builds were `com.medsync.family`: back up and restore once).
 * `eas.json` production profile: `EXPO_PUBLIC_STORE_BUILD=1` (no training photos, `src/edition.ts`), build numbers
   kept by EAS (`appVersionSource: remote`, `autoIncrement`).
 * `app.json`: iOS privacy manifest (required-reason APIs), `ITSAppUsesNonExemptEncryption: false`.

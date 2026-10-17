@@ -15,7 +15,7 @@ export default function About() {
       </Card>
       <Button title="Full privacy policy" kind="secondary" style={{ marginTop: 14 }} onPress={() => Linking.openURL(PRIVACY_URL)} />
       <Button title="Report a problem" kind="ghost" style={{ marginTop: 6 }} onPress={() => router.push('/report')} />
-      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 16 }}>DoseSure · free, no account, no ads</Text>
+      <Text style={{ color: t.sub, textAlign: 'center', marginTop: 16 }}>TakeSure · free, no account, no ads</Text>
       <Text style={{ color: t.sub, textAlign: 'center', marginTop: 4, fontSize: 15 }} selectable>
         {buildLabel()}
       </Text>

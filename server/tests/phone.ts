@@ -2,7 +2,7 @@
 // The app implements the same with @noble/hashes + @noble/ciphers (React Native has no WebCrypto AES).
 import { createCipheriv, createDecipheriv, hkdfSync, randomBytes } from 'node:crypto';
 
-const derive = (key: Buffer, info: string, len: number) => Buffer.from(hkdfSync('sha256', key, 'dosesure', info, len));
+const derive = (key: Buffer, info: string, len: number) => Buffer.from(hkdfSync('sha256', key, 'takesure', info, len));
 
 /** kind: 'vault' (backup key) or 'circle' (family circle key). */
 export function keysFrom(key: Buffer, kind: 'vault' | 'circle') {

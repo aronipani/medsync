@@ -1,14 +1,14 @@
 openapi: 3.1.0
 info:
-  title: DoseSure API
+  title: TakeSure API
   version: 0.1.0
   description: |
-    One central, strictly anonymous server for every DoseSure phone (docs/specs/16-dosesure-server.md).
+    One central, strictly anonymous server for every TakeSure phone (docs/specs/16-takesure-server.md).
     No accounts. Every call except /v1/health and /v1/install needs `Authorization: Install <token>`,
     an anonymous token used only for rate limits. Backups and family activity are encrypted on the phone;
     the server stores ciphertext it cannot read.
 servers:
-  - url: https://api.dosesure.app
+  - url: https://api.takesure.app
     description: Production (placeholder until a domain is chosen)
   - url: http://localhost:8787
     description: npm run local

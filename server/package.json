@@ -1,8 +1,8 @@
 {
-  "name": "dosesure-server",
+  "name": "takesure-server",
   "version": "0.1.0",
   "private": true,
-  "description": "DoseSure central server: strip reading, strip catalogue, encrypted backups, family activity feed, training photo uploads. Strictly anonymous.",
+  "description": "TakeSure central server: strip reading, strip catalogue, encrypted backups, family activity feed, training photo uploads. Strictly anonymous.",
   "type": "module",
   "scripts": {
     "test": "node --experimental-strip-types --test tests/*.test.ts",

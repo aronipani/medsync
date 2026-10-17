@@ -36,15 +36,15 @@ test('backup round trip keeps everything except photos and a pending prescriptio
   assert.equal(r.droppedMeds, 0);
 });
 
-test('rejects files that are not DoseSure backups or are from a newer app', () => {
+test('rejects files that are not TakeSure backups or are from a newer app', () => {
   const bad = (t: string) => {
     const r = parseBackup(t, DEFAULTS);
     assert.ok(!r.ok);
     return r.ok ? '' : r.error;
   };
-  assert.match(bad('not json at all'), /not a DoseSure backup/);
-  assert.match(bad('{"hello":1}'), /not a DoseSure backup/);
-  assert.match(bad(JSON.stringify({ ...makeBackup(STATE), kind: 'training' })), /not a DoseSure backup/);
+  assert.match(bad('not json at all'), /not a TakeSure backup/);
+  assert.match(bad('{"hello":1}'), /not a TakeSure backup/);
+  assert.match(bad(JSON.stringify({ ...makeBackup(STATE), kind: 'training' })), /not a TakeSure backup/);
   assert.match(bad(JSON.stringify({ ...makeBackup(STATE), format: 99 })), /newer version/);
   assert.match(bad(JSON.stringify({ ...makeBackup(STATE), state: { ...STATE, members: [] } })), /incomplete/);
 });

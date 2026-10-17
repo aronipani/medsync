@@ -1,11 +1,11 @@
 AWSTemplateFormatVersion: '2010-09-09'
 Transform: AWS::Serverless-2016-10-31
-Description: DoseSure central server — anonymous strip reading, strip catalogue, encrypted backups, family activity feed, training photos.
+Description: TakeSure central server — anonymous strip reading, strip catalogue, encrypted backups, family activity feed, training photos.
 
 # Deploy (from server/):  sam build && sam deploy --guided
 # Before the first deploy, create two SecureString parameters (see README.md):
-#   /dosesure/install-secret   random 32+ characters, signs anonymous install tokens
-#   /dosesure/model-key        the model provider's API key
+#   /takesure/install-secret   random 32+ characters, signs anonymous install tokens
+#   /takesure/model-key        the model provider's API key
 
 Parameters:
   Model:
@@ -18,10 +18,10 @@ Parameters:
     Description: Global daily cap on model calls (cost cap). Above it the app reads strips on the phone.
   InstallSecretParam:
     Type: String
-    Default: /dosesure/install-secret
+    Default: /takesure/install-secret
   ModelKeyParam:
     Type: String
-    Default: /dosesure/model-key
+    Default: /takesure/model-key
 
 Globals:
   Function:

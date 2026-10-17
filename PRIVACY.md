@@ -1,8 +1,8 @@
-# DoseSure privacy policy
+# TakeSure privacy policy
 
 _Last updated: 17 October 2026_
 
-DoseSure is a free app that helps a family keep track of medicines: schedules, reminders, checking strips and
+TakeSure is a free app that helps a family keep track of medicines: schedules, reminders, checking strips and
 bottles by photo, and stock. It has **no account**, **no ads** and **no tracking**, and the developer runs **no server**
 that receives your data.
 
@@ -47,11 +47,11 @@ The app never sends any of these anywhere by itself.
   uploaded, and the app does not read your other contacts.
 
 ## Children
-DoseSure is meant to be set up by adults for themselves and their family. It does not knowingly collect anything
+TakeSure is meant to be set up by adults for themselves and their family. It does not knowingly collect anything
 from anyone, because it collects nothing.
 
 ## Medical safety
-DoseSure is a reminder and record-keeping aid. It is not a medical device and does not diagnose, treat or give
+TakeSure is a reminder and record-keeping aid. It is not a medical device and does not diagnose, treat or give
 medical advice. It does not work out doses: the amount shown is what you or your family entered from the
 prescription, and a prescription read from a photo is only a draft to check. The scanner can be wrong — always read
 the name and strength on the strip yourself. Follow your prescription and ask your doctor or pharmacist before
@@ -66,5 +66,5 @@ updated before that version is released.
 Questions, problems or privacy requests: use **Report a problem** in the app, email paniaron@gmail.com, or open an
 issue at https://github.com/aronipani/medsync/issues
 
-Because DoseSure keeps your data only on your phone, the developer holds no personal data about you to access,
+Because TakeSure keeps your data only on your phone, the developer holds no personal data about you to access,
 correct or delete; deleting the app removes everything.

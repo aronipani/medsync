@@ -14,9 +14,9 @@ fragments ("…LOPIL… 75"), colours, the pocket grid and earlier photos of the
    evidence, not the answer.
 2. **A false green is the harmful error.** Every rule below leans to "not sure, scan the other side" over a guess.
 3. **Dose time stays offline.** Scanning never needs the internet. A frontier model is used only once per new strip,
-   when someone adds it, through the DoseSure server.
-4. **One standard DoseSure server, not one per family.** Families never set up keys, accounts or servers. The app
-   talks only to the DoseSure backend; the backend talks to the model provider.
+   when someone adds it, through the TakeSure server.
+4. **One standard TakeSure server, not one per family.** Families never set up keys, accounts or servers. The app
+   talks only to the TakeSure backend; the backend talks to the model provider.
 5. **Simple for older people (spec 14).** The patient sees green / amber / red as today. Profiles, scores and
    enrollment detail are for helpers.
 
@@ -27,7 +27,7 @@ Each `Medication` gets an optional `profile`, built when the strip is added and 
 ```ts
 interface StripProfile {
   version: 1;
-  source: 'server' | 'phone';        // read by the DoseSure server, or built on the phone only (offline / no consent)
+  source: 'server' | 'phone';        // read by the TakeSure server, or built on the phone only (offline / no consent)
   brand: string;                     // "Clopilet"
   generic?: string;                  // "Clopidogrel"
   strength: string;                  // "75 mg"
@@ -164,20 +164,20 @@ A medicine added the old way (typed name only) still works: steps 2–3 run with
 its typed words, step 4 uses text and strength only. The app suggests "Scan this strip once so it's easier to
 recognise" (Add a strip, offline-capable) in the medicine's screen, not at dose time.
 
-## 3. Adding a strip: enrollment through the DoseSure server
+## 3. Adding a strip: enrollment through the TakeSure server
 
 ### Flow (helper-facing)
 1. Add a medicine → **Scan the strip** → photo of the back, then the front (two photos; the app guides with an outline).
 2. If online **and** the household allowed it (consent, below): first the brand and strength the phone read itself
    are looked up in the shared catalogue (no photo sent). If no confirmed profile is found, the two photos go to the
-   DoseSure server, which asks a frontier vision model to read them and returns a draft profile (section 1) in a few
+   TakeSure server, which asks a frontier vision model to read them and returns a draft profile (section 1) in a few
    seconds.
 3. The helper sees **"Is this right?"** with name, strength, maker and the pocket grid, big and editable. Nothing is
    saved until they press **Save**. Never added to the schedule automatically — same rule as prescriptions (spec 09).
 4. If offline, consent is off, or the server fails: the profile is built on the phone (text read today + the two
    photos), `source: 'phone'`. The app offers to improve it later ("Read this strip better when online?"), once.
 
-### Server (one standard DoseSure backend — built in `server/`, see spec 16)
+### Server (one standard TakeSure backend — built in `server/`, see spec 16)
 * **Endpoint:** `POST /v1/strip/read` — two JPEGs (≤1280 px, location/camera data removed on the phone), app version,
   platform. Returns the profile JSON. No account, no family id, no name of the person.
 * **The model key lives only on the server.** The app has none; a leaked app build can't use the provider directly.
@@ -194,7 +194,7 @@ recognise" (Add a strip, offline-capable) in the medicine's screen, not at dose 
 * Same host can later take the opt-in training photo uploads of spec 07 (`SHARE_ENDPOINT`), so one server covers both.
 
 ### Privacy and consent
-* First enrollment asks once per household: *"Send strip photos to DoseSure to read them? Photos are read and deleted;
+* First enrollment asks once per household: *"Send strip photos to TakeSure to read them? Photos are read and deleted;
   nothing that names you is kept."* **Allow** / **Not now**. Changeable in Settings → Helper tools.
 * Photos are cropped to the strip on the phone where the region/strip finder can, so pharmacy stickers with a
   patient's name are less likely to be sent. Text read on the phone is not sent.
@@ -234,7 +234,7 @@ there are ~1,500 checked photos.
    readings as amber-only hints, contents names from the medicine list (section 3b).
 5. **Guided crops** from profile regions, then the YOLO `strip` class (needs labels and a retrain).
 6. **Image embeddings** on the phone (TFLite model in `assets/models/`), added as the "look" signal, with colours.
-7. **DoseSure server**: built in `server/` with strip read, catalogue and rate limits (spec 16); still to deploy.
+7. **TakeSure server**: built in `server/` with strip read, catalogue and rate limits (spec 16); still to deploy.
    App side: consent screen, catalogue-first enrollment, PRIVACY.md.
 8. **Detector retraining** with model-drafted, hand-checked labels, including `strip`.
 

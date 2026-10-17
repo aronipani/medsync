@@ -27,4 +27,4 @@ createServer(async (r, w) => {
   const binary = Buffer.isBuffer(res.body);
   w.writeHead(res.status, { 'content-type': binary ? 'application/octet-stream' : 'application/json', ...res.headers });
   w.end(res.body === undefined ? '' : binary ? res.body : JSON.stringify(res.body));
-}).listen(8787, () => console.log('DoseSure server on http://localhost:8787'));
+}).listen(8787, () => console.log('TakeSure server on http://localhost:8787'));

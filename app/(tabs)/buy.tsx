@@ -289,7 +289,7 @@ function PharmacyForm({ value, onSave, onCancel, onRemove }: { value: Pharmacy; 
     try {
       const c = await pickFromContacts();
       if (c === 'denied') {
-        return Alert.alert('Contacts not allowed', 'Type the name and number instead, or allow Contacts for DoseSure in your phone’s Settings.');
+        return Alert.alert('Contacts not allowed', 'Type the name and number instead, or allow Contacts for TakeSure in your phone’s Settings.');
       }
       if (!c) return;
       const fill = (phone?: string) => setP((x) => ({ ...x, name: c.name || x.name, phone: phone ?? x.phone }));

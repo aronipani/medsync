@@ -41,14 +41,14 @@ function Report() {
       ...(details
         ? [
             '',
-            '— Sent from DoseSure —',
+            '— Sent from TakeSure —',
             `App: ${buildLabel()}`,
             `Phone: ${phone()}`,
             `Medicines in the app: ${state.meds.length} · People: ${state.members.length}`,
           ]
         : []),
     ];
-    const subject = `DoseSure problem: ${problem ?? 'report'}`;
+    const subject = `TakeSure problem: ${problem ?? 'report'}`;
     const body = lines.join('\n');
     const done = () =>
       Alert.alert('Thank you', 'Your message is ready to send. We read every one.', [{ text: 'OK', onPress: () => router.back() }]);

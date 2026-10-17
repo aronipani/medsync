@@ -1,8 +1,8 @@
-# DoseSure server
+# TakeSure server
 
-One central, strictly anonymous backend for every DoseSure phone: strip reading with a frontier model, a shared
+One central, strictly anonymous backend for every TakeSure phone: strip reading with a frontier model, a shared
 strip catalogue, encrypted cloud backups, an encrypted family activity feed, and opt-in training photos.
-Why and how: [`docs/specs/16-dosesure-server.md`](../docs/specs/16-dosesure-server.md). API: [`openapi.yaml`](openapi.yaml).
+Why and how: [`docs/specs/16-takesure-server.md`](../docs/specs/16-takesure-server.md). API: [`openapi.yaml`](openapi.yaml).
 
 AWS: API Gateway (HTTP API) → one Lambda (Node 22, arm64) → DynamoDB (one table, on-demand, TTL) + S3 (private bucket).
 Secrets in SSM Parameter Store.
@@ -41,13 +41,13 @@ curl -s localhost:8787/v1/strip/read -H "Authorization: Install $TOKEN" \
 Needs an AWS account, the AWS CLI (`aws configure`) and the SAM CLI.
 ```bash
 # 1. Secrets (once). Pick your region, e.g. ap-south-1 (Mumbai).
-aws ssm put-parameter --name /dosesure/install-secret --type SecureString --value "$(openssl rand -base64 48)"
-aws ssm put-parameter --name /dosesure/model-key      --type SecureString --value "sk-ant-..."
+aws ssm put-parameter --name /takesure/install-secret --type SecureString --value "$(openssl rand -base64 48)"
+aws ssm put-parameter --name /takesure/model-key      --type SecureString --value "sk-ant-..."
 
 # 2. Build and deploy
 cd server
 sam build
-sam deploy --guided        # stack name: dosesure; accept defaults; saves samconfig.toml for next time
+sam deploy --guided        # stack name: takesure; accept defaults; saves samconfig.toml for next time
 ```
 The output `ApiUrl` is the base URL for the app (`EXPO_PUBLIC_API_URL`, set in the build workflows later).
 Later deploys: `sam build && sam deploy`.

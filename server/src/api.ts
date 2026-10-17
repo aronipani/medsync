@@ -1,4 +1,4 @@
-// The DoseSure API (see ../openapi.yaml and docs/specs/16-dosesure-server.md).
+// The TakeSure API (see ../openapi.yaml and docs/specs/16-takesure-server.md).
 //
 // Strictly anonymous, by construction:
 //  * No accounts, names, phone numbers, emails or device ids. An install token (tokens.ts) only rate-limits.

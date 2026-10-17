@@ -7,15 +7,26 @@ Companion to spec 08 (release checklist). v1 is the **offline app only**: no ser
 ## App identity (fixed once uploaded)
 | Field | Value |
 |---|---|
-| Bundle ID | `com.dosesure.app` (iPhone and Android; was `com.medsync.family` in test builds) |
-| SKU | `dosesure-ios-1` |
+| Bundle ID | `com.takesure.app` (iPhone and Android; was `com.medsync.family` in test builds) |
+| SKU | `takesure-ios-1` |
 | Primary category | Medical |
-| Secondary category | Health & Fitness (optional; leave empty if India-only is not chosen, see "Availability") |
+| Secondary category | Health & Fitness |
 | Price | Free, no in-app purchases |
 | Devices | iPhone only (`supportsTablet: false`) |
 | Encryption | `ITSAppUsesNonExemptEncryption: false` in app.json (the app uses no encryption beyond iOS's own) |
 
 Test builds installed before the ID change are a different app: back up in the old app, restore in the new one.
+
+## Category: Medical first, Health & Fitness second
+Apple's definitions: **Medical** covers medical information management, record-keeping and health tracking for
+patients; **Health & Fitness** covers healthy living (fitness, stress, weight loss, meditation). TakeSure manages a
+family's prescribed medicines and dose records, so **Medical** is the accurate primary category (a wrong category is
+itself a 2.3 rejection reason). **Health & Fitness** as secondary adds browsing reach at no cost.
+* Medical apps get closer review (1.4.1), whichever category is chosen — the checklist below covers it.
+* Both categories trigger the regulated-medical-device declaration in the EU/EEA, UK and US; India-only keeps it out
+  of scope (see Availability).
+* Google Play (later): category **Medical**, and fill in the Health apps declaration ("medication reminders /
+  management").
 
 ## Availability: India first
 * **Pricing and Availability → India only** for v1. The app is made for Indian medicine strips, voices and
@@ -27,9 +38,10 @@ Test builds installed before the ID change are a different app: back up in the o
 * Adding countries later (e.g. Bangladesh, Nepal, UAE, UK for the Indian diaspora) needs no new build.
 
 ## Listing text
-**Name (30):** `DoseSure: Medicine Reminder`
-Check it is free in App Store Connect when creating the app. Fallbacks: `DoseSure – Family Medicines`,
-`DoseSure Medicine Tracker`.
+**Name (30):** `TakeSure: Medicine Reminder`
+Chosen 17 Oct 2026 ("DoseSure" was taken by a similar app; "Strip" names read badly in search). Check it is free in
+App Store Connect when creating the app, and in the Indian trademark register (class 9). Fallbacks: `TakeSure – Family Medicines`,
+`TakeSure Medicine Tracker`.
 
 **Subtitle (30):** `Medicine reminders for India`
 
@@ -38,12 +50,12 @@ Made for Indian medicine strips. Reminders for the whole family, a quick strip c
 counts itself down. Free, offline, no account.
 
 **Description:**
-DoseSure helps families in India keep track of daily medicines, especially for parents and grandparents who take
+TakeSure helps families in India keep track of daily medicines, especially for parents and grandparents who take
 many tablets a day.
 
 • Reminders for each family member, set around their breakfast, lunch and dinner — one reminder for everything due
   at that time.
-• Check the strip before taking it: point the camera at the medicine strip or box. DoseSure reads the printed name and
+• Check the strip before taking it: point the camera at the medicine strip or box. TakeSure reads the printed name and
   shows green when it matches a medicine due now, with the amount from your list, spoken in English, Hindi, Bengali
   and 10 more languages. Red with "scan the next one" when it doesn't.
 • Made for Indian strips: worn and half-cut strips, brand and generic names, and other brands with the same
@@ -56,7 +68,7 @@ many tablets a day.
 • Large text and simple screens, made for older people.
 • Free. No account, no ads, no tracking. Everything stays on your phone; back it up to a file you keep.
 
-DoseSure is a reminder and record-keeping aid. It is not a medical device and does not diagnose, treat or give
+TakeSure is a reminder and record-keeping aid. It is not a medical device and does not diagnose, treat or give
 medical advice. It does not work out doses — the amount shown is what you entered from the prescription. The scanner
 can be wrong: always read the name and strength on the strip yourself, and follow your doctor's and pharmacist's
 instructions.
@@ -98,7 +110,7 @@ Answer per data type; the developer receives nothing, but Apple counts what thir
 **Sign-in required:** No.
 **Contact:** your name, phone, email.
 **Notes for the reviewer (paste):**
-> DoseSure is a free, offline medicine reminder for families in India. There is no account and no server; all data
+> TakeSure is a free, offline medicine reminder for families in India. There is no account and no server; all data
 > stays on the phone.
 >
 > How to try it in 2 minutes:
@@ -111,7 +123,7 @@ Answer per data type; the developer receives nothing, but Apple counts what thir
 >
 > The scanner is tuned for Indian medicine strips; a short video of it working with Indian strips: <VIDEO LINK>.
 >
-> Medical scope: DoseSure is a reminder and record-keeping aid, not a medical device. It does not calculate or
+> Medical scope: TakeSure is a reminder and record-keeping aid, not a medical device. It does not calculate or
 > suggest doses — the amount shown is exactly what the user entered from their prescription. Prescription photos are
 > read on the phone into a draft that the user must check and save. A safety notice on first launch and the
 > About & safety page say this, and that the scanner can be wrong.
@@ -123,7 +135,7 @@ Record the video on a real iPhone (screen recording, 30–60 s: reminder → sca
 upload it unlisted (YouTube or Google Drive "anyone with the link") and put the link in the notes.
 
 ## Medical-category rules checklist (why apps like this get rejected)
-| Guideline | What it asks | How DoseSure meets it |
+| Guideline | What it asks | How TakeSure meets it |
 |---|---|---|
 | 1.4.1 Physical harm — medical apps | Greater scrutiny if data could be inaccurate; disclose how accuracy claims are backed; remind people to check with a doctor | No accuracy claims ("Matches your list", not "Correct medicine"); first-run notice and About & safety: scanner can be wrong, read the strip, follow the doctor |
 | 1.4.2 Drug dosage calculators | Must come from a manufacturer, hospital, pharmacy or approved body | The app never calculates doses; amounts come only from what the user enters. Said in the notice, the description and the review notes |
@@ -132,7 +144,7 @@ upload it unlisted (YouTube or Google Drive "anyone with the link") and put the 
 | 2.3.7 / 5.2.1 Keywords, trademarks | No other brands in keywords or screenshots | Generic medicine names in screenshots; no brand keywords |
 | 5.1.1 Privacy policy | Link in App Store Connect and inside the app; explains what is collected, retained and deleted | PRIVACY.md (updated 17 Oct 2026), linked from About & safety |
 | 5.1.1 Permission strings | Each permission explains its use | Camera, photos, contacts strings in app.json |
-| 5.1.1(ix) Highly regulated fields | Healthcare *services* must come from the provider | DoseSure is a personal tracker, not a healthcare service: no consultations, prescriptions or pharmacy orders |
+| 5.1.1(ix) Highly regulated fields | Healthcare *services* must come from the provider | TakeSure is a personal tracker, not a healthcare service: no consultations, prescriptions or pharmacy orders |
 | 5.1.3 Health data | No use for ads or data mining; don't store personal health information in iCloud | No ads, nothing uploaded; backup is a file the user saves where they choose |
 | Privacy manifest | Required-reason APIs declared | `ios.privacyManifests` in app.json |
 | Export compliance | Encryption question answered | `ITSAppUsesNonExemptEncryption: false` |
@@ -145,4 +157,4 @@ upload it unlisted (YouTube or Google Drive "anyone with the link") and put the 
 * A reminder and tracking app is not a medical device under India's Medical Devices Rules as long as it doesn't
   diagnose, treat or calculate doses — keep it that way when adding features.
 * Digital Personal Data Protection Act: obligations stay light because the developer receives no personal data.
-  Revisit before the DoseSure server (spec 16) goes live.
+  Revisit before the TakeSure server (spec 16) goes live.

@@ -15,7 +15,7 @@ export async function shareBackup(state: AppState): Promise<boolean> {
   if (out.exists) out.delete();
   out.create();
   out.write(JSON.stringify(makeBackup(state), null, 1));
-  await Sharing.shareAsync(out.uri, { mimeType: 'application/json', dialogTitle: 'Save DoseSure backup', UTI: 'public.json' });
+  await Sharing.shareAsync(out.uri, { mimeType: 'application/json', dialogTitle: 'Save TakeSure backup', UTI: 'public.json' });
   return true;
 }
 

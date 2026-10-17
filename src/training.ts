@@ -311,12 +311,12 @@ function buildZip(entries: TrainingEntry[], name: string): { file: File; photos:
   files.push({ name: 'manifest.json', data: enc.encode(JSON.stringify(included, null, 1)) });
   files.push({
     name: 'data.yaml',
-    data: enc.encode(`# DoseSure strip regions\npath: .\ntrain: images\nval: images\nnames:\n${REGION_CLASSES.map((c, i) => `  ${i}: ${c}`).join('\n')}\n`),
+    data: enc.encode(`# TakeSure strip regions\npath: .\ntrain: images\nval: images\nnames:\n${REGION_CLASSES.map((c, i) => `  ${i}: ${c}`).join('\n')}\n`),
   });
   files.push({
     name: 'README.txt',
     data: enc.encode(
-      'DoseSure training photos.\n' +
+      'TakeSure training photos.\n' +
         `images/ — ${included.length - unlabelled} photos confirmed by a person. labels/ — ${labelled} auto-labelled (YOLO-OBB rotated boxes: class x1 y1 x2 y2 x3 y3 x4 y4). Classes: ${REGION_CLASSES.join(', ')}.\n` +
         'Photos without a label file: run training/autolabel.py to label them.\n' +
         `unlabelled/ — ${unlabelled} photos from scans nobody confirmed (red, unreadable or closed); "reason" in manifest.json says why. ` +
@@ -412,7 +412,7 @@ export async function emailTraining(buildLabel: string, via: 'mail' | 'share' = 
     try {
       const res = await MailComposer.composeAsync({
         recipients: [TRAINING_EMAIL],
-        subject: `DoseSure training photos ${today()} (${photos})`,
+        subject: `TakeSure training photos ${today()} (${photos})`,
         body:
           `${photos - unl} labelled photos of ${meds.size} medicine${meds.size === 1 ? '' : 's'}` +
           (unl ? ` and ${unl} unlabelled (failed scans)` : '') +

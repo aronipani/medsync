@@ -1,16 +1,16 @@
 {
   "expo": {
-    "name": "DoseSure",
+    "name": "TakeSure",
     "slug": "medsync",
     "scheme": "medsync",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "automatic",
     "ios": {
-      "bundleIdentifier": "com.dosesure.app",
+      "bundleIdentifier": "com.takesure.app",
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "DoseSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken.",
+        "NSCameraUsageDescription": "TakeSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
@@ -49,7 +49,7 @@
       }
     },
     "android": {
-      "package": "com.dosesure.app",
+      "package": "com.takesure.app",
       "permissions": [
         "android.permission.CAMERA",
         "android.permission.POST_NOTIFICATIONS",
@@ -72,7 +72,7 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "DoseSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
+          "cameraPermission": "TakeSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
         }
       ],
       [
@@ -86,14 +86,14 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "DoseSure opens your photos so you can choose a prescription to read.",
-          "cameraPermission": "DoseSure uses the camera to photograph prescriptions and scan medicine strips."
+          "photosPermission": "TakeSure opens your photos so you can choose a prescription to read.",
+          "cameraPermission": "TakeSure uses the camera to photograph prescriptions and scan medicine strips."
         }
       ],
       [
         "expo-contacts",
         {
-          "contactsPermission": "DoseSure opens your contacts only when you pick a pharmacy, to fill in its name and phone number. Nothing is uploaded."
+          "contactsPermission": "TakeSure opens your contacts only when you pick a pharmacy, to fill in its name and phone number. Nothing is uploaded."
         }
       ],
       "react-native-fast-tflite"

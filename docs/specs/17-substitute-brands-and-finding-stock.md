@@ -134,7 +134,7 @@ interface Pharmacy { id: string; name: string; phone?: string; whatsapp?: string
 ```
 Added by typing, **Pick from my contacts** (the phone's contact picker, `expo-contacts`; read-only permission,
 asked on first use; several numbers → choose one), or **Find nearby on Google Maps** (opens Maps searching
-"pharmacy near me"; the person notes the number and types it). DoseSure itself looks nothing up and sends no
+"pharmacy near me"; the person notes the number and types it). TakeSure itself looks nothing up and sends no
 location: an in-app Google Places search was rejected (location to Google, paid per search, needs the server, and
 small chemists are often missing or without numbers).
 
@@ -160,8 +160,8 @@ From the buy list:
   on screen to read out.
 * **Send on WhatsApp** — opens WhatsApp (or SMS) with the list as a ready message to the chosen pharmacy:
   > Namaste, do you have these? Clopidogrel 75 mg tablet × 30 (Clopilet / Clopitab / Deplatt is fine). Amiodarone
-  > 200 mg tablet × 30 (Cordarone X only). Please tell me price and if you can deliver. — sent from DoseSure
-  The person presses Send in WhatsApp; DoseSure never sends messages itself (spec 03). One pharmacy at a time,
+  > 200 mg tablet × 30 (Cordarone X only). Please tell me price and if you can deliver. — sent from TakeSure
+  The person presses Send in WhatsApp; TakeSure never sends messages itself (spec 03). One pharmacy at a time,
   with *Next pharmacy* to send the same message on.
 * Language of the message follows the app language (English, Bengali, Hindi …), with the generic names always also
   in English, as printed on strips.

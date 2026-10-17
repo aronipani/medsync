@@ -1,5 +1,5 @@
 // Ways to fill in a pharmacy without typing (spec 17): pick it from the phone's contacts, or look it up in
-// Google Maps. Both stay on the phone: DoseSure sends nothing and looks nothing up itself.
+// Google Maps. Both stay on the phone: TakeSure sends nothing and looks nothing up itself.
 import { Contact, requestPermissionsAsync } from 'expo-contacts';
 import { Linking } from 'react-native';
 

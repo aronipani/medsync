@@ -34,7 +34,7 @@ export function makeBackup(state: AppState, now = new Date()): BackupFile {
 }
 
 export function backupFileName(now = new Date()): string {
-  return `DoseSure backup ${now.toISOString().slice(0, 10)}.json`;
+  return `TakeSure backup ${now.toISOString().slice(0, 10)}.json`;
 }
 
 const arr = <T>(v: unknown): T[] => (Array.isArray(v) ? (v as T[]) : []);
@@ -45,11 +45,11 @@ export function parseBackup(text: string, defaults: Settings): ParseResult {
   try {
     data = JSON.parse(text);
   } catch {
-    return { ok: false, error: 'This file is not a DoseSure backup (it could not be read).' };
+    return { ok: false, error: 'This file is not a TakeSure backup (it could not be read).' };
   }
   const f = data as Partial<BackupFile> | null;
-  if (!f || typeof f !== 'object' || f.app !== 'medsync' || f.kind !== 'backup') return { ok: false, error: 'This file is not a DoseSure backup.' };
-  if (typeof f.format !== 'number' || f.format > BACKUP_FORMAT) return { ok: false, error: 'This backup was made by a newer version of DoseSure. Update the app, then restore it.' };
+  if (!f || typeof f !== 'object' || f.app !== 'medsync' || f.kind !== 'backup') return { ok: false, error: 'This file is not a TakeSure backup.' };
+  if (typeof f.format !== 'number' || f.format > BACKUP_FORMAT) return { ok: false, error: 'This backup was made by a newer version of TakeSure. Update the app, then restore it.' };
   const s = f.state as Partial<AppState> | undefined;
   if (!s || typeof s !== 'object' || !Array.isArray(s.members) || !s.members.length) return { ok: false, error: 'This backup is incomplete (no family members in it).' };
 

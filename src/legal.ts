@@ -10,10 +10,10 @@ export const NOTICE_VERSION = 2; // 2: not a medical device, doses come from the
 export const PRIVACY_URL = 'https://github.com/aronipani/medsync/blob/main/PRIVACY.md';
 export const ISSUES_URL = 'https://github.com/aronipani/medsync/issues';
 
-export const SAFETY_HEADLINE = 'DoseSure helps you remember and check — it does not replace your doctor or pharmacist.';
+export const SAFETY_HEADLINE = 'TakeSure helps you remember and check — it does not replace your doctor or pharmacist.';
 
 export const SAFETY_POINTS = [
-  'DoseSure is a reminder and record-keeping aid. It is not a medical device and does not diagnose, treat or give medical advice.',
+  'TakeSure is a reminder and record-keeping aid. It is not a medical device and does not diagnose, treat or give medical advice.',
   'It does not work out doses. The amount shown is what you or your family entered from the prescription.',
   'The scanner can be wrong. Always read the name and strength on the strip yourself before taking it.',
   'A prescription read from a photo is only a draft. Check every medicine and amount against the prescription before saving.',

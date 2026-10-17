@@ -1,11 +1,11 @@
-# Spec 16 — The DoseSure server (one central, strictly anonymous backend)
+# Spec 16 — The TakeSure server (one central, strictly anonymous backend)
 
 ## Problem
 Several features need a server: reading a new strip with a frontier model (spec 15), a shared catalogue of strips
 so the next household doesn't need the model, backups that survive a lost phone, sharing medicine activity with
 family (taken / missed / low stock), and opt-in training photos (spec 07). Each family running its own server is
-not realistic; one standard DoseSure server is. But it holds health data for many families, so it must be built so
-that **even DoseSure cannot tell who anyone is or read their medicines**.
+not realistic; one standard TakeSure server is. But it holds health data for many families, so it must be built so
+that **even TakeSure cannot tell who anyone is or read their medicines**.
 
 Code: `server/` (TypeScript, AWS Lambda). API: `server/openapi.yaml`. Run and deploy: `server/README.md`.
 
@@ -31,16 +31,16 @@ Code: `server/` (TypeScript, AWS Lambda). API: `server/openapi.yaml`. Run and de
 | Family circle | Ciphertext events, their size and arrival time | The key, members' names, medicines, which family |
 | Training photo | The photo (cleaned), a typed medicine name, month, app version, platform | Member, schedule, text read from the photo, exact time |
 
-The network address of a phone reaches AWS as part of any internet connection; DoseSure does not log or store it.
+The network address of a phone reaches AWS as part of any internet connection; TakeSure does not log or store it.
 
 ## Keys (on the phone)
 Two random 32-byte keys, made on the phone and kept in the phone's secure storage:
 
 * **Backup key** — one per phone (or per household, if a helper restores it onto a second phone).
-* **Circle key** — one per family circle, shared by QR code or a `dosesure://join#…` link (the part after `#` is
+* **Circle key** — one per family circle, shared by QR code or a `medsync://join#…` link (the part after `#` is
   never sent to any server, even if the link is opened in a browser).
 
-From a key the phone derives, with HKDF-SHA256 (salt `dosesure`):
+From a key the phone derives, with HKDF-SHA256 (salt `takesure`):
 
 | Info string | Length | Use |
 |---|---|---|
@@ -52,7 +52,7 @@ Reference implementation: `server/tests/phone.ts` (Node crypto). The app will us
 `@noble/ciphers` (pure JS — React Native has no AES) and `expo-secure-store` for the keys.
 
 **The honest cost of anonymity:** if every phone holding the backup key is lost and the recovery code wasn't kept,
-the backup can't be opened — not even by DoseSure. The app shows the recovery code (and a QR) once when cloud backup
+the backup can't be opened — not even by TakeSure. The app shows the recovery code (and a QR) once when cloud backup
 is switched on and asks to keep it (WhatsApp to yourself, Drive, or printed). The file backup of spec 01 stays.
 
 ## Features
