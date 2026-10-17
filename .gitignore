@@ -4,3 +4,10 @@ node_modules/
 /android/
 dist/
 *.log
+
+# Terraform (server/terraform)
+.terraform/
+*.tfstate
+*.tfstate.*
+server/terraform/.build/
+*.tfvars
