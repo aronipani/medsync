@@ -10,7 +10,12 @@ export interface DrugEntry {
   ingredients: string[]; // generic names, in label order
   strengths: string[]; // common strengths as printed; combos as "10/40"
   unit?: string; // tablet (default), capsule, ml...
+  form?: ReleaseForm; // absent = plain (immediate release); also read from the brand name ("Met XL", "Isoket SR")
+  salt?: string; // when the same ingredient is sold as different salts that are not exchangeable ("tartrate", "succinate")
 }
+
+/** Release forms, with brand-name suffixes folded together ("XL", "XR", "PR", "OD" → "ER"). Spec 17. */
+export type ReleaseForm = 'SR' | 'ER' | 'CR' | 'MR' | 'DR' | 'ODT';
 
 export const DRUGS: DrugEntry[] = [
   // Pain / fever
@@ -27,12 +32,13 @@ export const DRUGS: DrugEntry[] = [
   { brands: ['Olmezest', 'Benitec'], ingredients: ['Olmesartan'], strengths: ['20', '40'] },
   { brands: ['Nebicard', 'Nebistar', 'Nodon'], ingredients: ['Nebivolol'], strengths: ['2.5', '5', '10'] },
   { brands: ['Concor'], ingredients: ['Bisoprolol'], strengths: ['2.5', '5'] },
-  { brands: ['Metolar', 'Met XL', 'Revelol', 'Starpress XL'], ingredients: ['Metoprolol'], strengths: ['12.5', '25', '50'] },
+  { brands: ['Metolar'], ingredients: ['Metoprolol'], strengths: ['25', '50'], salt: 'tartrate' },
+  { brands: ['Met XL', 'Revelol', 'Revelol XL', 'Starpress XL'], ingredients: ['Metoprolol'], strengths: ['12.5', '25', '50'], salt: 'succinate', form: 'ER' },
   { brands: ['Cardivas', 'Carca'], ingredients: ['Carvedilol'], strengths: ['3.125', '6.25', '12.5', '25'] },
   { brands: ['Vymada', 'Entresto'], ingredients: ['Sacubitril', 'Valsartan'], strengths: ['24/26', '49/51', '97/103'] },
   { brands: ['Ismo', 'Monotrate', 'Monit'], ingredients: ['Isosorbide Mononitrate'], strengths: ['10', '20', '30', '60'] },
-  { brands: ['Sorbitrate', 'Isordil'], ingredients: ['Isosorbide Dinitrate'], strengths: ['5', '10'] },
-  { brands: ['Cordarone', 'Tachyra', 'Eurythmic'], ingredients: ['Amiodarone'], strengths: ['100', '200'] },
+  { brands: ['Sorbitrate', 'Isordil', 'Isoket'], ingredients: ['Isosorbide Dinitrate'], strengths: ['5', '10'] },
+  { brands: ['Cordarone', 'Cordarone X', 'Tachyra', 'Eurythmic'], ingredients: ['Amiodarone'], strengths: ['100', '200'] },
   { brands: ['Lanoxin'], ingredients: ['Digoxin'], strengths: ['0.25'] },
   { brands: ['Ranozex'], ingredients: ['Ranolazine'], strengths: ['500'] },
   // Diuretics
@@ -41,6 +47,7 @@ export const DRUGS: DrugEntry[] = [
   { brands: ['Aldactone'], ingredients: ['Spironolactone'], strengths: ['25', '50'] },
   // Blood thinners / cholesterol
   { brands: ['Clopilet', 'Plavix', 'Clopitab', 'Deplatt'], ingredients: ['Clopidogrel'], strengths: ['75'] },
+  { brands: ['Clopitab A', 'Clopilet A', 'Deplatt A'], ingredients: ['Clopidogrel', 'Aspirin'], strengths: ['75/75', '75/150'], unit: 'capsule' },
   { brands: ['Ecosprin', 'Loprin'], ingredients: ['Aspirin'], strengths: ['75', '150'] },
   { brands: ['Ecosprin AV'], ingredients: ['Aspirin', 'Atorvastatin'], strengths: ['75/10', '75/20', '150/20'] },
   { brands: ['Brilinta', 'Axcer'], ingredients: ['Ticagrelor'], strengths: ['60', '90'] },

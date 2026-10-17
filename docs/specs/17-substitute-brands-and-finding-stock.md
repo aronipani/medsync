@@ -36,14 +36,22 @@ Two products are **exchangeable** only when all of these are equal:
 If any of these is **unknown**, the products are *not* treated as exchangeable — the app asks (amber), it does not
 assume.
 
-`DrugEntry` gains `form?: 'IR' | 'SR' | 'ER' | 'CR' | 'MR' | 'XL' | 'DR' | 'ODT'` (absent = plain tablet) and
-`salt?: string`. Brand suffixes that set the form (`SR`, `XL`, `CR`, `ER`, `MR`, `OD`, `Retard`, `LA`) are read
-from the brand name in `cleanBrand` and from the strip text; a strip that prints one of them is never exchangeable
-with one that doesn't.
+`DrugEntry` gains `form?: 'SR' | 'ER' | 'CR' | 'MR' | 'DR' | 'ODT'` (absent = plain) and `salt?: string`.
+Brand-name words set the form (`SR`; `XL`, `XR`, `ER`, `PR`, `OD`, `LA`, `Retard` → ER; `CR`; `MR`; `ODT`, `MD`).
+On the rest of the strip only unmistakable marks count (`SR`, `XL`, `XR`, `CR`, `MR`, "sustained release",
+"extended release" …), because short words like "OD" and "Dr." (Dr. Reddy's) appear in other text. Delayed release
+comes only from the list. Two products with different forms are never exchangeable. When the list sells the same
+contents as more than one salt (metoprolol tartrate / succinate), the salt must be known on both sides.
+
+**Built (Oct 2026):** `src/substitute.ts` — `exchangeable(usual, strip)` with reasons and unknowns,
+`differenceMessage`, `substituteCard`; tests in `tests/substitute.test.ts`. The hand-checked list now splits
+metoprolol into Metolar (tartrate, plain) and Met XL / Revelol / Starpress XL (succinate, ER) — before, they were one
+entry, so the same-medicine warning and household matching treated them as one medicine. Also added: Cordarone X,
+Isoket, Clopitab A / Clopilet A / Deplatt A (clopidogrel + aspirin).
 
 ### Medicines that are never swapped without the doctor
-Some medicines behave differently enough between makers that even a true same-salt swap should be checked. The
-hand-checked list marks them `askBeforeSwap: true`:
+Some medicines behave differently enough between makers that even a true same-salt swap should be checked. They are
+listed by ingredient (`ASK_BEFORE_SWAP` in `src/substitute.ts`), so brands from the large list are covered too:
 
 amiodarone (Cordarone X), warfarin and acenocoumarol, levothyroxine (Thyronorm, Eltroxin), phenytoin,
 carbamazepine, valproate, lamotrigine, lithium, digoxin, tacrolimus, cyclosporine, theophylline.
