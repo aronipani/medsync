@@ -159,6 +159,8 @@ const FORM_NAMES: Record<ReleaseForm, string> = {
   DR: 'delayed-release', ODT: 'mouth-dissolving',
 };
 const formName = (f?: ReleaseForm) => (f ? FORM_NAMES[f] : 'plain');
+/** "slow-release (SR)", "extended-release", "plain". */
+export const formLabel = formName;
 const lower = (xs: string[]) => xs.map((x) => x.toLowerCase());
 const list = (xs: string[]) => (xs.length < 2 ? xs.join('') : `${xs.slice(0, -1).join(', ')} and ${xs[xs.length - 1]}`);
 const label = (p: Product) => `${p.name} ${p.strength}`.trim();

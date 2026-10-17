@@ -110,3 +110,19 @@ test('generic line for combinations', () => {
   assert.equal(genericLine(['Telmisartan', 'Hydrochlorothiazide'], '40/12.5'), 'telmisartan 40 + hydrochlorothiazide 12.5');
   assert.equal(genericLine(['Clopidogrel'], '75 mg'), 'clopidogrel 75 mg');
 });
+
+test('scan: another brand goes through only when it is exactly the same medicine', async () => {
+  const { matchDetail } = await import('../src/match.ts');
+  const med = (name: string, strength: string, aliases: string[] = []) => ({ name, strength, aliases });
+  assert.equal(matchDetail('CLOPITAB 75', med('Clopilet', '75')).level, 'substitute');
+  // Metolar (tartrate, plain) vs Met XL (succinate, extended-release): not the same
+  const xl = matchDetail('MET XL 25 Metoprolol Succinate Extended-Release Tablets IP 25 mg', med('Metolar', '25'));
+  assert.equal(xl.level, 'conflict');
+  assert.match(xl.looksLike ?? '', /extended-release/);
+  // Generic name printed, salt not readable → a person checks, not green
+  assert.equal(matchDetail('Metoprolol 25 mg tablets', med('Metolar', '25')).level, 'nameOnly');
+  assert.equal(matchDetail('Metoprolol Tartrate Tablets IP 25 mg', med('Metolar', '25')).level, 'match');
+  // Amiodarone from another maker: recognised, but a person checks
+  assert.equal(matchDetail('TACHYRA 200 Amiodarone Hydrochloride Tablets 200 mg', med('Cordarone X', '200', ['Amiodarone 200'])).level, 'match');
+  assert.equal(matchDetail('TACHYRA 200', med('Cordarone X', '200')).level, 'nameOnly');
+});

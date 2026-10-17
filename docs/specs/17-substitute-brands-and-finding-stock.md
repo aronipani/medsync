@@ -82,26 +82,30 @@ The same check runs on **Scan to add** and on **refill** (Stock tab → *Add a r
 existing medicine is offered as *Add as another brand of Clopilet 75* instead of a second medicine — which also stops
 the duplicate that spec 02 would otherwise have to warn about.
 
-### Stored data
-```ts
-interface OtherBrand {
-  name: string;          // "Clopitab"
-  strength: string;      // "75"
-  barcodes: string[];
-  profile?: StripProfile; // made from the confirming scan (spec 15), photos kept on the phone only
-  addedAt: string;
-  doctorOk?: boolean;    // for askBeforeSwap medicines
-}
-Medication.otherBrands?: OtherBrand[];
-```
-* The medicine's **name stays the usual brand**; reminders and the schedule keep saying "Clopilet 75" with
-  "or Clopitab 75" underneath once another brand is in use (helper view only shows the full list).
+### Stored data — the existing "Other names on the strip"
+The medicine page already has **Other names on the strip** (`Medication.aliases`), and the scanner already accepts
+any strip showing one of them. A confirmed other brand is stored there — no new field:
+* **Yes, the pharmacy gave this** adds "Clopitab 75" (brand + strength) to the medicine's other names. From then on
+  the strict matcher finds it and the scan goes green.
+* Household matching (`src/household.ts`) already uses other names, so worn strips of the new brand are recognised.
+* Backups (spec 01) already carry them. The same-medicine warning (spec 02) already reads contents from them.
+* **Typing an other name by hand gets the same check.** When a name typed there is a brand the list knows and
+  `exchangeable` says it is *not* the same medicine (Met XL on Metolar, Clopitab A on Clopilet), saving shows the
+  difference message with **Cancel / Save anyway**; for ask-before-swap medicines, the doctor line. A generic name
+  ("Paracetamol 650") is fine as today.
+* The medicine's **name stays the usual brand**; reminders keep saying "Clopilet 75".
 * **Stock stays one number** — a tablet is a tablet. The strip in use sets `expiry` as today.
-* Household matching (`src/household.ts`) adds each other brand's words and profile to the medicine's candidates, so
-  worn strips of the new brand are recognised too.
-* Other brands are in backups (spec 01), not their photos. Editing the medicine's strength clears `otherBrands`
-  (they may no longer match). Remove one from the medicine's page (*Other brands → Remove*).
-* Same-medicine warning (spec 02) treats a medicine and its other brands as one — no warning between them.
+* Not stored: per-brand strip profiles. Confirmed scans of the new brand refresh the medicine's reference photos
+  (spec 15), which is enough for worn-strip matching.
+
+### Already in the scan (fixed Oct 2026)
+The scan already accepted *any* other brand of the same ingredients from the built-in list as green ("Different
+brand: …"), and the generic name too — ignoring release form and salt. With the list fixed to split metoprolol, a
+Metolar schedule would still have gone green for a Met XL strip. Now (`checkedRelated` in `src/match.ts`):
+* exactly the same medicine → green, as before;
+* a different form or salt → **conflict** (red): "looks like Met XL 25 (extended-release)";
+* salt can't be read, or an ask-before-swap medicine from another maker → **check** (amber), a person decides.
+The amber "Different brand of …?" card that adds the brand to other names is still to build.
 
 ### Shared catalogue (spec 16)
 A confirmed substitution adds nothing new to the catalogue except the new brand's profile (as spec 15). The
@@ -189,8 +193,8 @@ only: `needBuy`, `buying`, `bought`. The server sees nothing new.
 
 ## Build order
 1. `form` / `salt` / `askBeforeSwap` in the medicine list and `exchangeable(a, b)` with its reasons (pure, tested).
-2. Scan: substitute amber card and "similar but different" red messages; `otherBrands` in store, backup, household
-   matching, spec 02 exemption.
+2. Scan: substitute amber card adding to other names; "similar but different" red messages; the same check when
+   other names are typed by hand.
 3. Refill / Scan to add: "another brand of …" instead of a new medicine.
 4. Buy list + Show to pharmacist; Time to buy reminder; `hardToFind`.
 5. My pharmacies, Call / WhatsApp message, answers and `lastFound`.
@@ -201,8 +205,10 @@ only: `needBuy`, `buying`, `bought`. The server sees nothing new.
 * Clopilet 75 ↔ Clopitab A 75 → not, reason "also contains aspirin". Isoket ↔ Isoket SR → not, reason "release form".
 * Metoprolol tartrate ↔ succinate → not, reason "salt". Unknown contents or form → not exchangeable (ask).
 * Cordarone X ↔ another amiodarone 200 → recognised, `askBeforeSwap`, saved only with doctor OK.
-* Confirmed other brand → green on next scan; worn strip of it matched by household matching; no spec 02 warning.
-* Editing strength clears other brands; other brands round-trip through backup without photos.
+* Confirmed other brand (in other names) → green on next scan; worn strip of it matched by household matching.
+* Scan: Clopitab for Clopilet → green; Met XL strip for Metolar → red; "Metoprolol 25" alone → amber; Tachyra for
+  Cordarone X → amber.
+* Typing "Met XL 25" as an other name of Metolar → warning on save; "Plavix 75" on Clopilet → no warning.
 * Buy list: generic first, only confirmed brands as "also fine", "only" for askBeforeSwap, 30-day quantity.
 * Time to buy: 7 days normally, 14 when hardToFind; grouped weekly; closed by a scanned refill.
 * WhatsApp message text per language; generic names stay in English.

@@ -3,6 +3,7 @@
 
 import { sameMedicine } from './consolidate.ts';
 import { DRUGS, lookupBrand, lookupIngredients, relatedNames } from './drugdb.ts';
+import { exchangeable, formLabel } from './substitute.ts';
 import type { Medication } from './types.ts';
 
 const NOISE = new Set([
@@ -245,10 +246,28 @@ function baseDetail(text: string, med: Med): MatchDetail {
   const rel = relatedNames(med);
   const extra = [rel.generic, ...rel.otherBrands].filter((x): x is string => !!x);
   const relMatch = extra.length ? matchText(text, { name: '', strength: '', aliases: extra }) : { matched: false, nameFound: false };
-  if (relMatch.matched) return { level: relMatch.candidate === rel.generic ? 'match' : 'substitute', via: relMatch.candidate };
+  if (relMatch.matched) return checkedRelated(text, med, relMatch.candidate ?? '', relMatch.candidate === rel.generic);
 
   if (!own.nameFound && !relMatch.nameFound) return { level: 'none' };
   const expected = new Set(med.strength.split('/').map((x) => x.replace(/[^\d.]/g, '')));
   const found = [...new Set([...strengthText(text).matchAll(STRENGTH_IN_TEXT)].map((m) => m[1]))].filter((x) => !expected.has(x));
   return found.length ? { level: 'otherStrength', foundStrengths: found } : { level: 'nameOnly' };
+}
+
+/**
+ * The strip shows the medicine's generic name or another brand of the same contents. Only say so when it is exactly
+ * the same medicine (spec 17): same strength, same release form, same salt. A different form or salt is a different
+ * medicine (Metolar = metoprolol tartrate; Met XL = metoprolol succinate, extended-release); when it can't be told, or
+ * the medicine is one where a change of maker needs the doctor (amiodarone, thyroxine …), a person checks.
+ */
+function checkedRelated(text: string, med: Med, via: string, generic: boolean): MatchDetail {
+  const strength = med.strength.replace(/\s*mg\b/i, '').trim();
+  const brand = strength && via.endsWith(strength) ? via.slice(0, -strength.length).trim() : via;
+  const c = exchangeable({ name: med.name, strength: med.strength, aliases: med.aliases }, { name: brand, strength: med.strength, printed: text });
+  if (c.reasons.length) {
+    const form = c.reasons.includes('form') ? formLabel(c.form.strip) : c.reasons.includes('salt') ? c.salt.strip : undefined;
+    return { level: 'conflict', looksLike: form ? `${via} (${form})` : via };
+  }
+  if (c.unknown.length || (!generic && c.askBeforeSwap)) return { level: 'nameOnly', via };
+  return { level: generic ? 'match' : 'substitute', via };
 }
