@@ -3,8 +3,8 @@
 _Last updated: 17 October 2026_
 
 TakeSure is a free app that helps a family keep track of medicines: schedules, reminders, checking strips and
-bottles by photo, and stock. It has **no account**, **no ads** and **no tracking**, and the developer runs **no server**
-that receives your data.
+bottles by photo, and stock. It has **no account**, **no ads** and **no tracking**. The App Store and Play Store versions send **nothing** to
+any server run by the developer: your data stays on your phone.
 
 ## What the app stores, and where
 Everything you enter or the app records stays **on your phone**, in the app's own storage:
@@ -33,8 +33,10 @@ your phone.
 * **Finding a medicine.** "Find nearby on Google Maps" and calling or messaging a pharmacy open the Maps, phone or
   WhatsApp app with the medicine name; what happens there is covered by those apps' own policies.
 
-The App Store and Play Store versions keep no training photos. Test versions shared directly with family and friends
-(not from a store) can, if the helper switches it on, keep photos of strips and send them to improve the scanner —
+## Test versions (not from a store)
+The App Store and Play Store versions keep no training photos and never contact the TakeSure server. Test versions
+shared directly with family and friends (installed from GitHub, not from a store) can, if the helper switches it on,
+keep photos of strips and send them to improve the scanner —
 only when that person presses Send. They go to the TakeSure server anonymously (the photo, the medicine name and
 what the scanner read; no name, account, phone id or exact time), or by email in builds without the server. The
 server removes photo metadata and deletes training photos after 2 years.
