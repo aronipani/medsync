@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { matchBarcode, matchText, normalizeCode, tokenize } from '../src/match.ts';
+import { matchBarcode, matchDetail, matchText, normalizeCode, tokenize } from '../src/match.ts';
 
 const dolo = { name: 'Dolo', strength: '650', aliases: ['Paracetamol 650'], barcodes: [] as string[] };
 const telma = { name: 'Telma', strength: '40', aliases: ['Telmisartan 40'], barcodes: [] as string[] };
@@ -49,4 +49,30 @@ test('barcodes: GTIN normalisation and QR text', () => {
   assert.equal(matchBarcode('0108901234567890172701011012345', med), true);
   assert.equal(matchBarcode('8901234567891', med), false);
   assert.equal(matchBarcode('Product: DOLO 650 Batch DOBS1234', dolo), true);
+});
+
+// Oct 2026: Aroni's Pan 20, scanned with a Pantodac 40 strip and a Pentowok-D strip (pantoprazole + domperidone).
+const pan20 = { name: 'Pan', strength: '20', aliases: [] as string[] };
+
+test('a bare strength after a brand of the same family is read: Pantodac 40 is not Pan 20', async () => {
+  const { printedStrengths } = await import('../src/match.ts');
+  const d = matchDetail('Rx\nPantoprazole Gastro-resistant Tab\nPantodac 40\nEach Gastro-resistant tablet', pan20);
+  assert.equal(d.level, 'otherStrength');
+  assert.deepEqual(d.foundStrengths, ['40']);
+  // Addresses, pack counts and licence numbers are not strengths.
+  assert.deepEqual(printedStrengths('Bandra-Kurla Complex\nMumbai 400 051\nPer 10 Tablets\nLic No 924', pan20, 'Pantoprazole'), []);
+});
+
+test('pantoprazole + domperidone is a different medicine from Pan', () => {
+  const d = matchDetail('Pantoprazole &\nDomperidone Tablets', pan20);
+  assert.equal(d.level, 'conflict');
+  assert.match(d.looksLike ?? '', /Domperidone/);
+});
+
+test('a read with no medicine name in it is a reading problem, not a wrong medicine', async () => {
+  const { readsAsMedicine } = await import('../src/match.ts');
+  assert.equal(readsAsMedicine('PENTOWOK D PENTOWOK D\nWOCKHARDT', [pan20]), false); // brand the app doesn't know
+  assert.equal(readsAsMedicine('Mfg. Lic. No. MNB/20/1116\nMumbai - 400 051', [pan20]), false);
+  assert.equal(readsAsMedicine('Pantoprazole Gastro-resistant', [pan20]), true); // contents read
+  assert.equal(readsAsMedicine('DOLO 650', []), true); // a known brand
 });

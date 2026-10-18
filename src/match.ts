@@ -252,8 +252,42 @@ function baseDetail(text: string, med: Med): MatchDetail {
 
   if (!own.nameFound && !relMatch.nameFound) return { level: 'none' };
   const expected = new Set(med.strength.split('/').map((x) => x.replace(/[^\d.]/g, '')));
-  const found = [...new Set([...strengthText(text).matchAll(STRENGTH_IN_TEXT)].map((m) => m[1]))].filter((x) => !expected.has(x));
+  const found = printedStrengths(text, med, rel.generic).filter((x) => !expected.has(x));
   return found.length ? { level: 'otherStrength', foundStrengths: found } : { level: 'nameOnly' };
+}
+
+// Words a bare number can follow without being a strength (addresses, counts, licence lines).
+const NOT_BEFORE_STRENGTH = new Set(['PER', 'OF', 'EACH', 'NO', 'LIC', 'REG', 'PIN', 'CONTAINS', 'TABLETS', 'TABS', 'CAPSULES', 'PACK', 'STRIP']);
+
+/**
+ * Strengths printed on a strip: numbers with a unit ("40 mg"), and a bare number right after a name that
+ * belongs to this medicine's family ("Pantodac 40" for Pan or pantoprazole, "Dolo 650"). Strips usually print the
+ * brand's strength without "mg", and missing it let a 40 mg strip pass as a check for Pan 20.
+ */
+export function printedStrengths(text: string, med: Med, generic?: string): string[] {
+  const t = strengthText(text);
+  const withUnit = [...t.matchAll(STRENGTH_IN_TEXT)].map((m) => m[1]);
+  const own = tokenize(med.name.split(/\s*\/\s*/)[0] ?? '').find((w) => /^[A-Z]{3,}$/.test(w));
+  const gen = generic ? tokenize(generic)[0] : undefined;
+  const family = (w: string) =>
+    !NOT_BEFORE_STRENGTH.has(w) &&
+    ((own !== undefined && w.startsWith(own)) || (gen !== undefined && gen.length >= 4 && w.length >= 4 && w.slice(0, 4) === gen.slice(0, 4)) || !!lookupBrand(w));
+  const bare = [...t.matchAll(/\b([A-Za-z]{3,})[®™]?\s*(\d{1,4}(?:\.\d+)?)(?![\d.]|\s*(?:%|tablets?|tabs?|capsules?|caps?)\b)/g)]
+    .filter((m) => family(m[1].toUpperCase()))
+    .map((m) => m[2]);
+  return [...new Set([...withUnit, ...bare])];
+}
+
+/**
+ * Did the scan read a medicine at all — a known brand, a medicine's contents, or one of the household's names?
+ * When it didn't, a "no match" is a reading problem (glare, angle, wrong side), not a wrong medicine,
+ * and the person is told how to scan again rather than "wrong medicine".
+ */
+export function readsAsMedicine(text: string, household: Med[] = []): boolean {
+  const toks = new Set(textTokens(text));
+  if ([...toks].some((t) => INGREDIENT_WORDS.has(t))) return true;
+  const names = [...DRUGS.flatMap((d) => d.brands), ...household.flatMap((m) => [...m.name.split(/\s*\/\s*/), ...m.aliases])];
+  return names.some((n) => tokenize(n).filter((w) => !NOISE.has(w) && !isNumeric(w)).join('').length >= 4 && namePrintedExactly(n, toks));
 }
 
 /**

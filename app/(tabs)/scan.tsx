@@ -7,7 +7,7 @@ import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { householdMatch, householdWords } from '../../src/household.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
-import { findConflict, matchBarcode, matchDetail, matchText } from '../../src/match.ts';
+import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
 import { exchangeable, splitName, substituteCard } from '../../src/substitute.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
@@ -36,7 +36,8 @@ type Result =
   | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean; note?: string } // amber: name matches, strength unreadable (partial: only part of the name read; note: why else to check)
   | { kind: 'brand'; occ: Occurrence; method: LogMethod; via: string; askDoctor?: boolean } // amber: another brand of exactly this medicine, first time (spec 17)
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
-  | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey }; // red; detail = raw text read (helpers only), tip = what to try
+  | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey } // red; detail = raw text read (helpers only), tip = what to try
+  | { kind: 'unread'; reason: string; detail?: string }; // amber: the read was too weak to say right or wrong — scan again, don't judge the medicine
 
 export default function Scan() {
   const t = useTheme();
@@ -147,6 +148,8 @@ export default function Scan() {
         return phrase(lang, 'otherStrength');
       case 'nomatch':
         return phrase(lang, r.say);
+      case 'unread':
+        return phrase(lang, 'unread');
     }
   };
   const [speakStatus, setSpeakStatus] = useState<SpeakStatus>();
@@ -162,7 +165,7 @@ export default function Scan() {
       const ym = parseExpiry(lastRead.current.lines.join('\n'));
       if (ym) r = { ...r, expiry: ym };
     }
-    if (r.kind === 'nomatch') lastRead.current.reason = [r.reason, r.detail ?? r.tip].filter(Boolean).join(' — ');
+    if (r.kind === 'nomatch' || r.kind === 'unread') lastRead.current.reason = [r.reason, r.detail ?? (r.kind === 'nomatch' ? r.tip : undefined)].filter(Boolean).join(' — ');
     setResult(r);
     feedback(r.kind === 'match');
   };
@@ -210,21 +213,37 @@ export default function Scan() {
     // Being due is not part of the decision; it only decides what the result says.
     const hh = householdMatch(text, household, method === 'text' ? scanHints() : []);
     if (hh.kind === 'sure' || hh.kind === 'likely') {
+      // A fragment match is only a guess at which of the household's medicines this is. If the strip also shows
+      // something that medicine doesn't contain (Pantoprazole + Domperidone for Pan), it is a different medicine:
+      // say so, rather than "Pan is already taken" or a green.
+      const hhMed = household.find((m) => m.id === hh.medId);
+      const looks = hhMed && findConflict(text, hhMed, household);
+      if (hhMed && looks) {
+        return show({
+          kind: 'nomatch',
+          reason: `This looks like ${looks}, not ${medLabel(hhMed)}. Don't take it — check the strip.`,
+          detail: text.replace(/\s+/g, ' ').trim().slice(0, 90),
+          say: 'wrong',
+        });
+      }
       const occ = due.find((o) => o.med.id === hh.medId);
       if (occ) return hh.kind === 'sure' ? show({ kind: 'match', occs: [occ], method }) : show({ kind: 'check', occ, method, partial: true });
       const notNow = explainMiss((o) => o.med.id === hh.medId);
       if (notNow) return show({ kind: 'nomatch', reason: notNow.text, detail: text.replace(/\s+/g, ' ').trim().slice(0, 90), say: notNow.say });
     }
     if (hh.kind === 'unsure') {
-      return show({
-        kind: 'nomatch',
-        reason: 'Not sure which medicine this is.',
-        tip: 'Turn the strip over and scan the side with the name.',
-        detail: text.replace(/\s+/g, ' ').trim().slice(0, 90),
-        say: 'wrong',
-      });
+      // Two of the household's medicines fit what was read: a weak read, not a wrong medicine.
+      return show({ kind: 'unread', reason: 'Only part of the name could be read, and it could be more than one of your medicines.', detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) });
     }
     const why = explainMiss((o) => ['match', 'substitute'].includes(matchDetail(text, o.med, household).level));
+    // Nothing recognisable was read — no known name, no contents: say how to scan again, not "wrong medicine".
+    if (!why && !readsAsMedicine(text, household)) {
+      return show({
+        kind: 'unread',
+        reason: text.trim() ? "The medicine's name couldn't be read clearly." : 'No text could be read from the strip.',
+        detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || undefined,
+      });
+    }
     show({
       kind: 'nomatch',
       reason: why?.text ?? 'No medicine due now matches this strip.',
@@ -628,6 +647,25 @@ export default function Scan() {
               </Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>Ask the pharmacist before using a different strength.</Text>
               <Button title="Scan next" kind="light" big onPress={dismiss} style={{ marginTop: 14 }} />
+            </View>
+          )}
+
+          {result?.kind === 'unread' && (
+            <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>⚠ Couldn't read the strip clearly</Text>
+              <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason} This doesn't mean it's the wrong medicine — scan it again:</Text>
+              {[
+                'Hold the strip flat, with the name facing the camera, about a hand-width away.',
+                'Turn the strip so the name reads left to right.',
+                'Tilt it a little away from lights to cut the shine.',
+                "Try the other side — the side that lists what's in the tablet.",
+              ].map((tip) => (
+                <Text key={tip} style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>• {tip}</Text>
+              ))}
+              {result.detail && state.settings.showScanDetails ? <Text style={{ color: '#fff', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
+              <ReadBy />
+              <Button title="Scan again" kind="light" big onPress={dismiss} style={{ marginTop: 14 }} />
+              <TeachChips />
             </View>
           )}
 
