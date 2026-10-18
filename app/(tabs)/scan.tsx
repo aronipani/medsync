@@ -7,6 +7,8 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { householdMatch, householdWords } from '../../src/household.ts';
+import { lookAt, lookLabel } from '../../src/look.ts';
+import type { LookVerdict } from '../../src/lookMatch.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
 import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
 import { diagnoseScan, type ScanDiagnosis } from '../../src/scanIssue.ts';
@@ -35,7 +37,7 @@ const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', '
 
 type Result =
   | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean; expiry?: string } // green
-  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean; note?: string } // amber: name matches, strength unreadable (partial: only part of the name read; note: why else to check)
+  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean; note?: string; byLook?: boolean } // amber: name matches, strength unreadable (partial: only part of the name read; note: why else to check; byLook: the name wasn't read, the strip looks like it)
   | { kind: 'brand'; occ: Occurrence; method: LogMethod; via: string; askDoctor?: boolean } // amber: another brand of exactly this medicine, first time (spec 17)
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
   | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey; weak?: boolean } // red; detail = raw text read (helpers only), tip = what to try; weak: amber, no verdict (unknown barcode)
@@ -77,7 +79,7 @@ export default function Scan() {
   const lastCode = useRef({ code: '', at: 0 });
   // What the last strip reading saw (for "Teach this strip" and optional training photos).
   // `kept`: its photos are already saved for training; `reason`: why the result was red, if it was.
-  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string; detector?: string }>({ lines: [], photos: [] });
+  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string; detector?: string; look?: string }>({ lines: [], photos: [] });
   useEffect(() => {
     setRegionDetectorEnabled(state.settings.regionDetector !== false);
     loadRegionModel(); // load the model before the first scan, not during it
@@ -186,7 +188,7 @@ export default function Scan() {
     show({ kind: 'nomatch', reason: why.text, code: data, say: why.say });
   };
 
-  const checkText = (text: string, method: LogMethod) => {
+  const checkText = (text: string, method: LogMethod, look?: LookVerdict) => {
     // Every medicine in the household, to spot a strip that is really something else.
     const household = state.meds.filter((m) => m.active);
     const checked = due.map((o) => ({ o, d: matchDetail(text, o.med, household) }));
@@ -237,6 +239,18 @@ export default function Scan() {
       const notNow = explainMiss((o) => o.med.id === hh.medId);
       if (notNow) return show({ kind: 'nomatch', reason: notNow.text, detail: text.replace(/\s+/g, ' ').trim().slice(0, 90), say: notNow.say });
     }
+    // Look (spec 15): the strip looks like one of the household's saved strips. Only when the text read doesn't
+    // point elsewhere: nothing recognisable was read, or the look picks one of the medicines the fragments fit.
+    // Look can lift a weak read to amber ("check the name"); never to green, never to "wrong medicine".
+    if (look?.kind === 'look') {
+      const lookMed = household.find((m) => m.id === look.medId);
+      const fits = hh.kind === 'unsure' ? hh.candidates.some((c) => c.medId === look.medId) : !readsAsMedicine(text, household);
+      if (lookMed && fits) {
+        const occ = due.find((o) => o.med.id === look.medId);
+        if (occ) return show({ kind: 'check', occ, method, partial: true, byLook: true });
+        return show({ kind: 'unread', diag: diagnoseScan(text, household, { partialOf: medLabel(lookMed) }), detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || undefined });
+      }
+    }
     if (hh.kind === 'unsure') {
       // Two of the household's medicines fit what was read: a weak read, not a wrong medicine.
       const fits = [...new Set(hh.candidates.slice(0, 3).map((c) => household.find((m) => m.id === c.medId)).filter((m) => m !== undefined).map((m) => medLabel(m!)))];
@@ -272,7 +286,10 @@ export default function Scan() {
       setProgress('Reading the strip…');
       const household = state.meds.filter((m) => m.active);
       setHouseholdWords(householdWords(household));
-      let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
+      const first = await take();
+      // How the strip looks, compared with its saved photos, alongside the reading (iPhone; null elsewhere).
+      const looking = lookAt(first, household).catch(() => null);
+      let text = (await readLinesAnyOrientation(first)).map((l) => l.text).join('\n');
       const settled = () =>
         due.some((o) => ['match', 'substitute', 'conflict'].includes(matchDetail(text, o.med, state.meds).level)) ||
         householdMatch(text, household).kind === 'sure';
@@ -287,8 +304,9 @@ export default function Scan() {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Taking another photo (${n} of 2) — tilt the strip a little`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }
-      lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel(), detector: scanDetectorLabel() };
-      checkText(text, 'text');
+      const look = await looking;
+      lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel(), detector: scanDetectorLabel(), look: lookLabel(look, household) };
+      checkText(text, 'text', look?.verdict);
     } catch (e) {
       lastRead.current = { lines: [], photos };
       // A reader failure is a scan problem, never a verdict on the medicine.
@@ -354,6 +372,7 @@ export default function Scan() {
     state.settings.showScanDetails && lastRead.current.readBy ? (
       <Text style={{ color: '#fff', fontSize: 14, marginTop: 10 }}>
         Read by {lastRead.current.readBy} · strip area finder: {lastRead.current.detector}
+        {lastRead.current.look ? ` · ${lastRead.current.look}` : ''}
       </Text>
     ) : null;
 
@@ -589,6 +608,8 @@ export default function Scan() {
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
                 {result.note
                   ? result.note
+                  : result.byLook
+                  ? `The name couldn't be read, but the strip looks like your ${result.occ.med.name}.`
                   : result.partial
                   ? `Only part of the name could be read. It looks like ${result.occ.med.name}.`
                   : `The name matches ${result.occ.med.name}, but the strength couldn't be read (torn or shiny).`}
