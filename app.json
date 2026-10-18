@@ -55,7 +55,9 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.VIBRATE",
-        "android.permission.READ_CONTACTS"
+        "android.permission.READ_CONTACTS",
+        "android.permission.RECORD_AUDIO",
+        "android.permission.WRITE_CONTACTS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
@@ -110,6 +112,13 @@
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
       "backgroundColor": "#F6F6F3"
-    }
+    },
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "999e4476-05a7-40c7-ba8a-ee6f8f79c8ef"
+      }
+    },
+    "owner": "aronipanis-team"
   }
 }
