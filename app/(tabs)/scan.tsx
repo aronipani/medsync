@@ -8,6 +8,8 @@ import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { householdMatch, householdWords } from '../../src/household.ts';
 import { lookAt, lookLabel } from '../../src/look.ts';
+import { liveHint } from '../../src/liveHint.ts';
+import { waitUntilStill } from '../../src/stillness.ts';
 import type { LookVerdict } from '../../src/lookMatch.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
 import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
@@ -15,7 +17,7 @@ import { diagnoseScan, type ScanDiagnosis } from '../../src/scanIssue.ts';
 import { exchangeable, splitName, substituteCard } from '../../src/substitute.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
-import { readBurst, readLinesAnyOrientation, readSecondLook, scanDetectorLabel, scanHints, scanReaderLabel, setHouseholdWords, startScanStats } from '../../src/ocr.ts';
+import { quickRead, readBurst, readLinesAnyOrientation, readSecondLook, scanDetectorLabel, scanHints, scanReaderLabel, setHouseholdWords, startScanStats } from '../../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../../src/regionModel.ts';
 import { readinessSummary, upcomingReadiness, type TestRecords } from '../../src/testScan.ts';
 import { loadTestRecords } from '../../src/testScanStore.ts';
@@ -286,6 +288,9 @@ export default function Scan() {
       setProgress('Reading the strip…');
       const household = state.meds.filter((m) => m.active);
       setHouseholdWords(householdWords(household));
+      setProgress('Hold still…');
+      await waitUntilStill(1200); // a steady hand: no motion blur
+      setProgress('Reading the strip…');
       const first = await take();
       // How the strip looks, compared with its saved photos, alongside the reading (iPhone; null elsewhere).
       const looking = lookAt(first, household).catch(() => null);
@@ -323,6 +328,56 @@ export default function Scan() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // ---- Live scanning: reads the strip by itself once it is held still in view (no button needed) ----
+  // Quick, small photos say whether a strip is in view and close enough; then the full read runs as if the
+  // button was pressed. Stops after a minute without a strip, or as soon as a result shows.
+  const readStripRef = useRef(readStrip);
+  readStripRef.current = readStrip;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  const [liveText, setLiveText] = useState('');
+  const [autoRound, setAutoRound] = useState(0);
+  const [autoIdle, setAutoIdle] = useState(false);
+  const autoOn = state.settings.autoScan !== false && focused && !!perm?.granted && !result && due.length > 0 && !autoIdle;
+  useEffect(() => {
+    if (!autoOn) return;
+    let stop = false;
+    (async () => {
+      const until = Date.now() + 60_000;
+      while (!stop && Date.now() < until) {
+        await waitUntilStill(1500);
+        if (stop || busyRef.current || !camera.current) return;
+        try {
+          const shot = await camera.current.takePictureAsync({ quality: 0.5, shutterSound: false });
+          if (stop) return;
+          const { lines, height } = await quickRead(shot.uri);
+          if (stop || busyRef.current) return;
+          const hint = liveHint(lines, height);
+          setLiveText(hint.text);
+          if (hint.state === 'ready') {
+            await readStripRef.current();
+            return;
+          }
+        } catch {
+          // a missed quick look is fine; try again
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!stop) setAutoIdle(true); // a minute with no strip: wait for a tap before reading again
+    })();
+    return () => {
+      stop = true;
+      setLiveText('');
+    };
+  }, [autoOn, autoRound]);
+  useEffect(() => {
+    if (focused) setAutoIdle(false); // coming back to the Scan tab reads by itself again
+  }, [focused]);
+  const restartAuto = () => {
+    setAutoIdle(false);
+    setAutoRound((n) => n + 1);
   };
 
   const keepPhotos = (o: Occurrence, how: 'dose-check' | 'taught') => {
@@ -522,13 +577,16 @@ export default function Scan() {
             {!result && !busy && (
               <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontSize: 16, backgroundColor: '#0009', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' }}>
-                  Hold the strip in view, then press the button
+                  {autoOn ? liveText || 'Hold the strip in front of the camera' : 'Hold the strip in view, then press the button'}
                 </Text>
               </View>
             )}
           </View>
 
           {!result && <Button big title="Read strip name" onPress={readStrip} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />}
+          {!result && autoIdle && state.settings.autoScan !== false && due.length > 0 && (
+            <Button title="Read by itself again" kind="ghost" onPress={restartAuto} style={{ marginTop: 6 }} />
+          )}
 
           {/* Result */}
           {result?.kind === 'match' && (
