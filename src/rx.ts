@@ -43,6 +43,18 @@ function formOf(word: string): string | undefined {
 
 const stripNumbering = (s: string) => s.replace(/^\s*(?:\d{1,2}\s*[.)]|[-•*➤>])\s*/, '');
 
+/**
+ * Handwriting and OCR lose the dot after "T." / "C.": "T - PAN", "T PAN", "C: Pan", "Tab-Pan".
+ * Rewrites the start to "T. PAN" so it is read as a new medicine, not as a line under the one above.
+ * Needs a separator or a space, then a word of 3+ letters, so names like "Calpol" or "Telma" are untouched.
+ */
+function normalizeLead(line: string): string {
+  return line.replace(/^(\s*(?:\d{1,2}\s*[.)]\s*)?)(t|c|tab|cap)(?:\s*[-–—·:,]\s*|\s+)(?=[A-Za-z]{3})/i, '$1$2. ');
+}
+
+/** Common OCR misreads of units next to a number: "625ma", "40 rng", "50 mcq". */
+const fixUnits = (s: string) => s.replace(/(\d)\s*(?:ma|mq|rng|m9|mgm)\b/gi, '$1mg').replace(/(\d)\s*mcq\b/gi, '$1mcg');
+
 /** Is this line the start of a medicine entry? Returns its form if so. */
 function medStart(line: string): string | undefined {
   const words = stripNumbering(line).trim().split(/\s+/);
@@ -83,9 +95,9 @@ function parseInstructions(text: string, unit: string): Pick<RxItem, 'doses' | '
 
   // Before / with / after food
   let relation: 'before' | 'with' | 'after' = 'after';
-  if (/before\s*(food|meals?|breakfast|lunch|dinner|eating)|\bac\b|\ba\/c\b|empty stomach|khali pet/.test(t)) relation = 'before';
+  if (/before\s*(food|meals?|breakfast|lunch|dinner|eating)|\bac\b|\ba\/c\b|\bbf\b|\bb\/f\b|empty stomach|khali pet/.test(t)) relation = 'before';
   else if (/with\s*(food|meals?|milk)/.test(t)) relation = 'with';
-  else if (/after\s*(food|meals?|breakfast|lunch|dinner|eating)|\bpc\b|\bp\/c\b/.test(t)) relation = 'after';
+  else if (/after\s*(food|meals?|breakfast|lunch|dinner|eating)|\bpc\b|\bp\/c\b|\baf\b|\ba\/f\b/.test(t)) relation = 'after';
   else warnings.push('Before or after food is not written — set to after food.');
 
   // Days of the week / weekly
@@ -120,7 +132,10 @@ function parseInstructions(text: string, unit: string): Pick<RxItem, 'doses' | '
 
   // How often
   let counts: number[] | undefined;
-  const pat = /(?:^|[^\d/])(1½|½|¼|1\/2|1\/4|\d)\s*-\s*(1½|½|¼|1\/2|1\/4|\d)\s*-\s*(1½|½|¼|1\/2|1\/4|\d)(?:\s*-\s*(1½|½|¼|1\/2|1\/4|\d))?(?![\d/])/.exec(t);
+  const t2 = t.replace(/(^|[\s(])([0-9½¼ilo|]\s*-\s*[0-9½¼ilo|]\s*-\s*[0-9½¼ilo|](?:\s*-\s*[0-9½¼ilo|])?)(?=[\s),]|$)/g, (_m, pre: string, p: string) =>
+    pre + p.replace(/[il|]/g, '1').replace(/o/g, '0'),
+  );
+  const pat = /(?:^|[^\d/])(1½|½|¼|1\/2|1\/4|\d)\s*-\s*(1½|½|¼|1\/2|1\/4|\d)\s*-\s*(1½|½|¼|1\/2|1\/4|\d)(?:\s*-\s*(1½|½|¼|1\/2|1\/4|\d))?(?![\d/])/.exec(t2);
   let doses: DraftDose[] = [];
   if (pat) counts = [pat[1], pat[2], pat[3], pat[4]].filter((x) => x !== undefined).map(num);
   else if (/\b(qid|q\.i\.d|four times)\b/.test(t)) counts = [1, 1, 1, 1];
@@ -152,7 +167,7 @@ function parseNameLine(line: string, form: string): { name: string; strength: st
       nameWords.push(w); // D3, B12, Q10 are part of the name
       continue;
     }
-    if (/\d/.test(w) || /^(od|bd|tds|tid|qid|hs|sos|x|for|after|before|with|morning|night|daily|ac|pc)$/i.test(w)) break;
+    if (/\d/.test(w) || /^\(/.test(w) || /^(od|bd|tds|tid|qid|hs|sos|x|for|after|before|with|morning|night|daily|ac|pc)$/i.test(w)) break;
     nameWords.push(w.replace(/[^A-Za-z\-+]/g, ''));
   }
   // "Dolo-650" style: name with attached strength
@@ -328,7 +343,7 @@ function parseRxLines(lines: string[], makeId: () => string): RxItem[] {
   const items: { form: string; lines: string[] }[] = [];
   let cur: { form: string; lines: string[] } | null = null;
   for (const raw of lines) {
-    const line = raw.trim();
+    const line = fixUnits(normalizeLead(raw.trim()));
     if (!line) continue;
     if (STOP_LINE.test(line)) {
       cur = null;
@@ -339,6 +354,12 @@ function parseRxLines(lines: string[], makeId: () => string): RxItem[] {
       cur = { form, lines: [line] };
       items.push(cur);
     } else if (cur && cur.lines.length < 3) {
+      // A timing like 1-0-0 on a line of its own, when this medicine already has one, belongs to another
+      // row (tilted paper splits table rows). Never merge it into this medicine.
+      if (hasDosePattern(line) && cur.lines.some(hasDosePattern)) {
+        cur = null;
+        continue;
+      }
       cur.lines.push(line); // instruction lines under the medicine
     }
   }
@@ -349,6 +370,9 @@ function parseRxLines(lines: string[], makeId: () => string): RxItem[] {
     const warnings = [...instr.warnings];
     if (name.length < 3) warnings.unshift("Couldn't read the medicine name.");
     if (!strength && form !== 'ml') warnings.unshift('Strength not found — check the prescription.');
+    if (instr.doses.length && !hasDosePattern(rest) && ls.slice(1).some(hasDosePattern)) {
+      warnings.push('How often was read from the next line — check it is for this medicine.');
+    }
     return {
       id: makeId(),
       name,
@@ -361,4 +385,13 @@ function parseRxLines(lines: string[], makeId: () => string): RxItem[] {
       warnings,
     };
   });
+}
+
+/** Does this text hold a 1-0-1 style timing (or OD/BD/TDS…)? */
+function hasDosePattern(text: string): boolean {
+  const t = ` ${text.toLowerCase().replace(/[–—]/g, '-')} `;
+  return (
+    /(?:^|[\s(])[0-9½¼ilo|]\s*-\s*[0-9½¼ilo|]\s*-\s*[0-9½¼ilo|](?=[\s),-]|$)/.test(t) ||
+    /\b(qid|tds|tid|bd|bid|od|hs|thrice|twice|once)\b/.test(t)
+  );
 }

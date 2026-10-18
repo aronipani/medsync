@@ -202,3 +202,31 @@ test('chart photo: rows rebuilt from positions give every medicine; sideways pos
   const side = lines.map((l: { text: string; left: number; top: number; width: number; height: number }) => ({ text: l.text, left: l.top, top: 1500 - l.left - l.width, width: l.height, height: l.width }));
   assert.equal(parsePrescription(mergeRows(side), id).length, 0);
 });
+
+// Handwritten hospital slip (Oct 2026), as the phone read it: paper tilted, so row merging split the table
+// into lines that don't line up. "T - PAN" has no dot, "625mg" was read as "625ma", and Augmentin's own
+// 1-1-1 wasn't read; the 1-0-0 on the next line belongs to Pan.
+test('handwritten slip: each "T" line is its own medicine; timings never jump to the medicine above', () => {
+  const items = parsePrescription(['T. AUGMENTIN   625ma   x 5days(1', 'T - PAN   (BI', '1-0-0 x days'], id);
+  assert.deepEqual(items.map((i) => i.name), ['Augmentin', 'Pan']);
+  const [aug, pan] = items;
+  assert.equal(aug.strength, '625');
+  assert.equal(aug.doses.length, 0, 'Augmentin must not get Pan\'s 1-0-0');
+  assert.ok(aug.warnings.some((w) => w.includes('how often')));
+  assert.equal(aug.durationDays, 5);
+  assert.equal(pan.doses.length, 1);
+  assert.ok(pan.warnings.some((w) => w.includes('next line')));
+});
+
+test('a second timing line under a medicine that already has one is not merged into it', () => {
+  const [item] = parsePrescription(['Tab Dolo 650 1-0-1', '1-0-0 x 5 days'], id);
+  assert.equal(item.doses.length, 2);
+});
+
+test('OCR lookalikes: I-I-I, BF/AF and "40 rng"', () => {
+  const [a, b] = parsePrescription(['Tab Augmentin 625 mg I-I-I AF', 'C. Pan 40 rng 1-0-0 BF'], id);
+  assert.equal(a.doses.length, 3);
+  assert.ok(a.doses.every((d) => d.timing.kind === 'meal' && d.timing.relation === 'after'));
+  assert.equal(b.strength, '40');
+  assert.ok(b.doses.every((d) => d.timing.kind === 'meal' && d.timing.relation === 'before'));
+});
