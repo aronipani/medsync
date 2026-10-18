@@ -1,4 +1,5 @@
 import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
+import { File } from 'expo-file-system';
 import { useCurrentMember } from '../../src/currentMember.tsx';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
@@ -376,7 +377,13 @@ export default function Scan() {
         try {
           const shot = await camera.current.takePictureAsync({ quality: 0.5, shutterSound: false });
           if (stop) return;
-          const { lines, height } = await quickRead(shot.uri);
+          const { lines, height } = await quickRead(shot.uri).finally(() => {
+            try {
+              new File(shot.uri).delete(); // quick looks are never kept
+            } catch {
+              // already gone
+            }
+          });
           if (stop || busyRef.current) return;
           const hint = liveHint(lines, height);
           setLiveText(hint.text);
