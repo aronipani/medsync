@@ -8,6 +8,7 @@ import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { householdMatch, householdWords } from '../../src/household.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
 import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
+import { diagnoseScan, type ScanDiagnosis } from '../../src/scanIssue.ts';
 import { exchangeable, splitName, substituteCard } from '../../src/substitute.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
@@ -36,8 +37,8 @@ type Result =
   | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean; note?: string } // amber: name matches, strength unreadable (partial: only part of the name read; note: why else to check)
   | { kind: 'brand'; occ: Occurrence; method: LogMethod; via: string; askDoctor?: boolean } // amber: another brand of exactly this medicine, first time (spec 17)
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
-  | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey } // red; detail = raw text read (helpers only), tip = what to try
-  | { kind: 'unread'; reason: string; detail?: string }; // amber: the read was too weak to say right or wrong — scan again, don't judge the medicine
+  | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey; weak?: boolean } // red; detail = raw text read (helpers only), tip = what to try; weak: amber, no verdict (unknown barcode)
+  | { kind: 'unread'; diag: ScanDiagnosis; detail?: string }; // amber: too weak for a verdict — says what was wrong with the scan
 
 export default function Scan() {
   const t = useTheme();
@@ -165,7 +166,8 @@ export default function Scan() {
       const ym = parseExpiry(lastRead.current.lines.join('\n'));
       if (ym) r = { ...r, expiry: ym };
     }
-    if (r.kind === 'nomatch' || r.kind === 'unread') lastRead.current.reason = [r.reason, r.detail ?? (r.kind === 'nomatch' ? r.tip : undefined)].filter(Boolean).join(' — ');
+    if (r.kind === 'nomatch') lastRead.current.reason = [r.reason, r.detail ?? r.tip].filter(Boolean).join(' — ');
+    if (r.kind === 'unread') lastRead.current.reason = [`${r.diag.issue}: ${r.diag.title}`, r.detail].filter(Boolean).join(' — ');
     setResult(r);
     feedback(r.kind === 'match');
   };
@@ -179,7 +181,9 @@ export default function Scan() {
     const hits = due.filter((o) => matchBarcode(data, o.med));
     if (hits.length) return show({ kind: 'match', occs: hits, method: 'barcode' });
     const why = explainMiss((o) => matchBarcode(data, o.med));
-    show({ kind: 'nomatch', reason: why?.text ?? 'This code is not linked to any medicine due now.', code: data, say: why?.say ?? 'wrong' });
+    // An unknown barcode says nothing about the medicine: no verdict, read the printed name instead.
+    if (!why) return show({ kind: 'nomatch', reason: "This barcode isn't linked to a medicine yet. That doesn't mean it's wrong — press Read strip name to read the printed name.", code: data, say: 'unread', weak: true });
+    show({ kind: 'nomatch', reason: why.text, code: data, say: why.say });
   };
 
   const checkText = (text: string, method: LogMethod) => {
@@ -228,21 +232,20 @@ export default function Scan() {
       }
       const occ = due.find((o) => o.med.id === hh.medId);
       if (occ) return hh.kind === 'sure' ? show({ kind: 'match', occs: [occ], method }) : show({ kind: 'check', occ, method, partial: true });
+      // Only a sure read may say "already taken", "not now" or "someone else's medicine".
+      if (hh.kind === 'likely') return show({ kind: 'unread', diag: diagnoseScan(text, household, { partialOf: hhMed ? medLabel(hhMed) : undefined }), detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) });
       const notNow = explainMiss((o) => o.med.id === hh.medId);
       if (notNow) return show({ kind: 'nomatch', reason: notNow.text, detail: text.replace(/\s+/g, ' ').trim().slice(0, 90), say: notNow.say });
     }
     if (hh.kind === 'unsure') {
       // Two of the household's medicines fit what was read: a weak read, not a wrong medicine.
-      return show({ kind: 'unread', reason: 'Only part of the name could be read, and it could be more than one of your medicines.', detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) });
+      const fits = [...new Set(hh.candidates.slice(0, 3).map((c) => household.find((m) => m.id === c.medId)).filter((m) => m !== undefined).map((m) => medLabel(m!)))];
+      return show({ kind: 'unread', diag: diagnoseScan(text, household, { twoFit: fits }), detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) });
     }
     const why = explainMiss((o) => ['match', 'substitute'].includes(matchDetail(text, o.med, household).level));
     // Nothing recognisable was read — no known name, no contents: say how to scan again, not "wrong medicine".
     if (!why && !readsAsMedicine(text, household)) {
-      return show({
-        kind: 'unread',
-        reason: text.trim() ? "The medicine's name couldn't be read clearly." : 'No text could be read from the strip.',
-        detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || undefined,
-      });
+      return show({ kind: 'unread', diag: diagnoseScan(text, household), detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || undefined });
     }
     show({
       kind: 'nomatch',
@@ -288,11 +291,16 @@ export default function Scan() {
       checkText(text, 'text');
     } catch (e) {
       lastRead.current = { lines: [], photos };
+      // A reader failure is a scan problem, never a verdict on the medicine.
+      const notBuilt = String(e).includes('linked');
       show({
-        kind: 'nomatch',
-        reason: 'Could not read text.',
-        tip: String(e).includes('linked') ? 'Reading printed names does not work in this version of the app. Barcodes still work.' : 'Try again, closer and with less shine.',
-        say: 'wrong',
+        kind: 'unread',
+        diag: {
+          issue: 'nothing',
+          title: notBuilt ? "This version can't read printed names" : 'The photo could not be read',
+          why: notBuilt ? 'Reading printed names is not built into this version of the app. Barcodes still work.' : 'Something went wrong while reading the photo.',
+          tips: notBuilt ? ['Scan the barcode on the box or strip instead.'] : ['Try again, holding the strip steady about a hand-width away.', 'Tilt the strip a little away from lights.'],
+        },
       });
     } finally {
       setBusy(false);
@@ -652,14 +660,10 @@ export default function Scan() {
 
           {result?.kind === 'unread' && (
             <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>⚠ Couldn't read the strip clearly</Text>
-              <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason} This doesn't mean it's the wrong medicine — scan it again:</Text>
-              {[
-                'Hold the strip flat, with the name facing the camera, about a hand-width away.',
-                'Turn the strip so the name reads left to right.',
-                'Tilt it a little away from lights to cut the shine.',
-                "Try the other side — the side that lists what's in the tablet.",
-              ].map((tip) => (
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', opacity: 0.9 }}>SCAN PROBLEM — NOT A RESULT</Text>
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }}>⚠ {result.diag.title}</Text>
+              <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.diag.why} This says nothing about whether it is the right medicine. Scan again:</Text>
+              {result.diag.tips.map((tip) => (
                 <Text key={tip} style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>• {tip}</Text>
               ))}
               {result.detail && state.settings.showScanDetails ? <Text style={{ color: '#fff', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
@@ -670,8 +674,8 @@ export default function Scan() {
           )}
 
           {result?.kind === 'nomatch' && (
-            <View style={{ backgroundColor: t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>✗ No match</Text>
+            <View style={{ backgroundColor: result.weak ? t.warnFill : t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
+              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{result.weak ? '⚠ Barcode not known yet' : '✗ No match'}</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.tip ? <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.tip}</Text> : null}
               {/* The raw text read is for helpers only. */}
