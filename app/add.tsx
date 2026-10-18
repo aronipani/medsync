@@ -122,11 +122,11 @@ export default function AddMedicine() {
         </>
       )}
 
-      {/* One obvious way; the others folded away. */}
+      {/* One obvious way first; the others shown below it (prescriptions are a main way to add). */}
       <Text style={{ color: t.text, fontSize: 17, marginTop: 8, marginBottom: 12 }}>Hold the medicine strip, bottle or box up to the camera.</Text>
       <Button big title="Scan the medicine" onPress={() => router.replace({ pathname: '/scan-add', params: { memberId } })} />
 
-      <More title="Other ways to add">
+      <More title="Other ways to add" defaultOpen>
         <Option
           icon="create-outline"
           title="Type it in"

@@ -183,9 +183,19 @@ export function SegmentTabs<T extends string>({ tabs, value, onChange }: { tabs:
 }
 
 /** "More options" fold: keeps rarely used choices out of sight until asked for (less to read at once). */
-export function More({ title = 'More options', color, children }: { title?: string; color?: string; children: React.ReactNode }) {
+export function More({
+  title = 'More options',
+  color,
+  defaultOpen = false,
+  children,
+}: {
+  title?: string;
+  color?: string;
+  defaultOpen?: boolean; // start unfolded, for choices most people need to see
+  children: React.ReactNode;
+}) {
   const t = useTheme();
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = React.useState(defaultOpen);
   return (
     <View style={{ marginTop: 10 }}>
       <Pressable accessibilityRole="button" accessibilityState={{ expanded: open }} onPress={() => setOpen((o) => !o)} style={{ minHeight: 44, justifyContent: 'center' }}>
