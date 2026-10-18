@@ -30,6 +30,7 @@ const UPRIGHT = 'Turn the strip so the name reads left to right.';
 const SHINE = 'Tilt the strip a little away from lights, or turn on the torch.';
 const FLATTEN = 'Flatten creases and keep fingers off the name.';
 const TEACH = 'Or press "Teach this strip" so it is known next time.';
+export const BOX_BARCODE = 'Or scan the barcode on the box — once it is linked, it works every time.';
 
 /**
  * Why a read was too weak for a verdict, judged from the text the phone read.
@@ -39,6 +40,16 @@ export function diagnoseScan(
   text: string,
   household: Pick<Medication, 'name' | 'strength' | 'aliases'>[] = [],
   ctx: { twoFit?: string[]; partialOf?: string } = {},
+): ScanDiagnosis {
+  // Every weak read also offers the box barcode: it doesn't depend on shine, wear or a cut strip.
+  const d = diagnose(text, household, ctx);
+  return { ...d, tips: [...d.tips, BOX_BARCODE] };
+}
+
+function diagnose(
+  text: string,
+  household: Pick<Medication, 'name' | 'strength' | 'aliases'>[],
+  ctx: { twoFit?: string[]; partialOf?: string },
 ): ScanDiagnosis {
   if (ctx.twoFit && ctx.twoFit.length > 1) {
     return {

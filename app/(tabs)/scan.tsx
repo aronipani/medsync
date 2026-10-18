@@ -10,6 +10,7 @@ import { householdMatch, householdWords } from '../../src/household.ts';
 import { lookAt, lookLabel } from '../../src/look.ts';
 import { liveHint } from '../../src/liveHint.ts';
 import { waitUntilStill } from '../../src/stillness.ts';
+import { readOnServer, shouldAskServer } from '../../src/serverFallback.ts';
 import type { LookVerdict } from '../../src/lookMatch.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
 import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
@@ -81,7 +82,7 @@ export default function Scan() {
   const lastCode = useRef({ code: '', at: 0 });
   // What the last strip reading saw (for "Teach this strip" and optional training photos).
   // `kept`: its photos are already saved for training; `reason`: why the result was red, if it was.
-  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string; detector?: string; look?: string }>({ lines: [], photos: [] });
+  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string; detector?: string; look?: string; server?: string }>({ lines: [], photos: [] });
   useEffect(() => {
     setRegionDetectorEnabled(state.settings.regionDetector !== false);
     loadRegionModel(); // load the model before the first scan, not during it
@@ -164,7 +165,20 @@ export default function Scan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
+  // Weak reads in a row (nothing read, or no verdict): after a few, the server's model is asked (stubbed for now).
+  const weakInARow = useRef(0);
   const show = (r: Result) => {
+    const weak = r.kind === 'unread' || (r.kind === 'nomatch' && !!r.weak);
+    weakInARow.current = weak ? weakInARow.current + 1 : r.kind === 'match' ? 0 : weakInARow.current;
+    if (weak && shouldAskServer(weakInARow.current) && lastRead.current.photos.length) {
+      const household = state.meds.filter((m) => m.active);
+      readOnServer(lastRead.current.photos.slice(0, 2), household)
+        .then((answer) => {
+          // Stub: always "unavailable" today. When built, a household medicine named here is shown as amber.
+          lastRead.current.server = answer.kind === 'unavailable' ? `server: ${answer.why}` : `server: ${answer.medId ?? 'none'}`;
+        })
+        .catch(() => {});
+    }
     // The strip's printed expiry, when this read's photo text has one (lastRead is cleared between reads).
     if ((r.kind === 'match' || r.kind === 'check') && lastRead.current.lines.length) {
       const ym = parseExpiry(lastRead.current.lines.join('\n'));
@@ -340,7 +354,17 @@ export default function Scan() {
   const [liveText, setLiveText] = useState('');
   const [autoRound, setAutoRound] = useState(0);
   const [autoIdle, setAutoIdle] = useState(false);
-  const autoOn = state.settings.autoScan !== false && focused && !!perm?.granted && !result && due.length > 0 && !autoIdle;
+  // "Scan the box barcode": the camera watches for a barcode only; automatic strip reading waits meanwhile.
+  const [barcodeMode, setBarcodeMode] = useState(false);
+  useEffect(() => {
+    if (!barcodeMode) return;
+    const t = setTimeout(() => setBarcodeMode(false), 30_000);
+    return () => clearTimeout(t);
+  }, [barcodeMode]);
+  useEffect(() => {
+    if (result) setBarcodeMode(false);
+  }, [result]);
+  const autoOn = state.settings.autoScan !== false && focused && !!perm?.granted && !result && due.length > 0 && !autoIdle && !barcodeMode;
   useEffect(() => {
     if (!autoOn) return;
     let stop = false;
@@ -428,6 +452,7 @@ export default function Scan() {
       <Text style={{ color: '#fff', fontSize: 14, marginTop: 10 }}>
         Read by {lastRead.current.readBy} · strip area finder: {lastRead.current.detector}
         {lastRead.current.look ? ` · ${lastRead.current.look}` : ''}
+        {lastRead.current.server ? ` · ${lastRead.current.server}` : ''}
       </Text>
     ) : null;
 
@@ -577,7 +602,7 @@ export default function Scan() {
             {!result && !busy && (
               <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontSize: 16, backgroundColor: '#0009', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' }}>
-                  {autoOn ? liveText || 'Hold the strip in front of the camera' : 'Hold the strip in view, then press the button'}
+                  {barcodeMode ? 'Point the camera at the barcode on the box' : autoOn ? liveText || 'Hold the strip in front of the camera' : 'Hold the strip in view, then press the button'}
                 </Text>
               </View>
             )}
@@ -747,6 +772,16 @@ export default function Scan() {
               {result.detail && state.settings.showScanDetails ? <Text style={{ color: '#fff', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
               <ReadBy />
               <Button title="Scan again" kind="light" big onPress={dismiss} style={{ marginTop: 14 }} />
+              <Button
+                title="Scan the box barcode"
+                kind="ghost"
+                onColor
+                onPress={() => {
+                  dismiss();
+                  setBarcodeMode(true);
+                }}
+                style={{ marginTop: 8 }}
+              />
               <TeachChips />
             </View>
           )}
