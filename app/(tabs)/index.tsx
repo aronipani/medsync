@@ -31,6 +31,9 @@ export default function Today() {
   const date = dateKey(addDays(now, offset));
 
   const occs = useMemo(() => occurrencesForDate(state, date, now, memberId), [state, date, now, memberId]);
+  // Scan for the person being looked at, not whoever is first in the family.
+  const openScan = (forMember?: string) =>
+    forMember ? router.navigate({ pathname: '/scan', params: { memberId: forMember, at: String(Date.now()) } }) : router.navigate('/scan');
   const groups = useMemo(() => {
     const m = new Map<string, Occurrence[]>();
     for (const o of occs) m.set(o.time, [...(m.get(o.time) ?? []), o]);
@@ -73,7 +76,7 @@ export default function Today() {
       return;
     }
     Alert.alert(label, 'Scanning the strip is the safest check.', [
-      { text: 'Scan the strip', onPress: () => router.navigate('/scan') },
+      { text: 'Scan the strip', onPress: () => openScan(o.memberId) },
       { text: 'I took it already', onPress: () => record([o], 'taken', 'manual') },
       {
         text: 'Skip this dose…',
@@ -211,7 +214,7 @@ export default function Today() {
               <Button
                 big
                 title={dueCount === 1 ? (nowList.length > 1 ? 'Scan the last strip' : 'Scan the strip') : nowDone ? 'Scan the next strip' : 'Scan the strips'}
-                onPress={() => router.navigate('/scan')}
+                onPress={() => openScan(memberId ?? (new Set(nowList.map((o) => o.memberId)).size === 1 ? nowList[0].memberId : undefined))}
                 style={{ marginTop: 12 }}
               />
             </Card>

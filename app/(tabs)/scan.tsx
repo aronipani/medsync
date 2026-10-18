@@ -1,6 +1,6 @@
 import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
-import { router, useFocusEffect, useIsFocused } from 'expo-router';
+import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
@@ -51,6 +51,13 @@ export default function Scan() {
   useEffect(() => {
     if (!memberId || !state.members.some((m) => m.id === memberId)) setMemberId(firstDue ?? state.members[0]?.id);
   }, [firstDue, memberId, state.members]);
+  // Opened for a particular person (Today filtered to them, or a dose of theirs): scan for them.
+  // `at` changes on every open, so it applies again even after switching person by hand.
+  const params = useLocalSearchParams<{ memberId?: string; at?: string }>();
+  useEffect(() => {
+    if (params.memberId && state.members.some((m) => m.id === params.memberId)) setMemberId(params.memberId);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.memberId, params.at]);
 
   const due = useMemo(() => dueNow(state, now, memberId), [state, now, memberId]);
   const [testRecords, setTestRecords] = useState<TestRecords>({});
