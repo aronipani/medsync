@@ -267,7 +267,7 @@ export default function TestScan() {
       </Card>
 
       <View style={{ height: run ? 220 : 300, borderRadius: 20, overflow: 'hidden', marginTop: 16, backgroundColor: '#000' }}>
-        {perm?.granted && focused ? <CameraView ref={camera} style={{ flex: 1 }} facing="back" autofocus="on" flash="off" enableTorch={torch} /> : null}
+        {perm?.granted && focused ? <CameraView ref={camera} style={{ flex: 1 }} facing="back" flash="off" enableTorch={torch} /> : null}
         {perm?.granted && focused && (
           <Pressable
             onPress={() => setTorch((v) => !v)}

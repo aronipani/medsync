@@ -479,7 +479,6 @@ export default function Scan() {
                 ref={camera}
                 style={{ flex: 1 }}
                 facing="back"
-                autofocus="on"
                 flash="off"
                 enableTorch={torch}
                 barcodeScannerSettings={{ barcodeTypes: BARCODES }}

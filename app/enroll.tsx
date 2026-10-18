@@ -127,7 +127,7 @@ export default function Enroll() {
                 <Button title="Allow camera" onPress={requestPerm} />
               </View>
             ) : (
-              <CameraView ref={camera} style={{ flex: 1 }} facing="back" autofocus="on" flash="off" enableTorch={torch} />
+              <CameraView ref={camera} style={{ flex: 1 }} facing="back" flash="off" enableTorch={torch} />
             )}
             {perm?.granted && (
               <Pressable accessibilityRole="button"

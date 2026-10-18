@@ -1,0 +1,37 @@
+diff --git a/node_modules/expo-camera/ios/Common/DeviceDiscovery.swift b/node_modules/expo-camera/ios/Common/DeviceDiscovery.swift
+index 89fdca0..52c447e 100644
+--- a/node_modules/expo-camera/ios/Common/DeviceDiscovery.swift
++++ b/node_modules/expo-camera/ios/Common/DeviceDiscovery.swift
+@@ -107,6 +107,14 @@ class DeviceDiscovery {
+   }
+ 
+   var defaultBackCamera: AVCaptureDevice? {
++    // TakeSure: prefer a multi-lens (virtual) back camera. iOS then switches to the ultra-wide lens by itself
++    // when a strip is held close (macro), like the Camera app. The plain wide lens can't focus closer than ~15-20 cm.
++    for type in [AVCaptureDevice.DeviceType.builtInTripleCamera, .builtInDualWideCamera] {
++      if let multi = AVCaptureDevice.default(type, for: .video, position: .back), self.backCameraLenses.contains(multi) {
++        return multi
++      }
++    }
++
+     if let standardBack = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .back) {
+       if self.backCameraLenses.contains(standardBack) {
+         return standardBack
+diff --git a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
+index 7a6568c..f0660fa 100644
+--- a/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
++++ b/node_modules/expo-camera/ios/Current/CameraSessionManager.swift
+@@ -217,8 +217,11 @@ class CameraSessionManager: NSObject, DeviceDiscoveryDelegate {
+     do {
+       try device.lockForConfiguration()
+       defer { device.unlockForConfiguration() }
+-      let minZoom = 1.0
+-      device.videoZoomFactor = minZoom * pow(device.activeFormat.videoMaxZoomFactor / minZoom, delegate.zoom)
++      // TakeSure: on a multi-lens camera, zoom factor 1 is the ultra-wide lens; start from the main lens (the Camera
++      // app's 1x) so the preview looks the same as before. iOS still switches to the ultra-wide lens for close focus.
++      let minZoom = Double(device.isVirtualDevice ? (device.virtualDeviceSwitchOverVideoZoomFactors.first?.doubleValue ?? 1.0) : 1.0)
++      let maxZoom = max(minZoom, Double(device.activeFormat.videoMaxZoomFactor))
++      device.videoZoomFactor = CGFloat(minZoom * pow(maxZoom / minZoom, Double(delegate.zoom)))
+     } catch {
+       log.info("\(#function): \(error.localizedDescription)")
+     }
