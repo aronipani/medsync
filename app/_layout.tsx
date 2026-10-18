@@ -7,6 +7,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FirstRunNotice } from '../src/components/FirstRunNotice.tsx';
 import { needsNotice } from '../src/legal.ts';
 import { ACTION_SNOOZE, rescheduleAll, setupNotifications, snooze } from '../src/notifications.ts';
+import { CurrentMemberProvider } from '../src/currentMember.tsx';
 import { StoreProvider, useStore } from '../src/store.tsx';
 import { phrase } from '../src/phrases.ts';
 import { dueNow } from '../src/schedule.ts';
@@ -113,7 +114,9 @@ export default function RootLayout() {
   return (
     <SafeAreaProvider>
       <StoreProvider>
-        <Themed />
+        <CurrentMemberProvider>
+          <Themed />
+        </CurrentMemberProvider>
       </StoreProvider>
     </SafeAreaProvider>
   );

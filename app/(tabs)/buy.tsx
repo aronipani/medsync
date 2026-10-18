@@ -1,5 +1,6 @@
 // Buy list (spec 17, part B): what to buy, how to ask for it, which pharmacy to try, what they said.
 // Nothing leaves the phone by itself: Call and WhatsApp open the phone's own apps, and the person presses Send.
+import { useCurrentMember } from '../../src/currentMember.tsx';
 import React, { useMemo, useState } from 'react';
 import { Alert, Linking, Modal, Platform, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberDot, MemberPicker } from '../../src/components.tsx';
@@ -23,7 +24,7 @@ const READY: { label: string; days: number }[] = [
 export default function Buy() {
   const t = useTheme();
   const { state, now, adjustStock, savePharmacies, recordAnswer } = useStore();
-  const [memberId, setMemberId] = useState<string | undefined>();
+  const [memberId, setMemberId] = useCurrentMember(); // shared with every screen
   const [extra, setExtra] = useState<string[]>([]); // medicines added to the list by hand
   const [showList, setShowList] = useState(false);
   const [bought, setBought] = useState<{ item: BuyItem; qty: number } | null>(null);

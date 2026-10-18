@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useCurrentMember } from '../src/currentMember.tsx';
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
@@ -17,7 +18,12 @@ export default function AddMedicine() {
   const t = useTheme();
   const params = useLocalSearchParams<{ memberId?: string }>();
   const { state, setPending } = useStore();
-  const [memberId, setMemberId] = useState<string | undefined>(params.memberId ?? state.members[0]?.id);
+  const [chosen, setChosen] = useCurrentMember();
+  const [memberId, setOwn] = useState<string | undefined>(params.memberId ?? chosen ?? state.members[0]?.id);
+  const setMemberId = (id: string) => {
+    setOwn(id);
+    setChosen(id);
+  };
   const [busy, setBusy] = useState(false);
 
   const readPrescription = async (from: 'camera' | 'library') => {

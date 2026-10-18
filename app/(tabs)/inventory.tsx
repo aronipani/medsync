@@ -1,3 +1,4 @@
+import { useCurrentMember } from '../../src/currentMember.tsx';
 import { router } from 'expo-router';
 import React, { useState } from 'react';
 import { Alert, Modal, Pressable, ScrollView, Text, View } from 'react-native';
@@ -13,7 +14,7 @@ const perDay = (m: Medication) => m.doses.reduce((a, d) => a + d.qty * (d.days.l
 export default function Inventory() {
   const t = useTheme();
   const { state, now, adjustStock, setExpiry } = useStore();
-  const [memberId, setMemberId] = useState<string | undefined>();
+  const [memberId, setMemberId] = useCurrentMember(); // shared with every screen
   const [refill, setRefill] = useState<{ med: Medication; qty: number } | null>(null);
 
   // Refill box starts at the amount added last time for this medicine (a strip or box is usually the same size).

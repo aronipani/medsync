@@ -1,3 +1,4 @@
+import { useCurrentMember } from '../../src/currentMember.tsx';
 import { File, Paths } from 'expo-file-system';
 import { Tabs } from 'expo-router';
 import { freshOnFocus } from '../../src/components/freshOnFocus.tsx';
@@ -28,7 +29,7 @@ export default freshOnFocus(History);
 function History() {
   const t = useTheme();
   const { state, restoreVersion } = useStore();
-  const [memberId, setMemberId] = useState<string | undefined>();
+  const [memberId, setMemberId] = useCurrentMember(); // shared with every screen
   const [open, setOpen] = useState<ScheduleVersion>();
   const name = (id: string) => state.members.find((m) => m.id === id)?.name ?? '—';
   const versions = [...(state.history ?? [])].filter((v) => !memberId || v.memberId === memberId).reverse();

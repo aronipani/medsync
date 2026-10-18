@@ -1,4 +1,5 @@
 import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
+import { useCurrentMember } from '../../src/currentMember.tsx';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
@@ -49,10 +50,9 @@ export default function Scan() {
 
   // Default to the first family member who has something due.
   const firstDue = useMemo(() => state.members.find((m) => dueNow(state, now, m.id).length)?.id, [state, now]);
-  const [memberId, setMemberId] = useState<string | undefined>(firstDue ?? state.members[0]?.id);
-  useEffect(() => {
-    if (!memberId || !state.members.some((m) => m.id === memberId)) setMemberId(firstDue ?? state.members[0]?.id);
-  }, [firstDue, memberId, state.members]);
+  // The person chosen on any screen stays chosen for the session; only with no one chosen does it fall back.
+  const [chosen, setMemberId] = useCurrentMember();
+  const memberId = chosen ?? firstDue ?? state.members[0]?.id;
   // Opened for a particular person (Today filtered to them, or a dose of theirs): scan for them.
   // `at` changes on every open, so it applies again even after switching person by hand.
   const params = useLocalSearchParams<{ memberId?: string; at?: string }>();

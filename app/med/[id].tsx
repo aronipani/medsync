@@ -1,4 +1,5 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { useCurrentMember } from '../../src/currentMember.tsx';
 import React, { useMemo, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
@@ -32,6 +33,7 @@ export default function EditMed() {
   const t = useTheme();
   const { id, memberId, prefill, rxItem } = useLocalSearchParams<{ id: string; memberId?: string; prefill?: string; rxItem?: string }>();
   const { state, saveMed, deleteMed, updatePendingItem, forgetLearned } = useStore();
+  const [chosen] = useCurrentMember();
   const pendingItem = rxItem ? state.pending?.items.find((i) => i.id === rxItem) : undefined;
   const existing = pendingItem ? undefined : state.meds.find((m) => m.id === id);
   const draft = useMemo<Partial<Medication>>(() => {
@@ -48,7 +50,7 @@ export default function EditMed() {
       existing ?? {
         ...draft,
         id: uid(),
-        memberId: memberId ?? state.members[0]?.id ?? '',
+        memberId: memberId ?? chosen ?? state.members[0]?.id ?? '',
         name: draft.name ?? '',
         strength: draft.strength ?? '',
         aliases: draft.aliases ?? [],

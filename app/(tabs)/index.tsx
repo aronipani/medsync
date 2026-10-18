@@ -1,3 +1,4 @@
+import { useCurrentMember } from '../../src/currentMember.tsx';
 import { Ionicons } from '@expo/vector-icons';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { router } from 'expo-router';
@@ -25,7 +26,7 @@ export default function Today() {
           { text: 'Open', onPress: () => saveSettings({ ...state.settings, helperView: true }) },
         ]);
   const insets = useSafeAreaInsets();
-  const [memberId, setMemberId] = useState<string | undefined>();
+  const [memberId, setMemberId] = useCurrentMember(); // shared with every screen
   const [offset, setOffset] = useState(0);
   const today = dateKey(now);
   const date = dateKey(addDays(now, offset));
