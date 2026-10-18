@@ -6,7 +6,7 @@
 import { sameMedicine } from './consolidate.ts';
 import { levenshtein, strengthText, tokenize } from './match.ts';
 import { relatedNames } from './drugdb.ts';
-import { decode } from './learn.ts';
+import { decode, SHARED_PRINT } from './learn.ts';
 import type { Medication } from './types.ts';
 
 type Med = Pick<Medication, 'id' | 'name' | 'strength' | 'aliases'> & Partial<Pick<Medication, 'learned' | 'profile'>>;
@@ -17,6 +17,7 @@ const COMMON = new Set([
   'EACH', 'FILM', 'COATED', 'UNCOATED', 'CONTAINS', 'RELEASE', 'PROLONGED', 'EXTENDED', 'SUSTAINED', 'MODIFIED',
   'STRIP', 'PACK', 'BATCH', 'EXPIRY', 'PHARMA', 'LIMITED', 'LTD', 'HEALTHCARE', 'LABORATORIES', 'SCHEDULE', 'DRUG',
   'STORE', 'PROTECT', 'LIGHT', 'MOISTURE', 'CHILDREN', 'REACH', 'DOSAGE', 'DIRECTED', 'PHYSICIAN', 'INDIA',
+  ...SHARED_PRINT,
 ]);
 
 const MIN_RUN = 4; // fewest letters a fragment must share with a name to count
@@ -145,14 +146,20 @@ function decide(text: string, meds: Med[]): Verdict {
     const primary = new Set(primaryWords(med));
     let best = { cover: 0, word: '' };
     let primaryCover = 0;
+    let wordsSeen = 0;
     for (const w of nameWords(med)) {
+      if (COMMON.has(w)) continue; // older profiles may hold shared print such as SODIUM
       const c = nameCover(fragments, w);
       if (c > best.cover) best = { cover: c, word: w };
       if (primary.has(w)) primaryCover = Math.max(primaryCover, c);
+      if (c >= SURE_COVER) wordsSeen++;
     }
     if (best.cover < MIN_COVER) continue;
     const strength = strengthSeen(text, med.strength);
     if (strength === 'other') continue; // a different strength printed: not this one
+    // Only words read from its strip (not its brand, alias or contents name) and nothing else to back them up:
+    // one word another medicine can share is no evidence. Needs its strength too, or two of its words.
+    if (primaryCover < MIN_COVER && strength !== 'same' && wordsSeen < 2) continue;
     const score = best.cover * (strength === 'same' ? 1.5 : 1);
     candidates.push({ medId: med.id, cover: best.cover, word: best.word, primary: primaryCover >= SURE_COVER, strength, score });
   }

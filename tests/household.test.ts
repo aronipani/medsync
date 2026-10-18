@@ -109,3 +109,15 @@ test('profile words help find the medicine, but alone give amber, never green', 
   // With the brand readable as well, green as before.
   assert.equal(householdMatch('LOPILET ZYPHARMO 75', [withProfile, med('pantodac', 'Pantodac', '40')]).kind, 'sure');
 });
+
+test('a salt word shared with another medicine never names a household medicine (Anikast-L read as Pantodac)', () => {
+  const profile = (words: string[]) => ({ version: 1 as const, source: 'phone' as const, at: '', words, sides: 1 });
+  // Pantodac's profile was made before SODIUM was treated as shared print.
+  const pantodac = { ...med('pantodac', 'Pantodac', '40'), profile: profile(['PANTODAC', 'PANTOPRAZOLE', 'GASTRO', 'RESISTANT', 'SODIUM']) };
+  const anikast = 'Montelukast & Levocetirizine Tablets IP\nAnikast-L\nEach film coated tablet contains\nMontelukast Sodium IP\nLevocetirizine Hydrochloride IP\nColour: Titanium Dioxide IP';
+  assert.equal(householdMatch(anikast, [pantodac, clopilet]).kind, 'none');
+  // Two words from its own strip still count, as does one with its strength.
+  const zy = { ...med('clopilet', 'Clopilet', '75'), profile: profile(['ZYPHARMO', 'CLOPIDOX']) };
+  assert.equal(householdMatch('ZYPHARMO CLOPIDOX', [zy]).kind, 'likely');
+  assert.equal(householdMatch('ZYPHARMO', [zy]).kind, 'none');
+});

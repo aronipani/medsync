@@ -8,7 +8,23 @@ const MAX_PER_MED = 8;
 const SKIP_LINE =
   /\b(ltd|limited|pvt|pharma|pharmaceuticals?|laborator(y|ies)|labs?|healthcare|life\s?sciences|remedies|drugs?|manufactured|marketed|mfd|mfg|lic|m\.?\s?l\.?|road|rd|dist|district|vill|village|p\.?\s?o\.?|nagar|sector|plot|phase|industrial|estate|assam|sikkim|gujarat|maharashtra|himachal|uttarakhand|goa|mumbai|india|caution|schedule|prescription|retail|sold|practitioner|registered|trade\s?mark|store|storage|temperature|protect|light|moisture|children|reach|dosage|dose|directed|physician|specialist|keep|warning|exp|expiry|batch|b\.?\s?no|m\.?\s?r\.?\s?p|price|rs|₹|incl|taxes|per|pack|blister|excipients?|colou?rs?|oxide|dioxide|lake|tartrazine|q\.?\s?s)\b/i;
 
+/**
+ * Salt, hydrate and dosage-form words: printed on many different medicines ("Montelukast Sodium", "Pantoprazole
+ * Sodium"), so they never tell one strip from another.
+ */
+export const SHARED_PRINT = [
+  'SODIUM', 'POTASSIUM', 'CALCIUM', 'MAGNESIUM', 'ZINC', 'IRON', 'HYDROCHLORIDE', 'HCL', 'HYDROBROMIDE', 'CHLORIDE',
+  'BROMIDE', 'SULPHATE', 'SULFATE', 'PHOSPHATE', 'CITRATE', 'ACETATE', 'TARTRATE', 'BITARTRATE', 'MALEATE', 'FUMARATE',
+  'SUCCINATE', 'BESYLATE', 'BESILATE', 'MESYLATE', 'MESILATE', 'MALATE', 'LACTATE', 'GLUCONATE', 'CARBONATE',
+  'BICARBONATE', 'NITRATE', 'OXALATE', 'VALERATE', 'PROPIONATE', 'DIPROPIONATE', 'ESTOLATE', 'STEARATE', 'TROMETHAMINE',
+  'HYDRATE', 'MONOHYDRATE', 'DIHYDRATE', 'TRIHYDRATE', 'SESQUIHYDRATE', 'HEMIHYDRATE', 'ANHYDROUS', 'BASE', 'SALT',
+  'EQUIVALENT', 'GASTRO', 'RESISTANT', 'ENTERIC', 'DELAYED', 'DISPERSIBLE', 'CHEWABLE', 'ORALLY', 'DISINTEGRATING',
+  'TITANIUM', 'DIOXIDE', 'OXIDE', 'YELLOW', 'RED', 'BLUE', 'BRILLIANT', 'COLOUR', 'COLOURS', 'COLOR', 'EXCIPIENTS',
+  'MEDICINE', 'MEDICAL', 'PRESCRIPTION', 'CAUTION', 'SCHEDULE', 'DRUG',
+];
+
 const STOP_WORDS = new Set([
+  ...SHARED_PRINT,
   'TABLET', 'TABLETS', 'TAB', 'TABS', 'CAPSULE', 'CAPSULES', 'CAP', 'IP', 'BP', 'USP', 'NF', 'EACH', 'CONTAINS', 'CONTAIN',
   'FILM', 'COATED', 'UNCOATED', 'EQUIVALENT', 'TO', 'AND', 'OF', 'THE', 'FOR', 'WITH', 'MG', 'MCG', 'ML', 'IU', 'GM',
   'DILUTED', 'RELEASE', 'PROLONGED', 'EXTENDED', 'SUSTAINED', 'MODIFIED', 'ORAL', 'COMPOSITION', 'RX', 'MON', 'TUE',
