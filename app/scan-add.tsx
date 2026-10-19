@@ -9,6 +9,7 @@ import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
 import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { encode, fingerprint } from '../src/learn.ts';
+import { normalizeCode } from '../src/match.ts';
 import { saveReference } from '../src/profileFiles.ts';
 import { buildProfile } from '../src/stripProfile.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
@@ -53,6 +54,12 @@ export default function ScanToAdd() {
   const [torch, setTorch] = useState(false);
   const [progress, setProgress] = useState('');
 
+  // A barcode holds a product number, not the name, and the app has no barcode list (nothing is looked up online).
+  // So it is saved with the medicine, and recognised from then on; the name comes from the printed text.
+  const knownAs = barcode
+    ? state.meds.find((m) => m.active && m.barcodes.some((b) => normalizeCode(b) === normalizeCode(barcode)))
+    : undefined;
+  const knownWho = knownAs ? state.members.find((m) => m.id === knownAs.memberId)?.name : undefined;
   const onBarcode = ({ data }: BarcodeScanningResult) => {
     if (data === barcode) return;
     setBarcode(data);
@@ -176,7 +183,19 @@ export default function ScanToAdd() {
               </View>
             )}
           </View>
-          {barcode && <Text style={{ color: t.ok, marginTop: 10, fontSize: 17, fontWeight: '700' }}>✓ Barcode saved</Text>}
+          {barcode && (
+            <View style={{ marginTop: 10 }}>
+              <Text style={{ color: t.ok, fontSize: 17, fontWeight: '700' }}>
+                {knownAs ? `✓ Barcode already saved for ${knownAs.name} ${knownAs.strength}${knownWho ? ` (${knownWho})` : ''}` : '✓ Barcode saved'}
+              </Text>
+              {!knownAs && !result && (
+                <Text style={{ color: t.sub, fontSize: 16, marginTop: 4, lineHeight: 22 }}>
+                  A barcode doesn't tell the app the medicine's name. Now point at the printed name and press Read the strip. After you add the medicine,
+                  this barcode is recognised when you scan.
+                </Text>
+              )}
+            </View>
+          )}
           {error && <Text style={{ color: t.bad, marginTop: 10, fontSize: 17 }}>{error}</Text>}
           <Button big title={photos ? 'Read this side too' : 'Read the strip'} onPress={takePhoto} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />
           {result ? (

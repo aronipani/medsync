@@ -1,7 +1,7 @@
 // Turns OCR text from a strip, bottle or box into a medicine draft (name, strength, form, generic).
 // Pure — no React Native imports — so it can be unit tested.
 
-import { lookupBrand, lookupIngredients } from './drugdb.ts';
+import { ALL_DRUGS, lookupBrand, lookupIngredients } from './drugdb.ts';
 
 export interface OcrLine {
   text: string;
@@ -53,11 +53,12 @@ export interface LabelResult extends MedDraft {
 }
 
 const FORM_WORDS: [RegExp, string][] = [
+  // Inhalers first: a box says "Inhalation Aerosol", "200 metered actuations", "HFA" — never "tablet".
+  [/\b(inhalers?|inhalation|inhalation\s+aerosol|metered\s+(dose|actuations?|inhalations?)|actuations?|puffs?|hfa|mdi|rotacaps?|respules?)\b/i, 'puff'],
   [/\b(tablets?|tab)\b/i, 'tablet'],
   [/\b(capsules?|cap|softgels?)\b/i, 'capsule'],
   [/\b(syrup|suspension|oral solution|liquid|elixir)\b/i, 'ml'],
   [/\b(drops?|eye drops|ear drops)\b/i, 'drops'],
-  [/\b(inhaler|rotacaps?|respules?)\b/i, 'puff'],
   [/\b(injection|vial|ampoule)\b/i, 'injection'],
   [/\b(sachets?|granules|powder)\b/i, 'sachet'],
 ];
@@ -261,10 +262,20 @@ export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
   for (const b of ranked) if (!brands.some((x) => key(x.name) === key(b.name))) brands.push(b);
   // A strength glued to any copy of the brand ("MONOTRATE®10") counts even if the biggest copy lost it.
   for (const b of brands) if (!b.strength) b.strength = scored.find((o) => key(o.name) === key(b.name) && o.strength)?.strength;
+  // A name cut off at the edge of the photo ("Albuterol Sulf", "Pantopraz"): finish a word that can only be one
+  // known medicine word, and drop a cut-off salt word. Only a unique completion is made; otherwise left as read.
+  for (const b of brands) b.name = completeName(b.name);
   const brand = brands[0];
 
   // The built-in list fills gaps: contents of a known brand, or known brands of the contents read.
   const known = brand ? lookupBrand(brand.name) : undefined;
+  // Printed as the brand ("Ventolin HFA"), not as read ("Ventolin Hfa").
+  if (brand && known) {
+    const printed = known.brands.find((b) => b.toLowerCase().replace(/[^a-z0-9]/g, '') === brand.name.toLowerCase().replace(/[^a-z0-9]/g, ''));
+    if (printed) brand.name = printed;
+  }
+  // A box that prints only the contents ("Albuterol Sulfate"): the name is the contents.
+  if (brand && !known && !ingredients.length && lookupIngredients([brand.name]).length) ingredients.push({ name: brand.name });
   if (known && !ingredients.length) {
     const parts = (brand?.strength ?? '').split('/');
     known.ingredients.forEach((n, i) => ingredients.push({ name: n, strength: parts.length === known.ingredients.length ? parts[i] : undefined }));
@@ -277,6 +288,15 @@ export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
   const unitFinal = known?.unit && !detectForm(allText) ? known.unit : unit;
 
   let strength = brand?.strength ?? (ingredients.length && ingredients.every((i) => i.strength) ? genericStrength : '');
+  // Inhalers print the dose per puff: "90 mcg per actuation", or "108 mcg albuterol sulfate (equivalent to 90 mcg albuterol)".
+  if (!strength && unitFinal === 'puff') {
+    const per = /(\d+(?:\.\d+)?)\s*(mcg|µg|mg)\s*(?:of\s+\w+\s+)?(?:per|\/|each)\s*(?:actuation|puff|inhalation|metered|dose)/i.exec(allText);
+    const eq = /equivalent\s+to\s+(\d+(?:\.\d+)?)\s*(mcg|µg|mg)/i.exec(allText);
+    // Otherwise only when one strength is printed at all ("90 mcg"); two different ones are left for a person.
+    const all = [...new Set([...allText.matchAll(/(\d+(?:\.\d+)?)\s*(mcg|µg)\b/gi)].map((x) => x[1]))];
+    const m = eq ?? per ?? (all.length === 1 ? ([all[0], all[0], 'mcg'] as unknown as RegExpExecArray) : null);
+    if (m) strength = formatStrength(m[1], m[2].replace('µg', 'mcg'));
+  }
   if (!strength && !ingredients.length && unit !== 'ml') {
     const s = STRENGTH.exec(allText);
     if (s) strength = formatStrength(s[1], s[2]);
@@ -284,7 +304,7 @@ export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
 
   const name = brand?.name ?? genericName;
   const genericAlias = ingredients.length ? ingredients.map((i) => `${i.name} ${i.strength ?? ''}`.trim()).join(' + ') : '';
-  const aliases = brand && genericAlias ? [genericAlias] : [];
+  const aliases = brand && genericAlias && genericAlias.toLowerCase() !== brand.name.toLowerCase() ? [genericAlias] : [];
 
   const nameOptions = [
     ...brands.slice(0, 3).map((b) => b.name),
@@ -301,6 +321,30 @@ export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
     ingredients,
     contents,
     brand: brand?.name,
-    nameOptions: [...new Set(nameOptions)],
+    // Form words ("Inhalation Aerosol", "Metered Actuations") and "NDC" are never the name.
+    nameOptions: [...new Set(nameOptions)].filter((o) => !/^ndc$/i.test(o) && (!!lookupBrand(o) || !detectForm(o))),
   };
+}
+
+// ---------- Cut-off names ----------
+
+const SALT_WORDS = ['HYDROCHLORIDE', 'BISULPHATE', 'BISULFATE', 'BESYLATE', 'BESILATE', 'MALEATE', 'TARTRATE', 'SUCCINATE', 'SODIUM', 'POTASSIUM',
+  'CALCIUM', 'MAGNESIUM', 'DIHYDRATE', 'MONOHYDRATE', 'TRIHYDRATE', 'HYDROBROMIDE', 'MESYLATE', 'FUMARATE', 'CITRATE', 'PHOSPHATE', 'SULPHATE', 'SULFATE', 'ACETATE'];
+let knownWords: string[] | undefined;
+const medicineWords = () =>
+  (knownWords ??= [...new Set(ALL_DRUGS.flatMap((d) => [...d.brands, ...d.ingredients]).flatMap((n) => n.toUpperCase().split(/[^A-Z]+/)).filter((w) => w.length >= 5))]);
+
+/** "Albuterol Sulf" → "Albuterol"; "Pantopraz" → "Pantoprazole"; anything that isn't a unique completion stays as read. */
+export function completeName(name: string): string {
+  const words = medicineWords();
+  const out = name.split(/\s+/).filter(Boolean).flatMap((w, i, all) => {
+    const u = w.toUpperCase();
+    if (!/^[A-Z]{3,}$/.test(u) || words.includes(u)) return [w];
+    // A cut-off salt after the name ("Sulf", "Hydrochlor") is dropped, like a whole salt word.
+    if (i > 0 && i === all.length - 1 && u.length >= 3 && SALT_WORDS.some((x) => x.startsWith(u) && x !== u)) return [];
+    if (u.length < 5) return [w];
+    const fits = words.filter((x) => x.length > u.length && x.startsWith(u));
+    return fits.length === 1 ? [fits[0][0] + fits[0].slice(1).toLowerCase()] : [w];
+  });
+  return out.join(' ') || name;
 }

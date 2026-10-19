@@ -187,8 +187,22 @@ export default function Today() {
       {!state.meds.length ? (
         <>
           {/* First use is a helper's job: say so, then one button. */}
-          <Empty title="Let’s add the medicines" body="Setting this up for someone? Add each of their medicines here, then hand the phone over. Reminders start by themselves." />
+          <Empty
+            title="Let’s add the medicines"
+            body={
+              state.members.length > 1
+                ? `For ${state.members.map((m) => m.name).join(', ')}. Add each person's medicines, then hand the phone over. Reminders start by themselves.`
+                : 'Setting this up for someone? Add each of their medicines here, then hand the phone over. Reminders start by themselves.'
+            }
+          />
           <Button big title="Add a medicine" onPress={() => router.push('/add')} />
+          {/* Family first if it's for more than one person: the helper view isn't reachable until a medicine exists. */}
+          <Button
+            title={state.members.length > 1 ? '+ Add another person' : '+ Add a family member'}
+            kind="secondary"
+            onPress={() => router.push('/member/new')}
+            style={{ marginTop: 10 }}
+          />
           <CollectCard />
         </>
       ) : !occs.length ? (

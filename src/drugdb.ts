@@ -93,6 +93,9 @@ export const DRUGS: DrugEntry[] = [
   { brands: ['Nexito', 'Cipralex'], ingredients: ['Escitalopram'], strengths: ['5', '10', '20'] },
   { brands: ['Azithral', 'Azee'], ingredients: ['Azithromycin'], strengths: ['250', '500'] },
   { brands: ['Augmentin'], ingredients: ['Amoxicillin', 'Clavulanic Acid'], strengths: ['375', '625'] },
+  // Breathing (inhalers). Salbutamol is called albuterol in the US: the same medicine, two names.
+  { brands: ['Asthalin', 'Ventorlin', 'Salbair'], ingredients: ['Salbutamol'], strengths: ['100'], unit: 'puff' },
+  { brands: ['Ventolin HFA', 'ProAir HFA', 'Proventil HFA', 'Ventolin'], ingredients: ['Albuterol'], strengths: ['90'], unit: 'puff' },
 ];
 
 const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');

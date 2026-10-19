@@ -230,3 +230,30 @@ test('OCR lookalikes: I-I-I, BF/AF and "40 rng"', () => {
   assert.equal(b.strength, '40');
   assert.ok(b.doses.every((d) => d.timing.kind === 'meal' && d.timing.relation === 'before'));
 });
+
+// Oct 2026: an albuterol inhaler box (US). Read as tablets with no contents, and a cut-off name kept as read.
+test('inhaler box: puffs, contents, per-puff strength, and a cut-off name finished', async () => {
+  const { parseLabel, completeName } = await import('../src/label.ts');
+  const ventolin = parseLabel([
+    { text: 'Ventolin HFA', height: 70 },
+    { text: '(albuterol sulfate)', height: 30 },
+    { text: 'Inhalation Aerosol', height: 30 },
+    { text: 'Each actuation delivers 108 mcg of albuterol sulfate', height: 14 },
+    { text: '(equivalent to 90 mcg albuterol)', height: 14 },
+  ]);
+  assert.equal(ventolin.name, 'Ventolin HFA');
+  assert.equal(ventolin.unit, 'puff');
+  assert.equal(ventolin.strength, '90 mcg'); // the dose per puff, not the 108 mcg of salt
+  assert.equal(ventolin.contents, 'Albuterol');
+  const cut = parseLabel([{ text: 'Albuterol Sulf', height: 60 }, { text: 'Inhalation Aero', height: 40 }, { text: '90 mcg per', height: 30 }]);
+  assert.equal(cut.name, 'Albuterol');
+  assert.equal(cut.unit, 'puff');
+  assert.equal(completeName('Pantopraz'), 'Pantoprazole'); // only one known word starts like this
+  assert.equal(completeName('Telmi'), 'Telmi'); // Telmisartan and Telmikind: not guessed
+  assert.equal(completeName('Dolo'), 'Dolo'); // known names are left alone
+});
+
+test('a box barcode and its DataMatrix are the same code', async () => {
+  const { normalizeCode } = await import('../src/match.ts');
+  assert.equal(normalizeCode('300933174312'), normalizeCode('0100300933174312172709301012345\u001d21ABC123'));
+});
