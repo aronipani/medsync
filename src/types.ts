@@ -82,6 +82,7 @@ export interface Member {
   mealTimes: MealTimes;
   language?: import('./phrases.ts').LangCode; // spoken announcements (default English)
   voice?: boolean; // speak scan results and reminders aloud (default on)
+  timeZone?: string; // IANA zone when they live elsewhere ("Asia/Kolkata"); their doses follow their own clock. Unset = this phone's zone
 }
 
 export interface Settings {
@@ -183,4 +184,6 @@ export interface Occurrence {
   dose: Dose;
   status: OccurrenceStatus;
   log?: DoseLog;
+  localTime?: string; // HH:MM on this phone's clock, when the member lives in another time zone (time is their clock)
+  at?: number; // the instant, ms
 }

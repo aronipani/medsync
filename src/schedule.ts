@@ -1,5 +1,5 @@
 import type { AppState, Dose, DoseLog, Medication, Member, Occurrence, Settings } from './types.ts';
-import { addDays, atTime, dateKey, fmt12, fromMinutes, toMinutes } from './time.ts';
+import { addDays, atTime, atTimeIn, clockIn, dateKey, dateKeyIn, daysBetween, fmt12, fromMinutes, otherZone, shiftDate, toMinutes } from './time.ts';
 
 export const MEAL_LABEL = { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' } as const;
 
@@ -47,18 +47,25 @@ function doseOnDay(dose: Dose, date: string): boolean {
 /** All scheduled doses for one day, with their current status. Sorted by time. */
 export function occurrencesForDate(state: AppState, date: string, now: Date, memberId?: string): Occurrence[] {
   const { settings } = state;
+  // A member in another time zone has their own "today": the phone's day `date` is that member's same-numbered day
+  // relative to now (when it's already Wednesday morning in Kolkata on Tuesday evening in California, Tuesday here
+  // shows Kolkata's Wednesday). Their logs are kept under their own dates.
+  const near = new Set([shiftDate(date, -1), date, shiftDate(date, 1)]);
   const logsByKey = new Map<string, DoseLog>();
-  for (const l of state.logs) if (l.date === date) logsByKey.set(l.key, l);
+  for (const l of state.logs) if (near.has(l.date)) logsByKey.set(l.key, l);
   const out: Occurrence[] = [];
   for (const med of state.meds) {
     if (memberId && med.memberId !== memberId) continue;
     const member = state.members.find((m) => m.id === med.memberId);
-    if (!member || !medActiveOn(med, date)) continue;
+    if (!member) continue;
+    const tz = otherZone(member.timeZone) ? member.timeZone : undefined;
+    const day = tz ? shiftDate(date, daysBetween(dateKey(now), dateKeyIn(now, tz))) : date;
+    if (!medActiveOn(med, day)) continue;
     for (const dose of med.doses) {
-      if (!doseOnDay(dose, date)) continue;
+      if (!doseOnDay(dose, day)) continue;
       const time = doseTime(dose, member, settings);
-      const when = atTime(date, time);
-      const key = occKey(date, med.id, dose.id);
+      const when = atTimeIn(day, time, tz);
+      const key = occKey(day, med.id, dose.id);
       const log = logsByKey.get(key);
       // A dose added/retimed after its slot today doesn't count for today.
       if (!log && new Date(dose.since) > when) continue;
@@ -70,10 +77,10 @@ export function occurrencesForDate(state: AppState, date: string, now: Date, mem
         else if (diff <= settings.missedAfterMin) status = 'due';
         else status = 'missed';
       }
-      out.push({ key, date, time, memberId: member.id, med, dose, status, log });
+      out.push({ key, date: day, time, memberId: member.id, med, dose, status, log, at: when.getTime(), ...(tz ? { localTime: clockIn(when) } : {}) });
     }
   }
-  return out.sort((a, b) => a.time.localeCompare(b.time) || a.med.name.localeCompare(b.med.name));
+  return out.sort((a, b) => (a.at ?? 0) - (b.at ?? 0) || a.time.localeCompare(b.time) || a.med.name.localeCompare(b.med.name));
 }
 
 /** Doses that can be verified by scanning right now (today, inside the window, not yet logged). */
@@ -92,6 +99,9 @@ export function computeMissed(state: AppState, now: Date, makeId: () => string):
   for (const d of [addDays(now, -1), now]) {
     for (const o of occurrencesForDate(state, dateKey(d), now)) {
       if (o.log || o.status !== 'missed') continue;
+      // Someone in another time zone takes their medicines with their own phone; this phone can't know, so it
+      // doesn't mark them missed.
+      if (o.localTime) continue;
       out.push({
         id: makeId(),
         key: o.key,
@@ -128,6 +138,8 @@ export function reminderSlots(state: AppState): ReminderSlot[] {
     if (!med.active || (med.endDate && med.endDate < today)) continue;
     const member = state.members.find((m) => m.id === med.memberId);
     if (!member) continue;
+    // Reminders for someone in another time zone go off on their own phone, at their time — not on this one.
+    if (otherZone(member.timeZone)) continue;
     for (const dose of med.doses) {
       items.push({
         time: doseTime(dose, member, state.settings),

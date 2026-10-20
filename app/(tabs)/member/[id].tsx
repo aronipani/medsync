@@ -8,6 +8,7 @@ import { MEMBER_COLORS, newMember, useStore } from '../../../src/store.tsx';
 import type { Meal, Member } from '../../../src/types.ts';
 import { Button, Chip, Field, Label, s, TimeField, useTheme } from '../../../src/ui.tsx';
 import { Pressable } from 'react-native';
+import { clockIn, COMMON_ZONES, deviceZone, fmt12, otherZone, zoneLabel } from '../../../src/time.ts';
 
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner'];
 
@@ -107,6 +108,22 @@ function EditMember() {
         </Text>
       )}
       {speak === 'error' && <Text style={{ color: t.bad, marginTop: 6 }}>Couldn't speak. Check the volume and try again.</Text>}
+
+      <Label>Where they live</Label>
+      <Text style={{ color: t.sub, marginBottom: 8, fontSize: 16, lineHeight: 22 }}>
+        Someone in another time zone takes their medicines at their own clock time. Their reminders go off on their own phone, not this one.
+      </Text>
+      <View style={s.wrap}>
+        <Chip label={`Same as this phone (${zoneLabel(deviceZone())})`} active={!otherZone(m.timeZone)} onPress={() => setM({ ...m, timeZone: undefined })} />
+        {COMMON_ZONES.filter((z) => z.tz !== deviceZone()).map((z) => (
+          <Chip key={z.tz} label={z.label} active={m.timeZone === z.tz} onPress={() => setM({ ...m, timeZone: z.tz })} />
+        ))}
+      </View>
+      {otherZone(m.timeZone) && (
+        <Text style={{ color: t.text, marginTop: 8, fontSize: 16 }}>
+          It's {fmt12(clockIn(new Date(), m.timeZone))} there now ({fmt12(clockIn(new Date()))} here). Meal times below are their times.
+        </Text>
+      )}
 
       <Label>Usual meal times</Label>
       <Text style={{ color: t.sub, marginBottom: 8 }}>Doses set to "before / with / after" a meal follow these times.</Text>

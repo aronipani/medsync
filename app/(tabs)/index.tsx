@@ -66,7 +66,7 @@ export default function Today() {
       ]);
       return;
     }
-    if (atTime(o.date, o.time).getTime() - now.getTime() > 6 * 3600e3) {
+    if ((o.at ?? atTime(o.date, o.time).getTime()) - now.getTime() > 6 * 3600e3) {
       Alert.alert(label, 'This dose is more than 6 hours away.');
       return;
     }
@@ -139,6 +139,12 @@ export default function Today() {
         <View style={{ flex: 1 }}>
           <Text style={{ color: open ? t.text : t.sub, fontSize: open ? 21 : 19, fontWeight: open ? '700' : '600' }}>{medLabel(o.med)}</Text>
           <Text style={{ color: open ? t.text : t.sub, opacity: open ? 0.8 : 1, fontSize: 16, marginTop: 2 }}>{statusLine(o)}</Text>
+          {/* Someone in another time zone: their clock time, and this phone's. */}
+          {o.localTime && (
+            <Text style={{ color: t.sub, fontSize: 15, marginTop: 2 }}>
+              {fmt12(o.time)} their time · {fmt12(o.localTime)} here
+            </Text>
+          )}
           <MemberDot memberId={o.memberId} />
         </View>
       </Pressable>

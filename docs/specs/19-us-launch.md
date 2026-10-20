@@ -35,6 +35,18 @@ About & safety, and the TestFlight "What to test" text.
 Disclosure lowers the risk of misunderstanding; it is not legal advice or protection. Before the App Store US listing,
 an hour with a US health-app lawyer (or a free university law clinic) is still recommended.
 
+## Built (Oct 2026)
+* **Dose-time scanning off in the US** (phone region US, or a US time zone): the Scan tab and Check the strips say so;
+  Today offers "I took it" instead of "Scan the strip". Scan to add still works. India: unchanged (on).
+* **Turning it back on** (Scan tab or Settings → Scanning at dose time): the disclosure is shown and needs a tick
+  ("I have read this and understand it") before the switch works. Anyone can turn it off again.
+* **Where the acceptance is kept:** on the phone only, in settings (`doseScan: { on, at, disclosure: version }`), and in
+  backups. The disclosure text is versioned in `src/doseScan.ts`; git history shows what each version said and when it
+  shipped. Raising the version asks again. Nothing is sent to a server (no accounts; spec 16 stays anonymous).
+* **Family members in another time zone** (member screen → Where they live): their doses follow their own clock;
+  Today shows "8:30 AM their time · 8:00 PM here"; this phone sets no reminders for them and doesn't mark their doses
+  missed (their own phone does). Caregiver alerts ("Ma hasn't taken her 8:30") wait for the family circle (spec 16).
+
 ## Before the US beta
 * US medicine list built (spec 18) and checked on 5–10 real US boxes and pharmacy bottles.
 * Safety notice v3 with the US wording above; About & safety shows the US list's date.
