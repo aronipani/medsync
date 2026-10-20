@@ -15,16 +15,8 @@ import { Button, Card, Empty, s, useTheme } from '../../src/ui.tsx';
 
 export default function Today() {
   const t = useTheme();
-  const { state, now, record, undo, saveSettings } = useStore();
-  const helper = !!state.settings.helperView;
+  const { state, now, record, undo } = useStore();
   const [showEarlier, setShowEarlier] = useState(false);
-  const toggleHelper = () =>
-    helper
-      ? saveSettings({ ...state.settings, helperView: false })
-      : Alert.alert('Open the family helper view?', 'Shows medicines, stock and settings for setting things up. It goes back to the simple view by itself after the app has been closed for 15 minutes.', [
-          { text: 'Cancel', style: 'cancel' },
-          { text: 'Open', onPress: () => saveSettings({ ...state.settings, helperView: true }) },
-        ]);
   const insets = useSafeAreaInsets();
   const [memberId, setMemberId] = useCurrentMember(); // shared with every screen
   const [offset, setOffset] = useState(0);
@@ -186,7 +178,7 @@ export default function Today() {
 
       {!state.meds.length ? (
         <>
-          {/* First use is a helper's job: say so, then one button. */}
+          {/* First use: say what to do, then one button. */}
           <Empty
             title="Let’s add the medicines"
             body={
@@ -196,7 +188,7 @@ export default function Today() {
             }
           />
           <Button big title="Add a medicine" onPress={() => router.push('/add')} />
-          {/* Family first if it's for more than one person: the helper view isn't reachable until a medicine exists. */}
+          {/* Family first if it's for more than one person. */}
           <Button
             title={state.members.length > 1 ? '+ Add another person' : '+ Add a family member'}
             kind="secondary"
@@ -308,24 +300,14 @@ export default function Today() {
         </>
       )}
 
-      {/* Other days: a family helper's job, so only in the helper view, at the bottom. */}
-      {helper && state.meds.length > 0 && (
+      {/* Other days: quiet, at the bottom. */}
+      {state.meds.length > 0 && (
         <View style={[s.between, { marginTop: 24, gap: 10 }]}>
           <Button title="‹ Day before" kind="ghost" onPress={() => setOffset((o) => o - 1)} style={{ flex: 1 }} />
           <Button title="Day after ›" kind="ghost" onPress={() => setOffset((o) => o + 1)} style={{ flex: 1 }} />
         </View>
       )}
 
-      {/* The way into the full app for a family member; quiet, at the very bottom. */}
-      {state.meds.length > 0 && (
-        <Button
-          title={helper ? 'Back to the simple view' : 'Family helper'}
-          kind="ghost"
-          onPress={toggleHelper}
-          style={{ marginTop: helper ? 10 : 28, borderWidth: 0 }}
-        />
-      )}
-      {!helper && <Button title="Report a problem" kind="ghost" onPress={() => router.push('/report')} style={{ borderWidth: 0 }} />}
     </ScrollView>
   );
 }

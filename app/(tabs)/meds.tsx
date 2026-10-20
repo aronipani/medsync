@@ -130,6 +130,8 @@ export default function Meds() {
           </View>
         );
       })}
+      {/* People are managed here (each name above opens its page); Settings no longer has a Family list. */}
+      <Button title="+ Add a person" kind="ghost" onPress={() => router.push('/member/new')} style={{ marginTop: 4 }} />
     </ScrollView>
   );
 }

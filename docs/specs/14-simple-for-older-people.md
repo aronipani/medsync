@@ -122,8 +122,7 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
 
 * **Each thing in one right place:** Stock is only "how many left" (soonest to run out first); the dose history tab
   is gone — Today's "‹ Day before" shows each past day. "Share medicine history" (the doctor's spreadsheet) is in
-  Settings → Everyday; "Earlier versions of the list" in Settings → Helper tools; adding a person only in Settings →
-  Family. Schedule has no "More options" any more. Fixed "8:30 AM · 8:30 AM" (clock-time doses) and "10 mls".
+  Settings → Everyday; "Earlier versions of the list" in Settings → Helper tools; adding a person on Medicines ("+ Add a person"). Schedule has no "More options" any more. Fixed "8:30 AM · 8:30 AM" (clock-time doses) and "10 mls".
 
 * **Today, later in the day:** "Done" became **Earlier today** (it held missed doses too), each row with its scheduled
   time on the left; missed text is quiet ("Missed") — the red ! mark carries it, no wall of red. Low stock is one line
@@ -140,12 +139,16 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
   photo): just *Skip* (default) or *Type a name*, one short intro line.
 * Back buttons say "Back", not the route group "(tabs)".
 
-## Simple view and helper view (Oct 2026)
-* **Simple view (the default, the patient's):** two big tabs, **Today** and **Scan** (larger icons and 16 pt labels).
-  At the bottom of Today, quiet links: **Family helper** and **Report a problem**. Other days are helper-only.
-* **Helper view:** Today · Scan · **Medicines** · Settings. Opened from "Family helper" (with a confirm); goes back to
-  the simple view from Today or Settings, and **by itself when the app has been away 15 minutes**, so the patient
-  always finds the simple view. `settings.helperView`.
+## One bottom bar (19 Oct 2026; replaces the simple view / helper view)
+* **Four tabs for everyone, always:** Today · Scan · Medicines · Settings (large icons, 14 pt bold labels). The
+  two-tier simple/helper view was dropped: the switch, its confirm, the 15-minute return and `settings.helperView` are
+  gone (old backups with the field still restore; it's ignored). Two modes cost more to explain than one more tab.
+* **People are managed on Medicines:** each name opens its page; "+ Add a person" sits at the bottom. Settings no longer
+  has a Family list. First use still offers "Add a family member" next to "Add a medicine".
+* **Report a problem lives only in Settings → Everyday → Help**, as the form itself (no separate page); removed from
+  the bottom of Today and from About & safety.
+* Settings' third tab is **Scanner & photos** (was "Helper tools"). "‹ Day before / Day after ›" show for everyone at the
+  bottom of Today.
 * **Medicines = Schedule + Stock:** each medicine shows its times and "24 left · lasts about 12 days" (amber "!" when
   low); "Refill or fix a count" opens the stock page (also reached from Today's low-stock line). No Stock tab.
 * **First use:** "Let's add the medicines — Setting this up for someone? Add each of their medicines here, then hand the

@@ -1,15 +1,13 @@
-// Report a problem: a patient-friendly way to tell the family helper / developer what went wrong.
+// Report a problem, shown inside Settings → Help: a patient-friendly way to tell the developer what went wrong.
 // Tap what happened, optionally say more (typing or the keyboard's microphone), press Send — the app adds its version
 // and phone details and opens an email. No account, no website.
 import * as MailComposer from 'expo-mail-composer';
-import { router } from 'expo-router';
 import React, { useState } from 'react';
-import { Alert, Linking, Platform, ScrollView, Share, Switch, Text, View } from 'react-native';
-import { buildLabel } from '../../src/buildInfo.ts';
-import { freshOnFocus } from '../../src/components/freshOnFocus.tsx';
-import { useStore } from '../../src/store.tsx';
-import { TRAINING_EMAIL } from '../../src/training.ts';
-import { Button, Card, Chip, Field, Label, s, useTheme } from '../../src/ui.tsx';
+import { Alert, Linking, Platform, Share, Switch, Text, View } from 'react-native';
+import { buildLabel } from '../buildInfo.ts';
+import { useStore } from '../store.tsx';
+import { TRAINING_EMAIL } from '../training.ts';
+import { Button, Card, Chip, Field, Label, s, useTheme } from '../ui.tsx';
 
 const PROBLEMS = [
   'The scan didn’t recognise my medicine',
@@ -18,9 +16,7 @@ const PROBLEMS = [
   'Something else',
 ];
 
-export default freshOnFocus(Report);
-
-function Report() {
+export function ReportProblem() {
   const t = useTheme();
   const { state } = useStore();
   const [problem, setProblem] = useState<string | undefined>();
@@ -50,8 +46,11 @@ function Report() {
     ];
     const subject = `TakeSure problem: ${problem ?? 'report'}`;
     const body = lines.join('\n');
-    const done = () =>
-      Alert.alert('Thank you', 'Your message is ready to send. We read every one.', [{ text: 'OK', onPress: () => router.back() }]);
+    const done = () => {
+      setProblem(undefined);
+      setMore('');
+      Alert.alert('Thank you', 'Your message is ready to send. We read every one.');
+    };
     try {
       if (await MailComposer.isAvailableAsync()) {
         const r = await MailComposer.composeAsync({ recipients: [TRAINING_EMAIL], subject, body });
@@ -71,8 +70,9 @@ function Report() {
   };
 
   return (
-    <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 48 }} keyboardShouldPersistTaps="handled">
-      <Text style={{ color: t.text, fontSize: 18, lineHeight: 25 }}>Tell us what went wrong. It goes by email — no account needed.</Text>
+    <Card>
+      <Text style={{ color: t.text, fontSize: 18, fontWeight: '700' }}>Report a problem</Text>
+      <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21, marginTop: 4 }}>Tell us what went wrong. It goes by email — no account needed.</Text>
 
       <Label>What happened?</Label>
       <View style={s.wrap}>
@@ -91,15 +91,13 @@ function Report() {
       />
       <Text style={{ color: t.sub, fontSize: 16, marginTop: 8 }}>Tip: tap the microphone on the keyboard to speak instead of typing.</Text>
 
-      <Card style={{ marginTop: 20 }}>
-        <View style={s.between}>
-          <Text style={{ color: t.text, fontSize: 17, flex: 1, paddingRight: 12 }}>Add app version and phone type (helps us fix it)</Text>
-          <Switch value={details} onValueChange={setDetails} />
-        </View>
-        <Text style={{ color: t.sub, fontSize: 15, marginTop: 6 }}>No medicine names or photos are added.</Text>
-      </Card>
+      <View style={[s.between, { marginTop: 16 }]}>
+        <Text style={{ color: t.text, fontSize: 17, flex: 1, paddingRight: 12 }}>Add app version and phone type (helps us fix it)</Text>
+        <Switch value={details} onValueChange={setDetails} />
+      </View>
+      <Text style={{ color: t.sub, fontSize: 15, marginTop: 6 }}>No medicine names or photos are added.</Text>
 
-      <Button big title="Send" onPress={send} disabled={!problem && !more.trim()} style={{ marginTop: 24 }} />
-    </ScrollView>
+      <Button big title="Send" onPress={send} disabled={!problem && !more.trim()} style={{ marginTop: 20 }} />
+    </Card>
   );
 }

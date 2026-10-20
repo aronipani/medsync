@@ -1,7 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import React, { useCallback, useEffect, useState } from 'react';
-import { Alert, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, Switch, Text, View } from 'react-native';
 import { ageText, backupOverdue } from '../../src/backup.ts';
 import { clearSafetyCopy, loadSafetyCopy, pickBackup, saveSafetyCopy, shareBackup } from '../../src/backupFile.ts';
 import { DEFAULT_SETTINGS } from '../../src/store.tsx';
@@ -13,6 +13,7 @@ import { detectorState, loadRegionModel } from '../../src/regionModel.ts';
 import { clearTraining, exportTraining, trainingSummary, unmarkAllSent } from '../../src/training.ts';
 import { setupNotifications } from '../../src/notifications.ts';
 import { useStore } from '../../src/store.tsx';
+import { ReportProblem } from '../../src/components/ReportProblem.tsx';
 import { shareHistoryCsv } from '../../src/historyExport.ts';
 import { Button, Card, Label, More, NumberField, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
@@ -45,7 +46,7 @@ export default function SettingsScreen() {
         tabs={[
           { key: 'everyday', label: 'Everyday' },
           { key: 'timing', label: 'Timing' },
-          { key: 'helper', label: 'Helper tools' },
+          { key: 'helper', label: 'Scanner & photos' },
         ]}
         value={tab}
         onChange={setTab}
@@ -60,10 +61,10 @@ export default function SettingsScreen() {
   );
 }
 
-/** What a person may need: who is in the family, a test reminder, a backup, safety information. */
+/** What a person may need: a test reminder, help, a backup, safety information. People are managed on Medicines. */
 function Everyday() {
   const t = useTheme();
-  const { state, saveSettings } = useStore();
+  const { state } = useStore();
   const test = async () => {
     const ok = await setupNotifications();
     if (!ok) return Alert.alert('Reminders are off', 'Turn on notifications for TakeSure in your phone’s Settings.');
@@ -75,29 +76,6 @@ function Everyday() {
   };
   return (
     <>
-      <Button
-        title="Back to the simple view"
-        kind="secondary"
-        onPress={() => (saveSettings({ ...state.settings, helperView: false }), router.navigate('/'))}
-        style={{ marginTop: 14 }}
-      />
-
-      <Label>Family</Label>
-      <Card>
-        {state.members.map((m) => (
-          <Pressable accessibilityRole="button" key={m.id} onPress={() => router.push(`/member/${m.id}`)} style={[s.between, { minHeight: 52 }]}>
-            <View style={s.row}>
-              <View style={{ width: 14, height: 14, borderRadius: 7, backgroundColor: m.color, marginRight: 10 }} />
-              <Text style={{ color: t.text, fontSize: 18, fontWeight: '600' }}>{m.name}</Text>
-            </View>
-            <Text style={{ color: t.sub, fontSize: 16 }}>
-              {state.meds.filter((x) => x.memberId === m.id).length} medicines ›
-            </Text>
-          </Pressable>
-        ))}
-        <Button title="+ Add a person" kind="secondary" onPress={() => router.push('/member/new')} style={{ marginTop: 8 }} />
-      </Card>
-
       <Label>Reminders</Label>
       <Card>
         <Button title="Send a test reminder" onPress={test} />
@@ -106,9 +84,9 @@ function Everyday() {
         </Text>
       </Card>
 
-      {/* Easy to find: second section, not inside About. */}
+      {/* Easy to find: the report form sits right here, no separate page. */}
       <Label>Help</Label>
-      <Button title="Report a problem" kind="secondary" onPress={() => router.push('/report')} />
+      <ReportProblem />
       <Button title="About & safety" kind="secondary" onPress={() => router.push('/about')} style={{ marginTop: 10 }} />
 
       <Label>For the doctor</Label>
@@ -147,7 +125,7 @@ function Timing() {
   );
 }
 
-/** For a family helper (and the person improving the scanner): checking the scanner, training photos, technical details. */
+/** Checking the scanner, the list's history, training photos, technical details. */
 function Helper() {
   const t = useTheme();
   const { state, saveSettings } = useStore();
@@ -170,7 +148,7 @@ function Helper() {
   );
   return (
     <>
-      <Text style={{ color: t.sub, marginTop: 14, fontSize: 15, lineHeight: 21 }}>For family helpers. Nothing here is needed for taking medicines.</Text>
+      <Text style={{ color: t.sub, marginTop: 14, fontSize: 15, lineHeight: 21 }}>Nothing here is needed for taking medicines.</Text>
 
       <Label>Check the scanner</Label>
       <Card>
