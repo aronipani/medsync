@@ -260,3 +260,17 @@ To build with profiles and enrollment (`tests/profile.test.ts`):
 * Reference images: the 7th confirmed scan replaces the oldest; expiry from the first scan is kept.
 * Server profile with a bad or missing field: the field is left empty for the helper, the rest is used
   (server side already tested in `server/tests/profile.test.ts`).
+
+## Scan reliability additions (built Oct 2026)
+* **Look (iPhone):** Apple Vision's image feature print compares the first scan photo with each medicine's saved
+  strip photos (fresh-strip anchors and confirmed scans; `src/look.ts`, `src/lookMatch.ts`). It is used only when
+  the text read doesn't point elsewhere, and lifts a weak read to amber ("the name couldn't be read, but the strip
+  looks like your X") — never to green or "wrong medicine". Distances are shown to helpers (Settings → show scanner
+  details) so `LOOK_MAX` / `LOOK_MARGIN` can be tuned from real scans. Android: not yet.
+* **Live scanning:** the Scan tab reads by itself — waits for a steady hand (motion sensor), takes a small photo,
+  says "bring the strip closer" or "hold the strip in front of the camera", and runs the full read once the print
+  is big enough (`src/liveHint.ts`, `src/stillness.ts`). Stops after a minute without a strip. Setting: "Read
+  strips by themselves". Manual "Read strip name" also waits for a steady hand first.
+* **Box barcode:** every weak read offers "Scan the box barcode"; a barcode, once linked, is decisive.
+* **Server fallback (stub):** after two weak reads in a row, `readOnServer` (`src/serverFallback.ts`) is asked; it
+  answers "not built" for now. When built it posts to `/v1/strip/read` with the household's opt-in, amber at most.

@@ -236,6 +236,7 @@ function Helper() {
         </Text>
         <More title="Change">
           {toggle('Use the strip area finder', state.settings.regionDetector !== false, (v) => saveSettings({ ...state.settings, regionDetector: v }), 'Trial model that finds the name and strength first. Off: read the whole photo every way up.')}
+          {toggle('Read strips by themselves', state.settings.autoScan !== false, (v) => saveSettings({ ...state.settings, autoScan: v }), 'On the Scan tab, reads a strip as soon as it is held still in view. Off: press Read strip name.')}
           {toggle('Show scanner details on scan results', !!state.settings.showScanDetails, (v) => saveSettings({ ...state.settings, showScanDetails: v }), 'Adds a small line saying how each scan was read.')}
         </More>
       </Card>

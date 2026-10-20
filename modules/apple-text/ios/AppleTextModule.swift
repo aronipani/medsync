@@ -21,6 +21,68 @@ public class AppleTextModule: Module {
         }
       }
     }
+
+    // How much a photo looks like each reference photo (spec 15, "look"): Vision's image feature print distance,
+    // one per reference, in the same order (-1 where a reference can't be read). Smaller = more alike.
+    // Used only to lift a weak read to amber ("check the name"); never for a green on its own.
+    AsyncFunction("lookDistances") { (uri: String, refs: [String], promise: Promise) in
+      DispatchQueue.global(qos: .userInitiated).async {
+        do {
+          promise.resolve(try AppleTextModule.lookDistances(uri, refs: refs))
+        } catch {
+          promise.reject("ERR_APPLE_LOOK", error.localizedDescription)
+        }
+      }
+    }
+  }
+
+  static func loadImage(_ uri: String) throws -> (CGImage, CGImagePropertyOrientation) {
+    let url: URL
+    if uri.hasPrefix("file:") {
+      guard let u = URL(string: uri) else { throw ReadError.badUri(uri) }
+      url = u
+    } else {
+      url = URL(fileURLWithPath: uri)
+    }
+    guard let source = CGImageSourceCreateWithURL(url as CFURL, nil),
+          let image = CGImageSourceCreateImageAtIndex(source, 0, nil) else { throw ReadError.unreadable }
+    var orientation = CGImagePropertyOrientation.up
+    if let props = CGImageSourceCopyPropertiesAtIndex(source, 0, nil) as? [CFString: Any],
+       let raw = props[kCGImagePropertyOrientation] as? UInt32,
+       let o = CGImagePropertyOrientation(rawValue: raw) {
+      orientation = o
+    }
+    return (image, orientation)
+  }
+
+  static func featurePrint(_ uri: String) throws -> VNFeaturePrintObservation {
+    let (image, orientation) = try loadImage(uri)
+    let request = VNGenerateImageFeaturePrintRequest()
+    if #available(iOS 17.0, *) {
+      request.revision = VNGenerateImageFeaturePrintRequestRevision2 // unit-length prints: distances about 0…2
+    }
+    request.imageCropAndScaleOption = .scaleFill
+    try VNImageRequestHandler(cgImage: image, orientation: orientation, options: [:]).perform([request])
+    guard let print = request.results?.first as? VNFeaturePrintObservation else { throw ReadError.unreadable }
+    return print
+  }
+
+  static func lookDistances(_ uri: String, refs: [String]) throws -> [String: Any] {
+    let probe = try featurePrint(uri)
+    var out: [Double] = []
+    for ref in refs {
+      do {
+        let other = try featurePrint(ref)
+        var d: Float = 0
+        try probe.computeDistance(&d, to: other)
+        out.append(Double(d))
+      } catch {
+        out.append(-1)
+      }
+    }
+    var revision = 1
+    if #available(iOS 17.0, *) { revision = 2 }
+    return ["distances": out, "revision": revision]
   }
 
   enum ReadError: LocalizedError {

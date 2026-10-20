@@ -94,6 +94,7 @@ export interface Settings {
   collectConsent?: string; // when the person agreed to the photo-collection notice (spec 13)
   testReminderMin: number; // "test-scan first" reminder this long before a dose with an untested or failed medicine (0 = off)
   snoozeMin: number;
+  autoScan?: boolean; // Scan tab reads a strip by itself once it is held still in view (on unless switched off)
   regionDetector?: boolean; // use the strip-region detector when scanning (on unless switched off; spec 10)
   collectTraining?: boolean; // save confirmed scan photos for training an image model (off by default)
   lastBackupAt?: string; // ISO time of the last backup the person saved

@@ -108,6 +108,16 @@ async function recognizeMlKit(uri: string): Promise<OcrLine[]> {
   return out;
 }
 
+/**
+ * A quick upright read of a smaller copy, for live scanning: is a strip in view, and close enough?
+ * Not used for any verdict — a full read (readLinesAnyOrientation) follows when it is.
+ */
+export async function quickRead(uri: string): Promise<{ lines: OcrLine[]; height: number }> {
+  const ref = await ImageManipulator.manipulate(uri).resize({ width: 960 }).renderAsync();
+  const img = await ref.saveAsync({ compress: 0.8, format: SaveFormat.JPEG });
+  return { lines: await recognize(img.uri), height: ref.height };
+}
+
 /** Reads text from a photo on the device, one entry per printed line, with its position. */
 export async function readLines(uri: string): Promise<OcrLine[]> {
   return recognize(uri);

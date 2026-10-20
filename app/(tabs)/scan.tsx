@@ -1,4 +1,5 @@
 import { BarcodeScanningResult, BarcodeType, CameraView, useCameraPermissions } from 'expo-camera';
+import { File } from 'expo-file-system';
 import { useCurrentMember } from '../../src/currentMember.tsx';
 import * as Haptics from 'expo-haptics';
 import { router, useFocusEffect, useIsFocused, useLocalSearchParams } from 'expo-router';
@@ -7,13 +8,18 @@ import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-nati
 import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { householdMatch, householdWords } from '../../src/household.ts';
+import { lookAt, lookLabel } from '../../src/look.ts';
+import { liveHint } from '../../src/liveHint.ts';
+import { waitUntilStill } from '../../src/stillness.ts';
+import { readOnServer, shouldAskServer } from '../../src/serverFallback.ts';
+import type { LookVerdict } from '../../src/lookMatch.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
 import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
 import { diagnoseScan, type ScanDiagnosis } from '../../src/scanIssue.ts';
 import { exchangeable, splitName, substituteCard } from '../../src/substitute.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
 import { say, stopSpeaking, type SpeakStatus } from '../../src/speech.ts';
-import { readBurst, readLinesAnyOrientation, readSecondLook, scanDetectorLabel, scanHints, scanReaderLabel, setHouseholdWords, startScanStats } from '../../src/ocr.ts';
+import { quickRead, readBurst, readLinesAnyOrientation, readSecondLook, scanDetectorLabel, scanHints, scanReaderLabel, setHouseholdWords, startScanStats } from '../../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../../src/regionModel.ts';
 import { readinessSummary, upcomingReadiness, type TestRecords } from '../../src/testScan.ts';
 import { loadTestRecords } from '../../src/testScanStore.ts';
@@ -35,7 +41,7 @@ const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', '
 
 type Result =
   | { kind: 'match'; occs: Occurrence[]; method: LogMethod; substitute?: string; learned?: boolean; expiry?: string } // green
-  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean; note?: string } // amber: name matches, strength unreadable (partial: only part of the name read; note: why else to check)
+  | { kind: 'check'; occ: Occurrence; method: LogMethod; expiry?: string; partial?: boolean; note?: string; byLook?: boolean } // amber: name matches, strength unreadable (partial: only part of the name read; note: why else to check; byLook: the name wasn't read, the strip looks like it)
   | { kind: 'brand'; occ: Occurrence; method: LogMethod; via: string; askDoctor?: boolean } // amber: another brand of exactly this medicine, first time (spec 17)
   | { kind: 'strength'; occ: Occurrence; found: string[]; detail: string } // stop: different strength printed
   | { kind: 'nomatch'; reason: string; detail?: string; tip?: string; code?: string; say: PhraseKey; weak?: boolean } // red; detail = raw text read (helpers only), tip = what to try; weak: amber, no verdict (unknown barcode)
@@ -77,7 +83,7 @@ export default function Scan() {
   const lastCode = useRef({ code: '', at: 0 });
   // What the last strip reading saw (for "Teach this strip" and optional training photos).
   // `kept`: its photos are already saved for training; `reason`: why the result was red, if it was.
-  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string; detector?: string }>({ lines: [], photos: [] });
+  const lastRead = useRef<{ lines: string[]; photos: string[]; kept?: boolean; reason?: string; readBy?: string; detector?: string; look?: string; server?: string }>({ lines: [], photos: [] });
   useEffect(() => {
     setRegionDetectorEnabled(state.settings.regionDetector !== false);
     loadRegionModel(); // load the model before the first scan, not during it
@@ -160,7 +166,20 @@ export default function Scan() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [result]);
 
+  // Weak reads in a row (nothing read, or no verdict): after a few, the server's model is asked (stubbed for now).
+  const weakInARow = useRef(0);
   const show = (r: Result) => {
+    const weak = r.kind === 'unread' || (r.kind === 'nomatch' && !!r.weak);
+    weakInARow.current = weak ? weakInARow.current + 1 : r.kind === 'match' ? 0 : weakInARow.current;
+    if (weak && shouldAskServer(weakInARow.current) && lastRead.current.photos.length) {
+      const household = state.meds.filter((m) => m.active);
+      readOnServer(lastRead.current.photos.slice(0, 2), household)
+        .then((answer) => {
+          // Stub: always "unavailable" today. When built, a household medicine named here is shown as amber.
+          lastRead.current.server = answer.kind === 'unavailable' ? `server: ${answer.why}` : `server: ${answer.medId ?? 'none'}`;
+        })
+        .catch(() => {});
+    }
     // The strip's printed expiry, when this read's photo text has one (lastRead is cleared between reads).
     if ((r.kind === 'match' || r.kind === 'check') && lastRead.current.lines.length) {
       const ym = parseExpiry(lastRead.current.lines.join('\n'));
@@ -186,7 +205,7 @@ export default function Scan() {
     show({ kind: 'nomatch', reason: why.text, code: data, say: why.say });
   };
 
-  const checkText = (text: string, method: LogMethod) => {
+  const checkText = (text: string, method: LogMethod, look?: LookVerdict) => {
     // Every medicine in the household, to spot a strip that is really something else.
     const household = state.meds.filter((m) => m.active);
     const checked = due.map((o) => ({ o, d: matchDetail(text, o.med, household) }));
@@ -237,6 +256,18 @@ export default function Scan() {
       const notNow = explainMiss((o) => o.med.id === hh.medId);
       if (notNow) return show({ kind: 'nomatch', reason: notNow.text, detail: text.replace(/\s+/g, ' ').trim().slice(0, 90), say: notNow.say });
     }
+    // Look (spec 15): the strip looks like one of the household's saved strips. Only when the text read doesn't
+    // point elsewhere: nothing recognisable was read, or the look picks one of the medicines the fragments fit.
+    // Look can lift a weak read to amber ("check the name"); never to green, never to "wrong medicine".
+    if (look?.kind === 'look') {
+      const lookMed = household.find((m) => m.id === look.medId);
+      const fits = hh.kind === 'unsure' ? hh.candidates.some((c) => c.medId === look.medId) : !readsAsMedicine(text, household);
+      if (lookMed && fits) {
+        const occ = due.find((o) => o.med.id === look.medId);
+        if (occ) return show({ kind: 'check', occ, method, partial: true, byLook: true });
+        return show({ kind: 'unread', diag: diagnoseScan(text, household, { partialOf: medLabel(lookMed) }), detail: text.replace(/\s+/g, ' ').trim().slice(0, 90) || undefined });
+      }
+    }
     if (hh.kind === 'unsure') {
       // Two of the household's medicines fit what was read: a weak read, not a wrong medicine.
       const fits = [...new Set(hh.candidates.slice(0, 3).map((c) => household.find((m) => m.id === c.medId)).filter((m) => m !== undefined).map((m) => medLabel(m!)))];
@@ -272,7 +303,13 @@ export default function Scan() {
       setProgress('Reading the strip…');
       const household = state.meds.filter((m) => m.active);
       setHouseholdWords(householdWords(household));
-      let text = (await readLinesAnyOrientation(await take())).map((l) => l.text).join('\n');
+      setProgress('Hold still…');
+      await waitUntilStill(1200); // a steady hand: no motion blur
+      setProgress('Reading the strip…');
+      const first = await take();
+      // How the strip looks, compared with its saved photos, alongside the reading (iPhone; null elsewhere).
+      const looking = lookAt(first, household).catch(() => null);
+      let text = (await readLinesAnyOrientation(first)).map((l) => l.text).join('\n');
       const settled = () =>
         due.some((o) => ['match', 'substitute', 'conflict'].includes(matchDetail(text, o.med, state.meds).level)) ||
         householdMatch(text, household).kind === 'sure';
@@ -287,8 +324,9 @@ export default function Scan() {
         const more = await readBurst(take, { shots: 2, onShot: (n) => setProgress(`Taking another photo (${n} of 2) — tilt the strip a little`) });
         text += '\n' + more.map((l) => l.text).join('\n');
       }
-      lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel(), detector: scanDetectorLabel() };
-      checkText(text, 'text');
+      const look = await looking;
+      lastRead.current = { lines: text.split('\n'), photos, readBy: scanReaderLabel(), detector: scanDetectorLabel(), look: lookLabel(look, household) };
+      checkText(text, 'text', look?.verdict);
     } catch (e) {
       lastRead.current = { lines: [], photos };
       // A reader failure is a scan problem, never a verdict on the medicine.
@@ -305,6 +343,72 @@ export default function Scan() {
     } finally {
       setBusy(false);
     }
+  };
+
+  // ---- Live scanning: reads the strip by itself once it is held still in view (no button needed) ----
+  // Quick, small photos say whether a strip is in view and close enough; then the full read runs as if the
+  // button was pressed. Stops after a minute without a strip, or as soon as a result shows.
+  const readStripRef = useRef(readStrip);
+  readStripRef.current = readStrip;
+  const busyRef = useRef(busy);
+  busyRef.current = busy;
+  const [liveText, setLiveText] = useState('');
+  const [autoRound, setAutoRound] = useState(0);
+  const [autoIdle, setAutoIdle] = useState(false);
+  // "Scan the box barcode": the camera watches for a barcode only; automatic strip reading waits meanwhile.
+  const [barcodeMode, setBarcodeMode] = useState(false);
+  useEffect(() => {
+    if (!barcodeMode) return;
+    const t = setTimeout(() => setBarcodeMode(false), 30_000);
+    return () => clearTimeout(t);
+  }, [barcodeMode]);
+  useEffect(() => {
+    if (result) setBarcodeMode(false);
+  }, [result]);
+  const autoOn = state.settings.autoScan !== false && focused && !!perm?.granted && !result && due.length > 0 && !autoIdle && !barcodeMode;
+  useEffect(() => {
+    if (!autoOn) return;
+    let stop = false;
+    (async () => {
+      const until = Date.now() + 60_000;
+      while (!stop && Date.now() < until) {
+        await waitUntilStill(1500);
+        if (stop || busyRef.current || !camera.current) return;
+        try {
+          const shot = await camera.current.takePictureAsync({ quality: 0.5, shutterSound: false });
+          if (stop) return;
+          const { lines, height } = await quickRead(shot.uri).finally(() => {
+            try {
+              new File(shot.uri).delete(); // quick looks are never kept
+            } catch {
+              // already gone
+            }
+          });
+          if (stop || busyRef.current) return;
+          const hint = liveHint(lines, height);
+          setLiveText(hint.text);
+          if (hint.state === 'ready') {
+            await readStripRef.current();
+            return;
+          }
+        } catch {
+          // a missed quick look is fine; try again
+        }
+        await new Promise((r) => setTimeout(r, 500));
+      }
+      if (!stop) setAutoIdle(true); // a minute with no strip: wait for a tap before reading again
+    })();
+    return () => {
+      stop = true;
+      setLiveText('');
+    };
+  }, [autoOn, autoRound]);
+  useEffect(() => {
+    if (focused) setAutoIdle(false); // coming back to the Scan tab reads by itself again
+  }, [focused]);
+  const restartAuto = () => {
+    setAutoIdle(false);
+    setAutoRound((n) => n + 1);
   };
 
   const keepPhotos = (o: Occurrence, how: 'dose-check' | 'taught') => {
@@ -354,6 +458,8 @@ export default function Scan() {
     state.settings.showScanDetails && lastRead.current.readBy ? (
       <Text style={{ color: '#fff', fontSize: 14, marginTop: 10 }}>
         Read by {lastRead.current.readBy} · strip area finder: {lastRead.current.detector}
+        {lastRead.current.look ? ` · ${lastRead.current.look}` : ''}
+        {lastRead.current.server ? ` · ${lastRead.current.server}` : ''}
       </Text>
     ) : null;
 
@@ -503,13 +609,16 @@ export default function Scan() {
             {!result && !busy && (
               <View style={{ position: 'absolute', bottom: 10, left: 10, right: 10, alignItems: 'center' }}>
                 <Text style={{ color: '#fff', fontSize: 16, backgroundColor: '#0009', paddingHorizontal: 12, paddingVertical: 6, borderRadius: 8, overflow: 'hidden' }}>
-                  Hold the strip in view, then press the button
+                  {barcodeMode ? 'Point the camera at the barcode on the box' : autoOn ? liveText || 'Hold the strip in front of the camera' : 'Hold the strip in view, then press the button'}
                 </Text>
               </View>
             )}
           </View>
 
           {!result && <Button big title="Read strip name" onPress={readStrip} disabled={busy || !perm?.granted} style={{ marginTop: 12 }} />}
+          {!result && autoIdle && state.settings.autoScan !== false && due.length > 0 && (
+            <Button title="Read by itself again" kind="ghost" onPress={restartAuto} style={{ marginTop: 6 }} />
+          )}
 
           {/* Result */}
           {result?.kind === 'match' && (
@@ -589,6 +698,8 @@ export default function Scan() {
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
                 {result.note
                   ? result.note
+                  : result.byLook
+                  ? `The name couldn't be read, but the strip looks like your ${result.occ.med.name}.`
                   : result.partial
                   ? `Only part of the name could be read. It looks like ${result.occ.med.name}.`
                   : `The name matches ${result.occ.med.name}, but the strength couldn't be read (torn or shiny).`}
@@ -668,6 +779,16 @@ export default function Scan() {
               {result.detail && state.settings.showScanDetails ? <Text style={{ color: '#fff', marginTop: 6, fontStyle: 'italic' }}>Read: “{result.detail}”</Text> : null}
               <ReadBy />
               <Button title="Scan again" kind="light" big onPress={dismiss} style={{ marginTop: 14 }} />
+              <Button
+                title="Scan the box barcode"
+                kind="ghost"
+                onColor
+                onPress={() => {
+                  dismiss();
+                  setBarcodeMode(true);
+                }}
+                style={{ marginTop: 8 }}
+              />
               <TeachChips />
             </View>
           )}
