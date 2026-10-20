@@ -70,6 +70,11 @@ Today        Scan        Medicines                 Settings
                                                    └ Help
 ```
 
+## Built (20 Oct 2026)
+All five steps below. Notes: "Say it again" stays under the result card; helper actions were already folded
+("Helper: it is the right medicine", teach chips). Routes: `/family`, `/reminders`, `/scanning`, `/data`, `/privacy`,
+`/help`; `/about` → `/privacy`, `/inventory` → Medicines → Supplies, `settings?tab=helper|timing` → Scanning / Reminders.
+
 ## Build order (each step ships on its own)
 1. Settings as one grouped list with the six pages; move Timing under Reminders → Fine-tune; About split.
 2. Privacy & safety page, the "What you've agreed to" record, and the shared lock note.
