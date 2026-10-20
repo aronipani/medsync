@@ -5,6 +5,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FirstRunNotice } from '../src/components/FirstRunNotice.tsx';
+import { PlainHeader } from '../src/components/BackButton.tsx';
 import { needsNotice } from '../src/legal.ts';
 import { ACTION_SNOOZE, rescheduleAll, setupNotifications, snooze } from '../src/notifications.ts';
 import { CurrentMemberProvider } from '../src/currentMember.tsx';
@@ -79,6 +80,11 @@ function Themed() {
   );
 }
 
+// Pushed pages draw their own header so Back matches the rest of the app (no iOS glass pill).
+const plainHeader = ({ options, route }: { options: { title?: string }; route: { name: string } }) => (
+  <PlainHeader title={options.title ?? route.name} />
+);
+
 function Shell() {
   const t = useTheme();
   const { state, ready } = useStore();
@@ -100,11 +106,11 @@ function Shell() {
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="med/[id]" options={{ presentation: 'modal', title: 'Medicine' }} />
         <Stack.Screen name="add" options={{ presentation: 'modal', title: 'Add medicine' }} />
-        <Stack.Screen name="scan-add" options={{ title: 'Scan to add' }} />
-        <Stack.Screen name="test-scan" options={{ title: 'Check the strips' }} />
-        <Stack.Screen name="enroll" options={{ title: 'Scan the strip once' }} />
-        <Stack.Screen name="import-photos" options={{ title: 'Collect strip photos' }} />
-        <Stack.Screen name="rx-review" options={{ title: 'Check prescription' }} />
+        <Stack.Screen name="scan-add" options={{ title: 'Scan to add', header: plainHeader }} />
+        <Stack.Screen name="test-scan" options={{ title: 'Check the strips', header: plainHeader }} />
+        <Stack.Screen name="enroll" options={{ title: 'Scan the strip once', header: plainHeader }} />
+        <Stack.Screen name="import-photos" options={{ title: 'Collect strip photos', header: plainHeader }} />
+        <Stack.Screen name="rx-review" options={{ title: 'Check prescription', header: plainHeader }} />
       </Stack>
     </>
   );

@@ -1,7 +1,8 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router, Tabs } from 'expo-router';
+import { Tabs } from 'expo-router';
 import React from 'react';
-import { Pressable, Text, type ColorValue } from 'react-native';
+import { type ColorValue } from 'react-native';
+import { BackButton } from '../../src/components/BackButton.tsx';
 import { useTheme } from '../../src/ui.tsx';
 
 /** One bottom bar for everyone: Today, Scan, Medicines, Settings, always visible (no separate helper view). */
@@ -11,18 +12,8 @@ export default function TabsLayout() {
     function TabIcon({ color, size }: { color: ColorValue; size: number }) {
       return <Ionicons name={name} color={color as string} size={size + 4} />;
     };
-  // Big, labelled back button for the pages above.
-  const back = () => (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Back"
-      onPress={() => (router.canGoBack() ? router.back() : router.navigate('/settings'))}
-      style={{ flexDirection: 'row', alignItems: 'center', minHeight: 44, paddingHorizontal: 12 }}
-    >
-      <Ionicons name="chevron-back" size={26} color={t.brand} />
-      <Text style={{ color: t.brand, fontSize: 17, fontWeight: '700' }}>Back</Text>
-    </Pressable>
-  );
+  // Big, labelled back button for the pages above (same one the stack pages use).
+  const back = () => <BackButton />;
   return (
     <Tabs
       backBehavior="history"
