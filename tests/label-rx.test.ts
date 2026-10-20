@@ -306,3 +306,24 @@ test('US pharmacy label: the name comes from the medicine line, not the pharmacy
   assert.equal(parseLabel(label('LIPITOR 20 MG TABLET')).contents, ''); // a brand alone: contents not guessed
   assert.equal(isPharmacyLabel('Clopilet 75\nClopidogrel Tablets IP 75 mg\nMfg. Lic. No. 123\nRx only'), false);
 });
+
+test('US label directions become draft dose times', async () => {
+  const { parseLabel } = await import('../src/label.ts');
+  const { parseUsDirections } = await import('../src/rx.ts');
+  const r = parseLabel([
+    { text: 'Walgreens', height: 30 }, { text: 'RX 0456789', height: 14 }, { text: 'MARY LEE', height: 24 },
+    { text: 'TAKE 2 TABLETS BY MOUTH', height: 20 }, { text: 'TWICE DAILY WITH FOOD', height: 20 },
+    { text: 'METFORMIN HCL 500 MG TAB', height: 18 }, { text: 'QTY 120  REFILLS 2', height: 12 },
+  ]);
+  assert.equal(r.name, 'Metformin');
+  assert.equal(r.directions, 'TAKE 2 TABLETS BY MOUTH TWICE DAILY WITH FOOD');
+  const d = parseUsDirections(r.directions!, r.unit);
+  assert.deepEqual(d.doses.map((x) => [x.timing.kind === 'meal' ? x.timing.meal : x.timing.time, x.qty]), [['breakfast', 2], ['dinner', 2]]);
+  const night = parseUsDirections('TAKE 1/2 TABLET BY MOUTH EVERY NIGHT', 'tablet');
+  assert.deepEqual(night.doses.map((x) => [x.timing.kind === 'meal' ? x.timing.meal : '', x.qty]), [['dinner', 0.5]]);
+  assert.equal(parseUsDirections('TAKE 1 TABLET BY MOUTH EVERY 8 HOURS FOR 10 DAYS', 'tablet').durationDays, 10);
+  assert.equal(parseUsDirections('TAKE 1 TABLET BY MOUTH EVERY 8 HOURS FOR 10 DAYS', 'tablet').doses.length, 3);
+  const prn = parseUsDirections('INHALE 2 PUFFS BY MOUTH EVERY 4 TO 6 HOURS AS NEEDED', 'puff');
+  assert.equal(prn.asNeeded, true);
+  assert.equal(prn.doses.length, 0); // no reminders for "as needed"
+});

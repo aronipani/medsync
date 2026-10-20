@@ -395,3 +395,34 @@ function hasDosePattern(text: string): boolean {
     /\b(qid|tds|tid|bd|bid|od|hs|thrice|twice|once)\b/.test(t)
   );
 }
+
+// ---------- US pharmacy directions ("TAKE 1 TABLET BY MOUTH TWICE DAILY") ----------
+
+const WORD_NUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, half: 0.5, '1/2': 0.5, '½': 0.5 };
+
+/**
+ * Dose times from the directions on a US prescription bottle, as a draft for a person to check.
+ * US wording is turned into the notation parseInstructions reads ("every 12 hours" → twice a day, "every night" →
+ * at dinner), and the amount per dose ("take 2 tablets") is applied. "As needed" gives no reminders.
+ */
+export function parseUsDirections(text: string, unit: string): { doses: DraftDose[]; asNeeded: boolean; durationDays?: number; warnings: string[] } {
+  const t = ` ${text.toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, ' ')} `;
+  const norm = t
+    .replace(/\b(every|q)\s*24\s*(hours|hrs|h)\b/g, ' once daily ')
+    .replace(/\b(every|q)\s*12\s*(hours|hrs|h)\b/g, ' twice ')
+    .replace(/\b(every|q)\s*8\s*(hours|hrs|h)\b/g, ' three times ')
+    .replace(/\b(every|q)\s*6\s*(hours|hrs|h)\b/g, ' four times ')
+    .replace(/\b(qhs|at bedtime|before bed|every night at bedtime|nightly at bedtime)\b/g, ' bedtime ')
+    .replace(/\b(every night|at night|nightly|every evening|in the evening)\b/g, ' once daily night ')
+    .replace(/\b(every morning|in the morning|each morning)\b/g, ' once daily morning ')
+    .replace(/\b(every day|each day|a day|per day)\b/g, ' daily ');
+  const r = parseInstructions(norm, unit);
+  const qm = /\b(?:take|inhale|use|give|chew|place|instill|spray)\s+(1\/2|½|\d+(?:\.\d+)?|one|two|three|four|half|1\/2|½)\s*(?:tablets?|tabs?|capsules?|caps?|puffs?|inhalations?|sprays?|drops?|ml|pills?)?\b/.exec(t);
+  const per = qm ? (WORD_NUM[qm[1]] ?? parseFloat(qm[1])) : 1;
+  if (r.asNeeded) {
+    return { doses: [], asNeeded: true, warnings: ['Taken only when needed — no reminder times were set.'] };
+  }
+  const doses = unit === 'ml' ? r.doses : r.doses.map((d) => ({ ...d, qty: d.qty * per }));
+  // US labels seldom say before or after food; the default (after) isn't worth a warning.
+  return { doses, asNeeded: false, durationDays: r.durationDays, warnings: r.warnings.filter((w) => !/before or after food/i.test(w)) };
+}

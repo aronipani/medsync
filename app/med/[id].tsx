@@ -1,6 +1,6 @@
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useCurrentMember } from '../../src/currentMember.tsx';
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import { Alert, KeyboardAvoidingView, Platform, Pressable, ScrollView, Switch, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
 import { describeTiming, doseTime, medLabel } from '../../src/schedule.ts';
@@ -29,6 +29,8 @@ const newDose = (meal: Meal = 'breakfast'): Dose => ({
   since: new Date().toISOString(),
 });
 
+type DoseNote = { directions: string; warnings: string[]; set: boolean };
+
 export default function EditMed() {
   const t = useTheme();
   const { id, memberId, prefill, rxItem } = useLocalSearchParams<{ id: string; memberId?: string; prefill?: string; rxItem?: string }>();
@@ -36,9 +38,14 @@ export default function EditMed() {
   const [chosen] = useCurrentMember();
   const pendingItem = rxItem ? state.pending?.items.find((i) => i.id === rxItem) : undefined;
   const existing = pendingItem ? undefined : state.meds.find((m) => m.id === id);
+  const noteRef = useRef<DoseNote | undefined>(undefined);
   const draft = useMemo<Partial<Medication>>(() => {
     try {
-      return prefill ? (JSON.parse(prefill) as Partial<Medication>) : {};
+      if (!prefill) return {};
+      // doseNote is only shown on this screen (directions read from a US label), never saved with the medicine.
+      const { doseNote, ...rest } = JSON.parse(prefill) as Partial<Medication> & { doseNote?: DoseNote };
+      noteRef.current = doseNote;
+      return rest;
     } catch {
       return {};
     }
@@ -57,7 +64,7 @@ export default function EditMed() {
         barcodes: draft.barcodes ?? [],
         learned: draft.learned ?? [],
         unit: draft.unit ?? 'tablet',
-        doses: [newDose()],
+        doses: draft.doses?.length ? draft.doses : [newDose()],
         stock: 10,
         lowStockAt: 5,
         active: true,
@@ -73,6 +80,7 @@ export default function EditMed() {
   const live = existing ? state.meds.find((x) => x.id === existing.id) : undefined;
   // Came from Scan to add: name, strength and form are already read, so show them as a summary (step 2 of 2).
   const fromScan = !!prefill && !existing && !pendingItem;
+  const doseNote = fromScan ? noteRef.current : undefined;
 
   const perDay = useMemo(() => med.doses.reduce((a, d) => a + d.qty * (d.days.length ? d.days.length / 7 : 1), 0), [med.doses]);
 
@@ -189,6 +197,15 @@ export default function EditMed() {
         )}
 
         {fromScan && <Steps step={2} total={2} label="When to take it" />}
+        {doseNote && (
+          <Card style={{ backgroundColor: t.warnSoft, marginBottom: 12 }}>
+            <Text style={{ color: t.text, fontSize: 17, fontWeight: '700' }}>From the label: “{doseNote.directions.toLowerCase()}”</Text>
+            <Text style={{ color: t.text, fontSize: 16, marginTop: 4, lineHeight: 22 }}>
+              {doseNote.set ? 'The times below were set from this. Check them before saving.' : 'Set the times below.'}
+              {doseNote.warnings.length ? ` ${doseNote.warnings.join(' ')}` : ''}
+            </Text>
+          </Card>
+        )}
         {fromScan ? (
           <Card>
             <Text style={{ color: t.text, fontSize: 26, fontWeight: '700', letterSpacing: -0.2 }}>{medLabel(med) || 'New medicine'}</Text>

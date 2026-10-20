@@ -50,6 +50,7 @@ export interface LabelResult extends MedDraft {
   contents: string; // human-readable, e.g. "Bempedoic Acid 180 mg + Ezetimibe 10 mg"
   brand?: string; // brand name, if one was found
   nameOptions: string[]; // other likely names for the user to pick from
+  directions?: string; // US pharmacy label: "TAKE 1 TABLET BY MOUTH TWICE DAILY" (dose times are drafted from it)
 }
 
 const FORM_WORDS: [RegExp, string][] = [
@@ -264,9 +265,13 @@ const DRUG_LINE = /^\s*([A-Za-z][A-Za-z\- ]{2,40}?)\s+(\d+(?:\.\d+)?(?:\s*[-\/]\
 const RELEASE = /\b(ER|XR|XL|SR|CR|DR|ODT|LA|CD|EC)\b/;
 
 function fromPharmacyLabel(lines: OcrLine[], box: LabelResult): LabelResult {
-  const line = lines.map((l) => l.text).find((t) => !DIRECTIONS.test(t) && !LABEL_FIELDS.test(t) && DRUG_LINE.test(t));
+  const texts = lines.map((l) => l.text);
+  const line = texts.find((t) => !DIRECTIONS.test(t) && !LABEL_FIELDS.test(t) && DRUG_LINE.test(t));
+  // Directions often wrap onto a second line ("TAKE 1 TABLET BY MOUTH" / "TWICE DAILY").
+  const from = texts.findIndex((t) => DIRECTIONS.test(t) && /\b(by mouth|daily|hours?|times|night|morning|bedtime|needed|puffs?|tablets?|capsules?)\b/i.test(t));
+  const directions = from < 0 ? undefined : texts.slice(from, from + 3).filter((t, i) => i === 0 || (t !== line && !LABEL_FIELDS.test(t) && !DRUG_LINE.test(t) && /^[A-Za-z ,./-]+$/.test(t) && t === t.toUpperCase())).join(' ');
   const m = line ? DRUG_LINE.exec(line) : null;
-  if (!m) return { ...box, nameOptions: box.nameOptions.filter((o) => box.ingredients.some((i) => i.name === o)) };
+  if (!m) return { ...box, directions, nameOptions: box.nameOptions.filter((o) => box.ingredients.some((i) => i.name === o)) };
   const release = RELEASE.exec(m[4].toUpperCase())?.[1] ?? RELEASE.exec(m[1].toUpperCase())?.[1];
   // Pharmacy abbreviations for salts ("LOSARTAN POT", "NAPROXEN NA") go like the salts themselves; "SUCC" stays (spec 17).
   const words = titleCase(
@@ -293,6 +298,7 @@ function fromPharmacyLabel(lines: OcrLine[], box: LabelResult): LabelResult {
     ingredients,
     contents,
     brand: name,
+    directions,
     aliases: generic && generic.toLowerCase() !== words.toLowerCase() ? [`${generic} ${strength}`] : [],
     nameOptions: generic && generic.toLowerCase() !== words.toLowerCase() ? [generic] : [],
   };

@@ -10,6 +10,8 @@ import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { encode, fingerprint } from '../src/learn.ts';
 import { normalizeCode } from '../src/match.ts';
+import { parseUsDirections } from '../src/rx.ts';
+import { uid } from '../src/store.tsx';
 import { findUsMedicine, usDraft } from '../src/usLookup.ts';
 import type { UsMedicine } from '../src/uslist.ts';
 import { saveReference } from '../src/profileFiles.ts';
@@ -137,6 +139,7 @@ export default function ScanToAdd() {
       notes: result.contents ? `Contains ${result.contents}.` : undefined,
       learned: lines.length ? [encode(fingerprint(lines.map((l) => l.text)))] : [],
       expiry: parseExpiry(lines.map((l) => l.text).join('\n')),
+      ...labelDoses(result.directions, result.unit),
       // Scanning to add is the strip being scanned on purpose: keep its profile (spec 15).
       profile: lines.length ? buildProfile(lines.map((l) => l.text), Math.min(2, photos)) : undefined,
     };
@@ -286,4 +289,17 @@ export default function ScanToAdd() {
       )}
     </ScrollView>
   );
+}
+
+/** Dose times drafted from a US pharmacy label's directions; the next screen shows them to be checked. */
+function labelDoses(directions: string | undefined, unit: string) {
+  if (!directions) return {};
+  const r = parseUsDirections(directions, unit);
+  const now = new Date().toISOString();
+  const end = r.durationDays ? new Date(Date.now() + (r.durationDays - 1) * 86_400_000).toISOString().slice(0, 10) : undefined;
+  return {
+    ...(r.doses.length ? { doses: r.doses.map((d) => ({ ...d, id: uid(), since: now })) } : {}),
+    ...(end ? { endDate: end } : {}),
+    doseNote: { directions, warnings: r.warnings, set: r.doses.length > 0 },
+  };
 }
