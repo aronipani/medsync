@@ -8,6 +8,7 @@ import { MEMBER_COLORS, newMember, useStore } from '../../../src/store.tsx';
 import type { Meal, Member } from '../../../src/types.ts';
 import { Button, Chip, Field, Label, s, TimeField, useTheme } from '../../../src/ui.tsx';
 import { Pressable } from 'react-native';
+import { sharePerson } from '../../../src/personShare.ts';
 import { clockIn, COMMON_ZONES, deviceZone, fmt12, otherZone, zoneLabel } from '../../../src/time.ts';
 
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner'];
@@ -135,6 +136,20 @@ function EditMember() {
       ))}
 
       <Button big title="Save" onPress={save} style={{ marginTop: 20 }} />
+      {existing && (
+        <>
+          <Button
+            kind="secondary"
+            title={`Send ${existing.name}'s medicines to another phone`}
+            style={{ marginTop: 10 }}
+            onPress={() => sharePerson(state, existing.id).catch((e) => Alert.alert('Could not share', e instanceof Error ? e.message : String(e)))}
+          />
+          <Text style={{ color: t.sub, marginTop: 6, fontSize: 15, lineHeight: 21 }}>
+            For a family member or caregiver: they open it in Settings → Family on another phone. Only {existing.name}'s medicines, times and recent
+            doses are sent — it contains health information, so send it only to people you trust.
+          </Text>
+        </>
+      )}
       {existing && state.members.length > 1 && (
         <Button
           kind="ghost"

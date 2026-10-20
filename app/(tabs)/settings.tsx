@@ -14,6 +14,7 @@ import { clearTraining, exportTraining, trainingSummary, unmarkAllSent } from '.
 import { setupNotifications } from '../../src/notifications.ts';
 import { useStore } from '../../src/store.tsx';
 import { ReportProblem } from '../../src/components/ReportProblem.tsx';
+import { PersonImport } from '../../src/components/PersonImport.tsx';
 import { DoseScanDisclosure } from '../../src/components/DoseScanSwitch.tsx';
 import { doseScanOn, DOSE_SCAN_DISCLOSURE_VERSION, inUnitedStates } from '../../src/doseScan.ts';
 import { shareHistoryCsv } from '../../src/historyExport.ts';
@@ -90,6 +91,11 @@ function Everyday() {
       <Label>Help</Label>
       <ReportProblem />
       <Button title="About & safety" kind="secondary" onPress={() => router.push('/about')} style={{ marginTop: 10 }} />
+
+      <Label>Family on another phone</Label>
+      <Card>
+        <PersonImport />
+      </Card>
 
       <Label>For the doctor</Label>
       <Card>

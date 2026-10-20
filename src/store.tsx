@@ -8,6 +8,8 @@ import { addLearned, fingerprint } from './learn.ts';
 import { confirmPair } from './overlap.ts';
 import type { AppState, DoseLog, FoundAnswer, LogMethod, LogStatus, Medication, Member, Occurrence, PendingRx, PendingRxItem, Pharmacy, ScheduleVersion, Settings, StripProfile } from './types.ts';
 import { withAnswer } from './buylist.ts';
+import { mergePerson, type MergeResult, type PersonFile } from './personFile.ts';
+import { deviceZone } from './time.ts';
 
 const KEY = 'medsync:v1';
 
@@ -99,6 +101,8 @@ interface Store {
   setExpiry(medId: string, ym: string | undefined): void;
   /** The medicine's strip profile (spec 15); undefined clears it. */
   setProfile(medId: string, profile: StripProfile | undefined): void;
+  /** Adds or updates one person from a file another phone sent (spec 20); the schedule before is kept as a version. */
+  importPerson(file: PersonFile, intoMemberId?: string): MergeResult;
 }
 
 const Ctx = createContext<Store | null>(null);
@@ -284,6 +288,15 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
       recordAnswer: (medIds, pharmacyId, answer, readyOn) =>
         update((s) => ({ ...s, meds: s.meds.map((m) => (medIds.includes(m.id) ? withAnswer(m, pharmacyId, answer, new Date(), readyOn) : m)) })),
       saveSettings: (settings) => update((s) => ({ ...s, settings })),
+      importPerson: (file, intoMemberId) => {
+        update((s) => {
+          const r = mergePerson(s, file, deviceZone(), intoMemberId);
+          const versioned = withVersion(s, r.memberId, `Sent from another phone (${file.exportedAt.slice(0, 10)})`, r.changes);
+          return { ...r.state, history: versioned.history };
+        });
+        // The same merge on the state as shown, for the summary (the update above applies it to the latest state).
+        return mergePerson(state, file, deviceZone(), intoMemberId);
+      },
       replaceAll: (next) => update(() => next),
       setPending: (pending) => update((s) => ({ ...s, pending })),
       updatePendingItem: (id, patch) =>

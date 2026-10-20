@@ -1,0 +1,68 @@
+import { router } from 'expo-router';
+import React from 'react';
+import { Alert, Text } from 'react-native';
+import { findPerson, type PersonFile } from '../personFile.ts';
+import { pickPersonFile } from '../personShare.ts';
+import { useStore } from '../store.tsx';
+import { fmt12, clockIn, otherZone, zoneLabel } from '../time.ts';
+import { Button, useTheme } from '../ui.tsx';
+
+/** "Open a file someone sent": adds or updates one person from another phone (spec 20). */
+export function PersonImport() {
+  const t = useTheme();
+  const { state, importPerson } = useStore();
+
+  const apply = (file: PersonFile, into?: string) => {
+    const r = importPerson(file, into);
+    const n = (k: string) => r.changes.filter((c) => c.kind === k).length;
+    const parts = [
+      r.newPerson ? `${file.member.name} added` : `${file.member.name} updated`,
+      n('added') && `${n('added')} new medicine${n('added') > 1 ? 's' : ''}`,
+      n('changed') && `${n('changed')} changed`,
+      n('stopped') && `${n('stopped')} stopped`,
+      r.logsAdded && `${r.logsAdded} dose record${r.logsAdded > 1 ? 's' : ''} added`,
+    ].filter(Boolean);
+    const zone = otherZone(file.member.timeZone) ? `\n\nThey live in ${zoneLabel(file.member.timeZone!)} (${fmt12(clockIn(new Date(), file.member.timeZone))} there now): their reminders stay on their own phone.` : '';
+    Alert.alert('Done', `${parts.join(', ')}.${zone}\n\nWhat was here before is kept: Settings → Earlier versions of the list.`, [
+      { text: 'Show them', onPress: () => router.push({ pathname: '/member/[id]', params: { id: r.memberId } }) },
+      { text: 'OK' },
+    ]);
+  };
+
+  const open = async () => {
+    try {
+      const res = await pickPersonFile();
+      if (!res) return;
+      if (!res.ok) return Alert.alert("Can't open this file", res.error);
+      const f = res.file;
+      const what = `${f.meds.filter((m) => m.active).length} medicines, sent ${new Date(f.exportedAt).toLocaleDateString()}.`;
+      const { same, sameName } = findPerson(state, f);
+      if (same)
+        return Alert.alert(`Update ${same.name}?`, `${what}\n\nTheir medicines and times will be set as in this file. Doses recorded here are kept.`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: `Update ${same.name}`, onPress: () => apply(f, same.id) },
+        ]);
+      if (sameName)
+        return Alert.alert(`Is this the same ${f.member.name}?`, `${what}\n\nThere is already someone called ${sameName.name} on this phone.`, [
+          { text: 'Cancel', style: 'cancel' },
+          { text: 'Add as a new person', onPress: () => apply(f) },
+          { text: `Yes, update ${sameName.name}`, onPress: () => apply(f, sameName.id) },
+        ]);
+      Alert.alert(`Add ${f.member.name}?`, what, [
+        { text: 'Cancel', style: 'cancel' },
+        { text: `Add ${f.member.name}`, onPress: () => apply(f) },
+      ]);
+    } catch (e) {
+      Alert.alert("Can't open this file", e instanceof Error ? e.message : String(e));
+    }
+  };
+
+  return (
+    <>
+      <Button title="Open a file someone sent" kind="secondary" onPress={open} />
+      <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>
+        A family member's medicines sent from another phone (WhatsApp, email…). Only that person is added or updated.
+      </Text>
+    </>
+  );
+}
