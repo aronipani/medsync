@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import React from 'react';
 import { Alert, Text } from 'react-native';
 import { findPerson, type PersonFile } from '../personFile.ts';
-import { pickPersonFile } from '../personShare.ts';
+import { pickPersonFile, sharePerson } from '../personShare.ts';
 import { useStore } from '../store.tsx';
 import { fmt12, clockIn, otherZone, zoneLabel } from '../time.ts';
 import { Button, useTheme } from '../ui.tsx';
@@ -59,6 +59,19 @@ export function PersonImport() {
 
   return (
     <>
+      {/* Sending: one button per person, so it's found here and not only at the bottom of their screen. */}
+      {state.members.map((m) => (
+        <Button
+          key={m.id}
+          title={`Send ${m.name}'s medicines`}
+          onPress={() => sharePerson(state, m.id).catch((e) => Alert.alert('Could not share', e instanceof Error ? e.message : String(e)))}
+          style={{ marginBottom: 8 }}
+        />
+      ))}
+      <Text style={{ color: t.sub, marginBottom: 14, fontSize: 15, lineHeight: 21 }}>
+        Sends that person's medicines, times and recent doses (WhatsApp, email…), for a family member or caregiver's phone. It contains health
+        information — send it only to people you trust.
+      </Text>
       <Button title="Open a file someone sent" kind="secondary" onPress={open} />
       <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>
         A family member's medicines sent from another phone (WhatsApp, email…). Only that person is added or updated.

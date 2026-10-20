@@ -810,7 +810,19 @@ export default function Scan() {
 
           {result?.kind === 'nomatch' && (
             <View style={{ backgroundColor: result.weak ? t.warnFill : t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>{result.weak ? '⚠ Barcode not known yet' : '✗ No match'}</Text>
+              {/* No ✗ here: it looked like a close button. "Close" (top right) dismisses the result. */}
+              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
+                <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', flex: 1 }}>{result.weak ? 'Barcode not known yet' : 'Not a match'}</Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Close this result"
+                  onPress={dismiss}
+                  hitSlop={10}
+                  style={{ borderWidth: 2, borderColor: '#fff', borderRadius: 20, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' }}
+                >
+                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Close</Text>
+                </Pressable>
+              </View>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.tip ? <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.tip}</Text> : null}
               {/* The raw text read is for helpers only. */}

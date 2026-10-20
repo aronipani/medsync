@@ -6,6 +6,7 @@ import { duplicateGroups } from '../../src/consolidate.ts';
 import { findOverlaps, overlapMessage } from '../../src/overlap.ts';
 import { describeTiming, doseTime, medLabel, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
+import { sharePerson } from '../../src/personShare.ts';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import { Button, Card, s, useTheme } from '../../src/ui.tsx';
 
@@ -110,7 +111,11 @@ export default function Meds() {
                       {d.days.length ? ` · ${d.days.map((x) => DAY_LABELS[x]).join(', ')}` : ''}
                     </Text>
                   ))}
-                  {!med.doses.length && <Text style={{ color: t.warn, fontSize: 16, marginTop: 4 }}>No dose times set</Text>}
+                  {med.asNeeded ? (
+                    <Text style={{ color: t.sub, fontSize: 16, marginTop: 4 }}>Only when needed · {qtyLabel(med.asNeeded.qty, med.unit)} each time</Text>
+                  ) : (
+                    !med.doses.length && <Text style={{ color: t.warn, fontSize: 16, marginTop: 4 }}>No dose times set</Text>
+                  )}
                   {/* Stock lives here now (no separate tab): how many are left and how long they last. */}
                   {(() => {
                     const pd = med.doses.reduce((a, d) => a + d.qty * (d.days.length ? d.days.length / 7 : 1), 0);
@@ -127,6 +132,14 @@ export default function Meds() {
               </Pressable>
             ))}
             <Button title={state.members.length > 1 ? `+ Add a medicine for ${member.name}` : '+ Add a medicine'} kind="secondary" onPress={() => router.push({ pathname: '/add', params: { memberId: member.id } })} />
+            {meds.length > 0 && (
+              <Button
+                title={`Send ${member.name}'s medicines to another phone`}
+                kind="ghost"
+                onPress={() => sharePerson(state, member.id).catch((e) => Alert.alert('Could not share', e instanceof Error ? e.message : String(e)))}
+                style={{ marginTop: 4 }}
+              />
+            )}
           </View>
         );
       })}
