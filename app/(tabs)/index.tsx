@@ -9,6 +9,7 @@ import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MemberDot, MemberPicker } from '../../src/components.tsx';
 import { buyList } from '../../src/buylist.ts';
+import { backupOverdue } from '../../src/backup.ts';
 import { describeTiming, medLabel, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
 import { addDays, atTime, dateKey, fmt12, fmtDay } from '../../src/time.ts';
@@ -39,6 +40,11 @@ export default function Today() {
   const taken = occs.filter((o) => o.status === 'taken').length;
   // Running low, or due to buy within the week (two for hard-to-find medicines): spec 17.
   const low = useMemo(() => buyList(state, now, memberId).map((i) => i.med), [state, now, memberId]);
+  const attention = low.length
+    ? { text: low.length === 1 ? `Time to buy ${medLabel(low[0])}` : `Time to buy ${low.length} medicines`, go: '/buy' }
+    : state.meds.length && backupOverdue(state)
+      ? { text: 'No backup for 30+ days — save one', go: '/data' }
+      : undefined;
 
   const act = (o: Occurrence) => {
     const label = `${medLabel(o.med)} · ${fmt12(o.time)}`;
@@ -170,16 +176,16 @@ export default function Today() {
 
       <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
 
-      {offset === 0 && low.length > 0 && (
-        // One short line, not a list: the medicines come first; Stock has the details.
+      {offset === 0 && attention && (
+        // One "needs attention" line, one thing at a time (spec 21): running low first, then an old backup.
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.navigate('/buy')}
+          onPress={() => router.navigate(attention.go as never)}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 16, borderRadius: 16, backgroundColor: t.warnSoft, marginTop: 8 }}
         >
           <Text style={{ color: t.warn, fontSize: 18, fontWeight: '900' }}>!</Text>
           <Text style={{ color: t.warn, fontSize: 17, fontWeight: '700', flex: 1 }} numberOfLines={1}>
-            {low.length === 1 ? `Time to buy ${medLabel(low[0])}` : `Time to buy ${low.length} medicines`}
+            {attention.text}
           </Text>
           <Ionicons name="chevron-forward" size={20} color={t.warn} />
         </Pressable>
@@ -207,7 +213,10 @@ export default function Today() {
           <CollectCard />
         </>
       ) : !occs.length ? (
-        <Empty title="No medicines this day" />
+        <>
+          <Empty title={offset === 0 && state.meds.some((m) => m.active && m.asNeeded) ? 'Nothing at set times today' : 'No medicines this day'} />
+          {offset === 0 && <AsNeededCard memberId={memberId} now={now} />}
+        </>
       ) : (
         <>
           {/* Now: all medicines due at this time together, ticked off one by one, with one button. */}

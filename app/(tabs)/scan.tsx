@@ -113,6 +113,18 @@ export default function Scan() {
     setResult(null);
   };
   useEffect(dismiss, [memberId]);
+  // Every result can be closed the same way (spec 21): a labelled button, top right.
+  const CloseButton = () => (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Close this result"
+      onPress={dismiss}
+      hitSlop={10}
+      style={{ position: 'absolute', top: 18, right: 18, zIndex: 2, borderWidth: 2, borderColor: '#fff', borderRadius: 20, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' }}
+    >
+      <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Close</Text>
+    </Pressable>
+  );
 
   const feedback = (ok: boolean) =>
     Haptics.notificationAsync(ok ? Haptics.NotificationFeedbackType.Success : Haptics.NotificationFeedbackType.Error).catch(() => {});
@@ -638,6 +650,7 @@ export default function Scan() {
           {/* Result */}
           {result?.kind === 'match' && (
             <View style={{ backgroundColor: t.okFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
+              <CloseButton />
               {atTimeProgress && (
                 <View style={{ marginBottom: 18 }}>
                   <Text style={{ color: '#fff', fontSize: 17, fontWeight: '600' }}>
@@ -703,7 +716,8 @@ export default function Scan() {
 
           {result?.kind === 'check' && (
             <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>{result.note ? '⚠ Check with the pharmacist' : result.partial ? '⚠ Check the name' : '⚠ Check the strength'}</Text>
+              <CloseButton />
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', paddingRight: 96 }}>{result.note ? '⚠ Check with the pharmacist' : result.partial ? '⚠ Check the name' : '⚠ Check the strength'}</Text>
               {result.expiry && expiryStatus(result.expiry) === 'expired' && (
                 <View style={{ backgroundColor: '#7F1D1D', borderRadius: 12, padding: 12, marginTop: 10 }}>
                   <Text style={{ color: '#fff', fontSize: 18, fontWeight: '800' }}>This strip expired in {formatExpiry(result.expiry)}.</Text>
@@ -753,7 +767,8 @@ export default function Scan() {
             );
             return (
               <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-                <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800' }}>{card.title}</Text>
+                <CloseButton />
+                <Text style={{ color: '#fff', fontSize: 26, fontWeight: '800', paddingRight: 96 }}>{card.title}</Text>
                 <Row label="This strip" name={card.strip.name} generic={card.strip.generic} />
                 <Row label="Usual" name={card.usual.name} generic={card.usual.generic} />
                 {card.note ? (
@@ -771,7 +786,8 @@ export default function Scan() {
 
           {result?.kind === 'strength' && (
             <View style={{ backgroundColor: t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800' }}>✋ Different strength — don't take</Text>
+              <CloseButton />
+              <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', paddingRight: 96 }}>✋ Different strength — don't take</Text>
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 6 }}>
                 This strip says {result.found.map((f) => `${f} mg`).join(' / ')}.
               </Text>
@@ -785,7 +801,8 @@ export default function Scan() {
 
           {result?.kind === 'unread' && (
             <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', opacity: 0.9 }}>SCAN PROBLEM — NOT A RESULT</Text>
+              <CloseButton />
+              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', opacity: 0.9, paddingRight: 96 }}>SCAN PROBLEM — NOT A RESULT</Text>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }}>⚠ {result.diag.title}</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.diag.why} This says nothing about whether it is the right medicine. Scan again:</Text>
               {result.diag.tips.map((tip) => (
@@ -810,19 +827,9 @@ export default function Scan() {
 
           {result?.kind === 'nomatch' && (
             <View style={{ backgroundColor: result.weak ? t.warnFill : t.badFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
-              {/* No ✗ here: it looked like a close button. "Close" (top right) dismisses the result. */}
-              <View style={{ flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 }}>
-                <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', flex: 1 }}>{result.weak ? 'Barcode not known yet' : 'Not a match'}</Text>
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel="Close this result"
-                  onPress={dismiss}
-                  hitSlop={10}
-                  style={{ borderWidth: 2, borderColor: '#fff', borderRadius: 20, paddingHorizontal: 14, minHeight: 40, justifyContent: 'center' }}
-                >
-                  <Text style={{ color: '#fff', fontSize: 16, fontWeight: '700' }}>Close</Text>
-                </Pressable>
-              </View>
+              {/* No ✗: it looked like a close button. Close (top right) dismisses, as on every result. */}
+              <CloseButton />
+              <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800', paddingRight: 96 }}>{result.weak ? 'Barcode not known yet' : 'Not a match'}</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.reason}</Text>
               {result.tip ? <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.tip}</Text> : null}
               {/* The raw text read is for helpers only. */}
