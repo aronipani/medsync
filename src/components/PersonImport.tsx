@@ -8,9 +8,8 @@ import { useStore } from '../store.tsx';
 import { fmt12, clockIn, otherZone, zoneLabel } from '../time.ts';
 import { Button, useTheme } from '../ui.tsx';
 
-/** "Open a file someone sent": adds or updates one person from another phone (spec 20). */
-export function PersonImport() {
-  const t = useTheme();
+/** Opening a file another phone sent: adds or updates one person (spec 20). Used by Family and Add medicine. */
+export function usePersonImport(): () => Promise<void> {
   const { state, importPerson } = useStore();
 
   const apply = (file: PersonFile, into?: string) => {
@@ -58,6 +57,14 @@ export function PersonImport() {
     }
   };
 
+  return open;
+}
+
+/** Share with family: send each person, or open a file someone sent. */
+export function PersonImport() {
+  const t = useTheme();
+  const { state } = useStore();
+  const open = usePersonImport();
   return (
     <>
       {/* Sending: one button per person, so it's found here and not only at the bottom of their screen. */}

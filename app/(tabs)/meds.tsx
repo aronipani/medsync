@@ -1,6 +1,7 @@
 import { Ionicons } from '@expo/vector-icons';
-import { router } from 'expo-router';
-import React from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import React, { useEffect, useState } from 'react';
+import { Supplies } from '../../src/components/Supplies.tsx';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { duplicateGroups } from '../../src/consolidate.ts';
 import { findOverlaps, overlapMessage } from '../../src/overlap.ts';
@@ -8,17 +9,41 @@ import { describeTiming, doseTime, medLabel, qtyLabel } from '../../src/schedule
 import { useStore } from '../../src/store.tsx';
 import { sharePerson } from '../../src/personShare.ts';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
-import { Button, Card, s, useTheme } from '../../src/ui.tsx';
+import { Button, Card, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
+type View_ = 'list' | 'supplies';
+
+/** Medicines: the list (per person) and Supplies (stock, refills, buy list), spec 21. */
 export default function Meds() {
+  const t = useTheme();
+  const params = useLocalSearchParams<{ view?: string }>();
+  const [view, setView] = useState<View_>(params.view === 'supplies' ? 'supplies' : 'list');
+  useEffect(() => {
+    if (params.view === 'supplies' || params.view === 'list') setView(params.view);
+  }, [params.view]);
+  return (
+    <View style={{ flex: 1 }}>
+      <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
+        <SegmentTabs<View_>
+          tabs={[
+            { key: 'list', label: 'Medicines' },
+            { key: 'supplies', label: 'Supplies' },
+          ]}
+          value={view}
+          onChange={setView}
+        />
+      </View>
+      {view === 'list' ? <MedicineList /> : <Supplies />}
+    </View>
+  );
+}
+
+function MedicineList() {
   const t = useTheme();
   const { state, mergeDuplicates, confirmOverlap } = useStore();
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
-      {state.meds.length > 0 && (
-        <Button title="Refill or fix a count" kind="secondary" onPress={() => router.push('/inventory')} style={{ marginBottom: 16 }} />
-      )}
       {state.pending && (
         <Pressable accessibilityRole="button" onPress={() => router.push('/rx-review')}>
           <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warn, marginBottom: 16 }}>
@@ -143,8 +168,11 @@ export default function Meds() {
           </View>
         );
       })}
-      {/* People are managed here (each name above opens its page); Settings no longer has a Family list. */}
-      <Button title="+ Add a person" kind="ghost" onPress={() => router.push('/member/new')} style={{ marginTop: 4 }} />
+      {/* People are added in Settings → Family; each name above opens their page. */}
+      <Button title="History of the list" kind="ghost" onPress={() => router.push('/history')} style={{ marginTop: 4 }} />
+      <Text style={{ color: t.sub, fontSize: 15, textAlign: 'center', marginTop: 4 }}>
+        Every change is kept and can be brought back. People are added in Settings → Family.
+      </Text>
     </ScrollView>
   );
 }

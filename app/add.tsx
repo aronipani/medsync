@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { useCurrentMember } from '../src/currentMember.tsx';
 import * as ImagePicker from 'expo-image-picker';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
+import { usePersonImport } from '../src/components/PersonImport.tsx';
 import React, { useState } from 'react';
 import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../src/components.tsx';
@@ -103,6 +104,7 @@ export default function AddMedicine() {
     }
   };
 
+  const openShared = usePersonImport();
   const Option = ({ icon, title, body, onPress }: { icon: keyof typeof Ionicons.glyphMap; title: string; body: string; onPress: () => void }) => (
     <Pressable accessibilityRole="button" onPress={onPress} disabled={busy}>
       <Card style={{ marginBottom: 10, flexDirection: 'row', alignItems: 'center' }}>
@@ -141,6 +143,7 @@ export default function AddMedicine() {
         />
         <Option icon="camera-outline" title="Photograph a prescription" body="Makes a list for you to check. Printed prescriptions work best." onPress={() => readPrescription('camera')} />
         <Option icon="images-outline" title="Prescription from your photos" body="Up to 4 pages." onPress={() => readPrescription('library')} />
+        <Option icon="phone-portrait-outline" title="From another phone" body="A file a family member sent (WhatsApp, email…)." onPress={() => openShared()} />
         <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21 }}>Everything is read on this phone — nothing is uploaded.</Text>
       </More>
 
