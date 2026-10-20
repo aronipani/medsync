@@ -5,6 +5,7 @@ import * as MailComposer from 'expo-mail-composer';
 import React, { useState } from 'react';
 import { Alert, Linking, Platform, Share, Switch, Text, View } from 'react-native';
 import { buildLabel } from '../buildInfo.ts';
+import { LockNote } from '../settingsParts.tsx';
 import { useStore } from '../store.tsx';
 import { TRAINING_EMAIL } from '../training.ts';
 import { Button, Card, Chip, Field, Label, s, useTheme } from '../ui.tsx';
@@ -73,6 +74,7 @@ export function ReportProblem() {
     <Card>
       <Text style={{ color: t.text, fontSize: 18, fontWeight: '700' }}>Report a problem</Text>
       <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21, marginTop: 4 }}>Tell us what went wrong. It goes by email — no account needed.</Text>
+      <LockNote text="Goes by email, with only what you type and choose to include." />
 
       <Label>What happened?</Label>
       <View style={s.wrap}>

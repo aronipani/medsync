@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import React from 'react';
-import { Alert, Text } from 'react-native';
+import { Alert, Text, View } from 'react-native';
+import { LockNote } from '../settingsParts.tsx';
 import { findPerson, type PersonFile } from '../personFile.ts';
 import { pickPersonFile, sharePerson } from '../personShare.ts';
 import { useStore } from '../store.tsx';
@@ -68,10 +69,11 @@ export function PersonImport() {
           style={{ marginBottom: 8 }}
         />
       ))}
-      <Text style={{ color: t.sub, marginBottom: 14, fontSize: 15, lineHeight: 21 }}>
-        Sends that person's medicines, times and recent doses (WhatsApp, email…), for a family member or caregiver's phone. It contains health
-        information — send it only to people you trust.
+      <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21 }}>
+        Sends that person's medicines, times and recent doses (WhatsApp, email…), for a family member's or caregiver's phone.
       </Text>
+      <LockNote />
+      <View style={{ height: 14 }} />
       <Button title="Open a file someone sent" kind="secondary" onPress={open} />
       <Text style={{ color: t.sub, marginTop: 8, fontSize: 15, lineHeight: 21 }}>
         A family member's medicines sent from another phone (WhatsApp, email…). Only that person is added or updated.

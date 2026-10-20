@@ -36,9 +36,16 @@ export default function TabsLayout() {
       <Tabs.Screen name="inventory" options={{ href: null, title: 'Stock', headerLeft: back }} />
       <Tabs.Screen name="buy" options={{ href: null, title: 'Buy medicines', headerLeft: back }} />
       {/* Pages that open from a tab but keep the tab bar visible (no tab of their own). */}
-      <Tabs.Screen name="member/[id]" options={{ href: null, title: 'Family member', headerLeft: back }} />
-      <Tabs.Screen name="about" options={{ href: null, title: 'About & safety', headerLeft: back }} />
-      <Tabs.Screen name="history" options={{ href: null, title: 'Earlier versions of the list', headerLeft: back }} />
+      <Tabs.Screen name="member/[id]" options={{ href: null, title: 'Person', headerLeft: back }} />
+      <Tabs.Screen name="about" options={{ href: null, title: 'Privacy & safety', headerLeft: back }} />
+      {/* Settings pages (spec 21): one job each. */}
+      <Tabs.Screen name="family" options={{ href: null, title: 'Family', headerLeft: back }} />
+      <Tabs.Screen name="reminders" options={{ href: null, title: 'Reminders', headerLeft: back }} />
+      <Tabs.Screen name="scanning" options={{ href: null, title: 'Scanning', headerLeft: back }} />
+      <Tabs.Screen name="data" options={{ href: null, title: 'Your data', headerLeft: back }} />
+      <Tabs.Screen name="privacy" options={{ href: null, title: 'Privacy & safety', headerLeft: back }} />
+      <Tabs.Screen name="help" options={{ href: null, title: 'Help', headerLeft: back }} />
+      <Tabs.Screen name="history" options={{ href: null, title: 'History of the list', headerLeft: back }} />
     </Tabs>
   );
 }
