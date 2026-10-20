@@ -64,6 +64,11 @@ project's public history on GitHub.
 ## 8. Ending
 You can stop using TakeSure at any time by deleting it, which deletes its data from the phone.
 
-## 9. Contact
+## 9. Which law applies
+These terms are governed by the laws of the State of California, USA, without regard to its conflict-of-law rules.
+If you live elsewhere (for example in India), you keep the protections of the consumer laws where you live, and you
+can bring a claim in your local courts where that law allows.
+
+## 10. Contact
 Use **Report a problem** in the app, email paniaron@gmail.com, or open an issue at
 https://github.com/aronipani/medsync/issues
