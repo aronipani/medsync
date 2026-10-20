@@ -39,3 +39,16 @@ test("a parent in Kolkata: doses at their time, shown with this phone's time; no
   assert.ok(computeMissed(state, later, () => 'x').every((l) => l.memberId !== 'ma'));
   assert.ok(reminderSlots(state).every((r) => r.lines.every((l) => !l.startsWith('Ma:'))));
 });
+
+test('works without formatToParts (older Hermes on iPhone)', async () => {
+  const orig = Intl.DateTimeFormat.prototype.formatToParts;
+  // @ts-expect-error — removed on purpose
+  delete Intl.DateTimeFormat.prototype.formatToParts;
+  try {
+    const { atTimeIn, clockIn } = await import('../src/time.ts');
+    assert.equal(atTimeIn('2026-10-21', '08:30', 'Asia/Kolkata').toISOString(), '2026-10-21T03:00:00.000Z');
+    assert.equal(clockIn(new Date('2026-10-21T03:00:00Z'), 'Asia/Kolkata'), '08:30');
+  } finally {
+    Intl.DateTimeFormat.prototype.formatToParts = orig;
+  }
+});

@@ -64,13 +64,36 @@ export function deviceZone(): string {
 
 /** Is this zone different from the phone's? (undefined = the phone's own zone) */
 export function otherZone(tz: string | undefined): tz is string {
-  return !!tz && tz !== deviceZone();
+  return !!tz && tz !== deviceZone() && zoneWorks(tz);
+}
+
+const works = new Map<string, boolean>();
+/** Can this phone work out times in that zone? If not, the member is shown on this phone's clock (no crash). */
+function zoneWorks(tz: string): boolean {
+  let ok = works.get(tz);
+  if (ok === undefined) {
+    try {
+      parts(new Date(), tz);
+      ok = true;
+    } catch {
+      ok = false;
+    }
+    works.set(tz, ok);
+  }
+  return ok;
 }
 
 function parts(at: Date, tz: string): { y: number; mo: number; d: number; h: number; mi: number } {
-  const f = new Intl.DateTimeFormat('en-US', { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' });
-  const p = Object.fromEntries(f.formatToParts(at).map((x) => [x.type, x.value]));
-  return { y: +p.year, mo: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute };
+  const opts = { timeZone: tz, year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' } as const;
+  const f = new Intl.DateTimeFormat('en-US', opts);
+  // formatToParts isn't in every JavaScript engine (older Hermes on iPhone); "10/21/2026, 08:30" is read instead.
+  if (typeof f.formatToParts === 'function') {
+    const p = Object.fromEntries(f.formatToParts(at).map((x) => [x.type, x.value]));
+    return { y: +p.year, mo: +p.month, d: +p.day, h: +p.hour % 24, mi: +p.minute };
+  }
+  const m = /(\d{1,2})\D+(\d{1,2})\D+(\d{4})\D+(\d{1,2})\D+(\d{2})/.exec(f.format(at));
+  if (!m) throw new Error(`Can't read the time in ${tz}`);
+  return { y: +m[3], mo: +m[1], d: +m[2], h: +m[4] % 24, mi: +m[5] };
 }
 
 /** Minutes the zone is ahead of UTC at that moment (330 for Kolkata, -420 for Los Angeles in summer). */
