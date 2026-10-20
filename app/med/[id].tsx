@@ -379,12 +379,6 @@ export default function EditMed() {
           />
         )}
 
-        <Label>How many are left</Label>
-        <NumberField value={med.stock} step={1} onChange={(stock) => set({ stock })} />
-        {perDay > 0 && (
-          <Text style={{ color: t.sub, fontSize: 16, marginTop: 6 }}>Lasts about {Math.floor(med.stock / perDay)} days</Text>
-        )}
-
         <Label>Notes (shown when scanning)</Label>
         <Field value={med.notes ?? ''} onChangeText={(notes) => set({ notes })} placeholder="e.g. empty stomach, prescribed by Dr. Rao" multiline />
 
@@ -393,6 +387,22 @@ export default function EditMed() {
           <Switch value={med.active} onValueChange={(active) => set({ active })} />
         </View>
 
+        <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 28 }}>Supplies</Text>
+        <Label>How many are left</Label>
+        <NumberField value={med.stock} step={1} onChange={(stock) => set({ stock })} />
+        {perDay > 0 && (
+          <Text style={{ color: t.sub, fontSize: 16, marginTop: 6 }}>Lasts about {Math.floor(med.stock / perDay)} days</Text>
+        )}
+
+        <Label>Warn me when this many are left</Label>
+        <NumberField value={med.lowStockAt} step={1} onChange={(lowStockAt) => set({ lowStockAt })} />
+
+        <Label>Last day of the course</Label>
+        <DateField value={med.endDate} onChange={(endDate) => set({ endDate })} emptyText="Not set — keeps going" />
+
+        <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 28 }}>For the scanner</Text>
+        {/* Rarely needed: folded away. */}
+        <More title="Other names, barcodes, scanned strips">
         {existing && (
           <Card style={{ marginTop: 20 }}>
             {live?.profile ? (
@@ -413,17 +423,9 @@ export default function EditMed() {
           </Card>
         )}
 
-        {/* Rarely needed; sensible defaults, so folded away. */}
-        <More>
         <Label>Other names on the strip</Label>
         <Field value={aliases} onChangeText={setAliases} placeholder="e.g. Paracetamol 650" />
         <Text style={{ color: t.sub, marginTop: 6, fontSize: 15 }}>The scanner also accepts a strip showing any of these. Separate with commas.</Text>
-
-        <Label>Warn me when this many are left</Label>
-        <NumberField value={med.lowStockAt} step={1} onChange={(lowStockAt) => set({ lowStockAt })} />
-
-        <Label>Last day of the course</Label>
-        <DateField value={med.endDate} onChange={(endDate) => set({ endDate })} emptyText="Not set — keeps going" />
 
         {med.barcodes.length > 0 && (
           <>

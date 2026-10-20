@@ -6,9 +6,10 @@ import { LANGS, MAIN_LANGS, MORE_LANGS, matchAnnouncement, type LangCode } from 
 import { hasVoice, say, type SpeakStatus } from '../../../src/speech.ts';
 import { MEMBER_COLORS, newMember, useStore } from '../../../src/store.tsx';
 import type { Meal, Member } from '../../../src/types.ts';
-import { Button, Chip, Field, Label, s, TimeField, useTheme } from '../../../src/ui.tsx';
+import { Button, Card, Chip, Field, Label, s, TimeField, useTheme } from '../../../src/ui.tsx';
 import { Pressable } from 'react-native';
 import { sharePerson } from '../../../src/personShare.ts';
+import { LockNote } from '../../../src/settingsParts.tsx';
 import { clockIn, COMMON_ZONES, deviceZone, fmt12, otherZone, zoneLabel } from '../../../src/time.ts';
 
 const MEALS: Meal[] = ['breakfast', 'lunch', 'dinner'];
@@ -38,7 +39,7 @@ function EditMember() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }} keyboardShouldPersistTaps="handled">
-      <Tabs.Screen options={{ title: existing ? existing.name : 'Add family member' }} />
+      <Tabs.Screen options={{ title: existing ? existing.name : 'Add a person' }} />
       <Label>Name</Label>
       <Field value={m.name} onChangeText={(name) => setM({ ...m, name })} placeholder="e.g. Ma, Baba, Aroni" />
 
@@ -56,7 +57,46 @@ function EditMember() {
           </Pressable>
         ))}
       </View>
+      {existing && (
+        <Card style={{ marginTop: 16 }}>
+          <Button
+            title={`Send ${existing.name}'s medicines to another phone`}
+            onPress={() => sharePerson(state, existing.id).catch((e) => Alert.alert('Could not share', e instanceof Error ? e.message : String(e)))}
+          />
+          <Text style={{ color: t.sub, marginTop: 6, fontSize: 15, lineHeight: 21 }}>
+            For family or a caregiver: they open it in Add medicine → From another phone, or Settings → Family.
+          </Text>
+          <LockNote />
+        </Card>
+      )}
 
+      <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 24 }}>Their day</Text>
+      <Label>Where they live</Label>
+      <Text style={{ color: t.sub, marginBottom: 8, fontSize: 16, lineHeight: 22 }}>
+        Someone in another time zone takes their medicines at their own clock time. Their reminders go off on their own phone, not this one.
+      </Text>
+      <View style={s.wrap}>
+        <Chip label={`Same as this phone (${zoneLabel(deviceZone())})`} active={!otherZone(m.timeZone)} onPress={() => setM({ ...m, timeZone: undefined })} />
+        {COMMON_ZONES.filter((z) => z.tz !== deviceZone()).map((z) => (
+          <Chip key={z.tz} label={z.label} active={m.timeZone === z.tz} onPress={() => setM({ ...m, timeZone: z.tz })} />
+        ))}
+      </View>
+      {otherZone(m.timeZone) && (
+        <Text style={{ color: t.text, marginTop: 8, fontSize: 16 }}>
+          It's {fmt12(clockIn(new Date(), m.timeZone))} there now ({fmt12(clockIn(new Date()))} here). Meal times below are their times.
+        </Text>
+      )}
+
+      <Label>Usual meal times</Label>
+      <Text style={{ color: t.sub, marginBottom: 8 }}>Doses set to "before / with / after" a meal follow these times.</Text>
+      {MEALS.map((meal) => (
+        <View key={meal} style={[s.between, { marginBottom: 10 }]}>
+          <Text style={{ color: t.text, fontSize: 16, textTransform: 'capitalize' }}>{meal}</Text>
+          <TimeField value={m.mealTimes[meal]} onChange={(v) => setM({ ...m, mealTimes: { ...m.mealTimes, [meal]: v } })} />
+        </View>
+      ))}
+
+      <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 24 }}>Voice</Text>
       <Label>Language for spoken messages</Label>
       <View style={s.wrap}>
         {MAIN_LANGS.map((code) => (
@@ -110,50 +150,11 @@ function EditMember() {
       )}
       {speak === 'error' && <Text style={{ color: t.bad, marginTop: 6 }}>Couldn't speak. Check the volume and try again.</Text>}
 
-      <Label>Where they live</Label>
-      <Text style={{ color: t.sub, marginBottom: 8, fontSize: 16, lineHeight: 22 }}>
-        Someone in another time zone takes their medicines at their own clock time. Their reminders go off on their own phone, not this one.
-      </Text>
-      <View style={s.wrap}>
-        <Chip label={`Same as this phone (${zoneLabel(deviceZone())})`} active={!otherZone(m.timeZone)} onPress={() => setM({ ...m, timeZone: undefined })} />
-        {COMMON_ZONES.filter((z) => z.tz !== deviceZone()).map((z) => (
-          <Chip key={z.tz} label={z.label} active={m.timeZone === z.tz} onPress={() => setM({ ...m, timeZone: z.tz })} />
-        ))}
-      </View>
-      {otherZone(m.timeZone) && (
-        <Text style={{ color: t.text, marginTop: 8, fontSize: 16 }}>
-          It's {fmt12(clockIn(new Date(), m.timeZone))} there now ({fmt12(clockIn(new Date()))} here). Meal times below are their times.
-        </Text>
-      )}
-
-      <Label>Usual meal times</Label>
-      <Text style={{ color: t.sub, marginBottom: 8 }}>Doses set to "before / with / after" a meal follow these times.</Text>
-      {MEALS.map((meal) => (
-        <View key={meal} style={[s.between, { marginBottom: 10 }]}>
-          <Text style={{ color: t.text, fontSize: 16, textTransform: 'capitalize' }}>{meal}</Text>
-          <TimeField value={m.mealTimes[meal]} onChange={(v) => setM({ ...m, mealTimes: { ...m.mealTimes, [meal]: v } })} />
-        </View>
-      ))}
-
       <Button big title="Save" onPress={save} style={{ marginTop: 20 }} />
-      {existing && (
-        <>
-          <Button
-            kind="secondary"
-            title={`Send ${existing.name}'s medicines to another phone`}
-            style={{ marginTop: 10 }}
-            onPress={() => sharePerson(state, existing.id).catch((e) => Alert.alert('Could not share', e instanceof Error ? e.message : String(e)))}
-          />
-          <Text style={{ color: t.sub, marginTop: 6, fontSize: 15, lineHeight: 21 }}>
-            For a family member or caregiver: they open it in Settings → Family on another phone. Only {existing.name}'s medicines, times and recent
-            doses are sent — it contains health information, so send it only to people you trust.
-          </Text>
-        </>
-      )}
       {existing && state.members.length > 1 && (
         <Button
           kind="ghost"
-          title="Remove family member"
+          title="Remove this person"
           style={{ marginTop: 10 }}
           onPress={() =>
             Alert.alert(`Remove ${existing.name}?`, `This also removes their ${medCount} medicine(s) and reminders. Past logs are kept.`, [
