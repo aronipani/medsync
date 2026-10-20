@@ -266,3 +266,22 @@ test('a cut-off salt word in a saved name still matches the full word, but not a
   assert.equal(matchText('Albuterol Sulfate\nInhalation Aerosol HFA\n90 mcg', med('Albuterol Sulf')).matched, true);
   assert.equal(matchText('Metoprolol Tartrate 50', med('Metoprolol Succ')).matched, false);
 });
+
+// Oct 2026: the Sandoz albuterol box was added as "Net Contents 6.7": the pack-size line looked like a name with a strength.
+test('US inhaler box: pack size, NDC and maker are not the name', async () => {
+  const { parseLabel } = await import('../src/label.ts');
+  const r = parseLabel([
+    { text: 'NDC 0781-7296-85', height: 18 },
+    { text: 'Albuterol Sulfate', height: 40 }, { text: 'Inhalation Aerosol HFA', height: 40 },
+    { text: '90 mcg*', height: 34 }, { text: 'with Dose Indicator', height: 20 }, { text: 'Rx only', height: 26 },
+    { text: 'FOR ORAL INHALATION WITH SANDOZ INC.', height: 20 }, { text: 'ALBUTEROL SULFATE INHALATION', height: 20 },
+    { text: 'AEROSOL HFA ACTUATOR ONLY', height: 20 }, { text: '200 METERED INHALATIONS', height: 30 },
+    { text: 'Net Contents 6.7 g', height: 30 }, { text: 'CONTAINS NO', height: 18 },
+    { text: 'CHLOROFLUOROCARBONS (CFCs).', height: 18 }, { text: 'SANDOZ', height: 22 },
+  ]);
+  assert.equal(r.name, 'Albuterol');
+  assert.equal(r.strength, '90 mcg');
+  assert.equal(r.unit, 'puff');
+  assert.equal(r.contents, 'Albuterol');
+  assert.ok(!r.nameOptions.some((o) => /net|ndc|sandoz/i.test(o)), r.nameOptions.join(', '));
+});

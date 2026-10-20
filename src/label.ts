@@ -71,7 +71,10 @@ const NOT_INGREDIENT =
   /\b(excipients?|colou?rs?|oxide|dioxide|lake|q\.?s|each|contains?|composition|mrp|m\.r\.p|rs|price|per|pack|tabs?|tablets?|capsules?|store|storage|below|dosage|dose|directed|physician|batch|exp|mfg|mfd|lic|reg|schedule|caution|warning)\b/i;
 const EXCIPIENT = /\b(oxide|dioxide|lake|excipients?|colou?rs?|titanium|iron|sucrose|lactose|starch|q\.\s?s)\b/i;
 const WARNING_BOX = /\b(caution|schedule\s*h|prescription|registered|trade\s*mark|sold|retail|practitioner|drug)\b/i;
-const COMPANY = /\b(pharma|pharmaceuticals?|labs?|laboratories|ltd|limited|pvt|healthcare|life\s?sciences|remedies|drugs|industries|marketed|manufactured)\b/i;
+// Box print that is never the name: pack size, code numbers and propellant notes on inhaler and US boxes
+// ("Net Contents 6.7 g", "NDC 0781-7296-85", "200 Metered Inhalations", "Contains no chlorofluorocarbons").
+const PACKAGING = /\b(net\s*(contents?|wt\.?|weight|qty|quantity|vol(ume)?)|contents?|ndc|metered|inhalations?|actuations?|chlorofluorocarbons?|cfcs?|indicator|actuator|propellant)\b/i;
+const COMPANY = /\b(sandoz|teva|mylan|viatris|cipla|lupin|glenmark|zydus|cadila|torrent|alkem|mankind|pfizer|gsk|glaxosmithkline|novartis|sanofi|abbott|pharma|pharmaceuticals?|labs?|laboratories|ltd|limited|pvt|healthcare|life\s?sciences|remedies|drugs|industries|marketed|manufactured)\b/i;
 const NOISE =
   /\b(tablets?|capsules?|ip|i\.p|bp|usp|each|contains?|film|coated|uncoated|mfd|mfg|manufactured|marketed|ltd|limited|pvt|private|batch|b\.?\s?no|lot|exp|expiry|rx|schedule|warning|caution|store|keep|reach|children|price|mrp|rs|incl|inclusive|taxes|dosage|dose|composition|pharma|pharmaceuticals?|labs?|laboratories|healthcare|lifesciences|india|directed|physician|prescription|only|retail|sale|sold|protect|protected|light|moisture|temperature|below|use|before|tablet|strip|reg|lic|no|dr|uses?|syrup|suspension|drops?|injection|inhaler|sachets?|oral|solution|registered|trade\s?mark|mon|tue|wed|thu|fri|sat|sun|jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec|blister|equivalent|to|storage|excipients?|colou?r)\b/gi;
 
@@ -204,7 +207,7 @@ function readIngredients(lines: string[]): Ingredient[] {
 
 /** "CILACAR® T" -> Cilacar T; "NEBICARD-2.5" -> Nebicard + 2.5; "DOLO-650" -> Dolo + 650. */
 function brandCandidate(line: string, ingredients: Ingredient[]): { name: string; strength?: string; reg: boolean } | undefined {
-  if (line.length > 32 || COMPANY.test(line) || EXCIPIENT.test(line) || WARNING_BOX.test(line)) return undefined;
+  if (line.length > 32 || PACKAGING.test(line) || COMPANY.test(line) || EXCIPIENT.test(line) || WARNING_BOX.test(line)) return undefined;
   const reg = /[®™]/.test(line);
   const start = line.replace(/^[^A-Za-z]+/, '');
   if (!/^[A-Z]/.test(start)) return undefined; // torn or partial words start mid-word, in lower case
