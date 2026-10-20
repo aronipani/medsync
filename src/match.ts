@@ -93,6 +93,11 @@ export interface TextMatch {
   candidate?: string;
 }
 
+const SALTS = ['SULFATE', 'SULPHATE', 'HYDROCHLORIDE', 'BISULFATE', 'BISULPHATE', 'BESYLATE', 'BESILATE', 'MALEATE', 'TARTRATE', 'SUCCINATE',
+  'SODIUM', 'POTASSIUM', 'CALCIUM', 'MAGNESIUM', 'MESYLATE', 'FUMARATE', 'CITRATE', 'PHOSPHATE', 'ACETATE', 'HYDROBROMIDE'];
+/** "SULF", "HYDROCHLOR": the start of a salt word, cut off when the strip was read. */
+const cutSalt = (w: string) => w.length >= 4 && /^[A-Z]+$/.test(w) && SALTS.some((x) => x.length > w.length && x.startsWith(w));
+
 /** Names a medication may be printed as: "name strength" plus aliases. */
 export function candidatesFor(med: Pick<Medication, 'name' | 'strength' | 'aliases'>): string[] {
   // "Ismo / Monotrate" means either brand.
@@ -129,7 +134,9 @@ export function matchText(text: string, med: Pick<Medication, 'name' | 'strength
     const names = words.filter((w) => !isNumeric(w));
     const nums = words.filter(isNumeric);
     if (!names.length) continue;
-    const namesOk = names.every((w) => wordPresent(w, toks, joined));
+    // A name saved from a cut-off read ("Albuterol Sulf") keeps the cut salt word: it is found when a printed word
+    // starts with it ("SULFATE"). Only salt words, so a different salt (tartrate vs succinate) still doesn't match.
+    const namesOk = names.every((w) => wordPresent(w, toks, joined) || (cutSalt(w) && toks.some((t) => t.startsWith(w))));
     if (!namesOk) continue;
     nameFound = true;
     if (nums.every((n) => numberPresent(n, numToks))) return { matched: true, nameFound: true, candidate: cand };

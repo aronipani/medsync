@@ -257,3 +257,12 @@ test('a box barcode and its DataMatrix are the same code', async () => {
   const { normalizeCode } = await import('../src/match.ts');
   assert.equal(normalizeCode('300933174312'), normalizeCode('0100300933174312172709301012345\u001d21ABC123'));
 });
+
+// Oct 2026: an albuterol inhaler added on an older build was saved as "Albuterol Sulf" (cut-off read), and the
+// full box ("Albuterol Sulfate") then never matched it at dose time.
+test('a cut-off salt word in a saved name still matches the full word, but not another salt', async () => {
+  const { matchText } = await import('../src/match.ts');
+  const med = (name: string) => ({ name, strength: '', aliases: [] });
+  assert.equal(matchText('Albuterol Sulfate\nInhalation Aerosol HFA\n90 mcg', med('Albuterol Sulf')).matched, true);
+  assert.equal(matchText('Metoprolol Tartrate 50', med('Metoprolol Succ')).matched, false);
+});
