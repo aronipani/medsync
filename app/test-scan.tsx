@@ -5,6 +5,8 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 import { Stack, useFocusEffect, useIsFocused } from 'expo-router';
+import { DoseScanOff } from '../src/components/DoseScanSwitch.tsx';
+import { doseScanOn } from '../src/doseScan.ts';
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { expiryStatus, formatExpiry, parseExpiry } from '../src/expiry.ts';
@@ -209,6 +211,13 @@ export default function TestScan() {
     return [...m.values()];
   }, [upcoming]);
   const readyCount = upcoming.filter((u) => u.readiness === 'ready').length;
+
+  if (!doseScanOn(state.settings))
+    return (
+      <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }}>
+        <DoseScanOff />
+      </ScrollView>
+    );
 
   return (
     <ScrollView contentContainerStyle={{ padding: 20, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">

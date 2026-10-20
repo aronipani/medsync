@@ -99,6 +99,7 @@ export interface Settings {
   collectTraining?: boolean; // save confirmed scan photos for training an image model (off by default)
   lastBackupAt?: string; // ISO time of the last backup the person saved
   acceptedNotice?: number; // version of the safety & privacy notice the person accepted
+  doseScan?: { on: boolean; at: string; disclosure?: number }; // dose-time scan check chosen by the person (default: on, off in the US; spec 19)
 }
 
 export type LogStatus = 'taken' | 'missed' | 'skipped';

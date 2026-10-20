@@ -15,6 +15,8 @@ import { readOnServer, shouldAskServer } from '../../src/serverFallback.ts';
 import type { LookVerdict } from '../../src/lookMatch.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
 import { findUsMedicine } from '../../src/usLookup.ts';
+import { doseScanOn } from '../../src/doseScan.ts';
+import { DoseScanOff } from '../../src/components/DoseScanSwitch.tsx';
 import { usText } from '../../src/uslist.ts';
 import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
 import { diagnoseScan, type ScanDiagnosis } from '../../src/scanIssue.ts';
@@ -485,6 +487,14 @@ export default function Scan() {
         </View>
         </More>
     ) : null;
+
+  // Off in the US unless turned on after the disclosure (spec 19): reminders and the record stay, the check doesn't.
+  if (!doseScanOn(state.settings))
+    return (
+      <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+        <DoseScanOff />
+      </ScrollView>
+    );
 
   if (!state.meds.length)
     return (

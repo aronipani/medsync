@@ -2,6 +2,7 @@ import { useCurrentMember } from '../../src/currentMember.tsx';
 import { Ionicons } from '@expo/vector-icons';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { router } from 'expo-router';
+import { doseScanOn } from '../../src/doseScan.ts';
 import React, { useMemo, useState } from 'react';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ export default function Today() {
   const today = dateKey(now);
   const date = dateKey(addDays(now, offset));
 
+  const scanOn = doseScanOn(state.settings);
   const occs = useMemo(() => occurrencesForDate(state, date, now, memberId), [state, date, now, memberId]);
   // Scan for the person being looked at, not whoever is first in the family.
   const openScan = (forMember?: string) =>
@@ -68,9 +70,9 @@ export default function Today() {
       Alert.alert(label, 'This dose is more than 6 hours away.');
       return;
     }
-    Alert.alert(label, 'Scanning the strip is the safest check.', [
-      { text: 'Scan the strip', onPress: () => openScan(o.memberId) },
-      { text: 'I took it already', onPress: () => record([o], 'taken', 'manual') },
+    Alert.alert(label, scanOn ? 'Scanning the strip is the safest check.' : 'Did you take it?', [
+      ...(scanOn ? [{ text: 'Scan the strip', onPress: () => openScan(o.memberId) }] : []),
+      { text: scanOn ? 'I took it already' : 'I took it', onPress: () => record([o], 'taken', 'manual') },
       {
         text: 'Skip this dose…',
         onPress: () =>
@@ -218,12 +220,28 @@ export default function Today() {
               {nowList.map((o, i) => (
                 <Row key={o.key} o={o} last={i === nowList.length - 1} />
               ))}
-              <Button
-                big
-                title={dueCount === 1 ? (nowList.length > 1 ? 'Scan the last strip' : 'Scan the strip') : nowDone ? 'Scan the next strip' : 'Scan the strips'}
-                onPress={() => openScan(memberId ?? (new Set(nowList.map((o) => o.memberId)).size === 1 ? nowList[0].memberId : undefined))}
-                style={{ marginTop: 12 }}
-              />
+              {scanOn ? (
+                <Button
+                  big
+                  title={dueCount === 1 ? (nowList.length > 1 ? 'Scan the last strip' : 'Scan the strip') : nowDone ? 'Scan the next strip' : 'Scan the strips'}
+                  onPress={() => openScan(memberId ?? (new Set(nowList.map((o) => o.memberId)).size === 1 ? nowList[0].memberId : undefined))}
+                  style={{ marginTop: 12 }}
+                />
+              ) : dueCount > 0 ? (
+                // Dose-time scanning off (US, spec 19): record them as taken, after a check.
+                <Button
+                  big
+                  title={dueCount === 1 ? 'I took it' : `I took all ${dueCount}`}
+                  onPress={() => {
+                    const open = nowList.filter((o) => o.status === 'due');
+                    Alert.alert('Mark as taken?', open.map((o) => `${medLabel(o.med)} · ${qtyLabel(o.dose.qty, o.med.unit)}`).join('\n'), [
+                      { text: 'Cancel', style: 'cancel' },
+                      { text: 'Yes, taken', onPress: () => record(open, 'taken', 'manual') },
+                    ]);
+                  }}
+                  style={{ marginTop: 12 }}
+                />
+              ) : null}
             </Card>
           )}
 

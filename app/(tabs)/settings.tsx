@@ -14,6 +14,8 @@ import { clearTraining, exportTraining, trainingSummary, unmarkAllSent } from '.
 import { setupNotifications } from '../../src/notifications.ts';
 import { useStore } from '../../src/store.tsx';
 import { ReportProblem } from '../../src/components/ReportProblem.tsx';
+import { DoseScanDisclosure } from '../../src/components/DoseScanSwitch.tsx';
+import { doseScanOn, DOSE_SCAN_DISCLOSURE_VERSION, inUnitedStates } from '../../src/doseScan.ts';
 import { shareHistoryCsv } from '../../src/historyExport.ts';
 import { Button, Card, Label, More, NumberField, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
@@ -149,6 +151,11 @@ function Helper() {
   return (
     <>
       <Text style={{ color: t.sub, marginTop: 14, fontSize: 15, lineHeight: 21 }}>Nothing here is needed for taking medicines.</Text>
+
+      <Label>Scanning at dose time</Label>
+      <Card>
+        <DoseScanSetting />
+      </Card>
 
       <Label>Check the scanner</Label>
       <Card>
@@ -313,6 +320,42 @@ function BackupCard() {
           {safety ? <Button title="Undo last restore" kind="ghost" onPress={undo} /> : null}
         </More>
       </Card>
+    </>
+  );
+}
+
+/** The dose-time scan check: on by default except in the US, where it is turned on only after the disclosure (spec 19). */
+function DoseScanSetting() {
+  const t = useTheme();
+  const { state, saveSettings } = useStore();
+  const on = doseScanOn(state.settings);
+  const us = inUnitedStates();
+  const [asking, setAsking] = useState(false);
+  const c = state.settings.doseScan;
+  return (
+    <>
+      <View style={[s.between, { minHeight: 48 }]}>
+        <Text style={{ color: t.text, fontWeight: '600', fontSize: 16, flex: 1, marginRight: 10 }}>Check the strip with a scan when a dose is due</Text>
+        <Switch
+          value={on || asking}
+          onValueChange={(v) => {
+            if (!v) {
+              setAsking(false);
+              saveSettings({ ...state.settings, doseScan: { on: false, at: new Date().toISOString(), disclosure: c?.disclosure } });
+            } else if (us && (c?.disclosure ?? 0) < DOSE_SCAN_DISCLOSURE_VERSION) setAsking(true);
+            else saveSettings({ ...state.settings, doseScan: { on: true, at: new Date().toISOString(), disclosure: c?.disclosure } });
+          }}
+        />
+      </View>
+      <Text style={{ color: t.sub, fontSize: 14, lineHeight: 20 }}>
+        {on
+          ? 'Off: doses are marked as taken on the Today tab instead. Adding medicines by scanning works either way.'
+          : us
+            ? 'Off in the US unless you turn it on. Doses are marked as taken on the Today tab.'
+            : 'Doses are marked as taken on the Today tab.'}
+        {c?.on && c.disclosure ? ` You read the notice on ${new Date(c.at).toLocaleDateString()}.` : ''}
+      </Text>
+      {asking && !on && <DoseScanDisclosure onDone={() => setAsking(false)} />}
     </>
   );
 }
