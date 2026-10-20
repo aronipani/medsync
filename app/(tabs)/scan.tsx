@@ -14,6 +14,8 @@ import { waitUntilStill } from '../../src/stillness.ts';
 import { readOnServer, shouldAskServer } from '../../src/serverFallback.ts';
 import type { LookVerdict } from '../../src/lookMatch.ts';
 import { withNewReference } from '../../src/profileFiles.ts';
+import { findUsMedicine } from '../../src/usLookup.ts';
+import { usText } from '../../src/uslist.ts';
 import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
 import { diagnoseScan, type ScanDiagnosis } from '../../src/scanIssue.ts';
 import { exchangeable, splitName, substituteCard } from '../../src/substitute.ts';
@@ -200,6 +202,9 @@ export default function Scan() {
     const hits = due.filter((o) => matchBarcode(data, o.med));
     if (hits.length) return show({ kind: 'match', occs: hits, method: 'barcode' });
     const why = explainMiss((o) => matchBarcode(data, o.med));
+    // A US box not linked yet: its barcode's NDC names the product exactly (US list), so check that name and strength.
+    const us = !why ? findUsMedicine(data) : undefined;
+    if (us) return checkText(usText(us), 'barcode');
     // An unknown barcode says nothing about the medicine: no verdict, read the printed name instead.
     if (!why) return show({ kind: 'nomatch', reason: "This barcode isn't linked to a medicine yet. That doesn't mean it's wrong — press Read strip name to read the printed name.", code: data, say: 'unread', weak: true });
     show({ kind: 'nomatch', reason: why.text, code: data, say: why.say });

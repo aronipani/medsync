@@ -1,0 +1,42 @@
+name: US medicine list (monthly)
+
+# Rebuilds src/data/us-medicines.ts from the FDA NDC Directory on the 3rd of each month, and commits it when it
+# changed. The build stops without committing when the list looks wrong (see scripts/build-us-medicine-list.ts).
+# A commit made here doesn't start the app builds; the new list goes out with the next app build. Spec 18.
+on:
+  schedule:
+    - cron: '17 9 3 * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: us-medicine-list
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Build the list from the FDA download
+        run: node --experimental-strip-types scripts/build-us-medicine-list.ts
+      - name: Typecheck and tests with the new list
+        run: |
+          npx tsc --noEmit -p .
+          npm test
+      - name: Commit when changed
+        run: |
+          if git diff --quiet -- src/data/us-medicines.ts; then echo "No change."; exit 0; fi
+          git config user.name "takesure-bot"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/data/us-medicines.ts
+          git commit -m "US medicine list: FDA NDC Directory $(date -u +%Y-%m-%d)"
+          git push

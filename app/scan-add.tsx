@@ -10,6 +10,8 @@ import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { encode, fingerprint } from '../src/learn.ts';
 import { normalizeCode } from '../src/match.ts';
+import { findUsMedicine, usDraft } from '../src/usLookup.ts';
+import type { UsMedicine } from '../src/uslist.ts';
 import { saveReference } from '../src/profileFiles.ts';
 import { buildProfile } from '../src/stripProfile.ts';
 import { saveTrainingPhotos, saveUnlabelledPhotos } from '../src/training.ts';
@@ -53,6 +55,8 @@ export default function ScanToAdd() {
   const [edited, setEdited] = useState(false);
   const [torch, setTorch] = useState(false);
   const [progress, setProgress] = useState('');
+  // Found in the US medicine list by its NDC (barcode or printed): shown so the person can check it against the box.
+  const [fromList, setFromList] = useState<UsMedicine>();
 
   // A barcode holds a product number, not the name, and the app has no barcode list (nothing is looked up online).
   // So it is saved with the medicine, and recognised from then on; the name comes from the printed text.
@@ -64,6 +68,14 @@ export default function ScanToAdd() {
     if (data === barcode) return;
     setBarcode(data);
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success).catch(() => {});
+    // A US box: its barcode holds the NDC, which names exactly one product in the US list.
+    const us = findUsMedicine(data);
+    if (us && !(result && edited)) {
+      setFromList(us);
+      setResult(usDraft(us, data));
+      setShowCamera(false);
+      return;
+    }
     if (/[A-Za-z]{4,}/.test(data)) {
       // Some QR codes carry the product name as text — add it to what's been read.
       const qrLines = data.split(/[\n;|]/).map((text) => ({ text }));
@@ -95,7 +107,10 @@ export default function ScanToAdd() {
       const all = [...lines, ...read];
       setLines(all);
       setPhotos((n) => n + 1);
-      const r = parseLabel(all, barcode);
+      // The printed "NDC 0781-7296-85" names the product exactly; it wins over guessing the name from the print.
+      const us = fromList ?? findUsMedicine(all.map((l) => l.text).join('\n'));
+      if (us) setFromList(us);
+      const r = us ? { ...usDraft(us, barcode), barcodes: barcode ? [barcode] : [] } : parseLabel(all, barcode);
       // A fresh reading with more text is better — but keep anything the person typed themselves.
       setResult(result && edited ? { ...r, name: result.name, strength: result.strength, unit: result.unit } : r);
       setShowCamera(false);
@@ -212,6 +227,11 @@ export default function ScanToAdd() {
       {result && !showCamera && (
         <>
           <Card>
+            {fromList && (
+              <Text style={{ color: t.sub, fontSize: 16, lineHeight: 22, marginBottom: 10 }}>
+                Found in the US medicine list (FDA){fromList.maker ? `, made by ${fromList.maker}` : ''}. Check it matches the box.
+              </Text>
+            )}
             <Text style={{ color: t.sub, fontSize: 16, fontWeight: '700' }}>Medicine inside</Text>
             {result.ingredients.length ? (
               <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 4 }}>{result.contents}</Text>
