@@ -19,3 +19,5 @@
 | [15](15-closed-set-strip-matching.md) | Recognise the household's own strips: closed-set matching, strip profiles, enrollment via the TakeSure server | Household matching built; enrollment to build |
 | [16](16-takesure-server.md) | TakeSure server: one anonymous backend for strip reading, catalogue, encrypted backups, family circle, training photos (`server/`) | Server built, not deployed; app side to build |
 | [17](17-substitute-brands-and-finding-stock.md) | Substitute brands at the scan; buy list, pharmacies and family hand-off when a medicine runs out | Built: substitute brands, buy list, pharmacies, buy/pick-up reminders. To do: message languages, family hand-off |
+| [18](18-us-medicine-list.md) | US medicine list (FDA NDC Directory), looked up only by NDC; US pharmacy labels and their directions | Built; list empty until the monthly job (or `npm run medicine-list:us`) first runs |
+| [19](19-us-launch.md) | Reaching Indian families in the US: TestFlight beta, full disclosure, App Store US listing | Plan |
