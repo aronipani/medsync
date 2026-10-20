@@ -22,3 +22,4 @@
 | [18](18-us-medicine-list.md) | US medicine list (FDA NDC Directory), looked up only by NDC; US pharmacy labels and their directions | Built; list empty until the monthly job (or `npm run medicine-list:us`) first runs |
 | [19](19-us-launch.md) | Reaching Indian families in the US: TestFlight beta, full disclosure, App Store US listing | Plan; built: US dose-scan switch with disclosure, members in another time zone |
 | [20](20-share-a-person.md) | Send one person's medicines to another phone (caregiver anywhere) | Built |
+| [21](21-regrouping.md) | One obvious place for everything: Settings as six pages, Privacy & safety page, Medicines · Supplies | Plan |
