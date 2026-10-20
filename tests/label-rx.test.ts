@@ -285,3 +285,24 @@ test('US inhaler box: pack size, NDC and maker are not the name', async () => {
   assert.equal(r.contents, 'Albuterol');
   assert.ok(!r.nameOptions.some((o) => /net|ndc|sandoz/i.test(o)), r.nameOptions.join(', '));
 });
+
+// Oct 2026: a US prescription bottle was read as "Cvs Pharmacy", offering the patient's name and Indian brands.
+test('US pharmacy label: the name comes from the medicine line, not the pharmacy or the patient', async () => {
+  const { parseLabel, isPharmacyLabel } = await import('../src/label.ts');
+  const label = (drug: string) => [
+    { text: 'CVS pharmacy', height: 30 }, { text: 'RX# 1234567-01', height: 16 }, { text: 'JOHN SMITH', height: 22 },
+    { text: 'TAKE 1 TABLET BY MOUTH ONCE DAILY', height: 20 }, { text: drug, height: 18 },
+    { text: 'QTY: 30', height: 14 }, { text: 'DR. JANE DOE', height: 14 }, { text: 'REFILLS: 3 BEFORE 10/15/2027', height: 12 },
+  ];
+  const a = parseLabel(label('AMLODIPINE BESYLATE 5 MG TAB'));
+  assert.equal(a.name, 'Amlodipine');
+  assert.equal(a.strength, '5');
+  assert.equal(a.unit, 'tablet');
+  assert.ok(!a.nameOptions.some((o) => /cvs|smith|amlong|stamlo/i.test(o)), a.nameOptions.join(', '));
+  const m = parseLabel(label('METOPROLOL SUCC ER 50 MG TAB'));
+  assert.equal(m.name, 'Metoprolol Succ ER'); // the salt and release form are kept: they decide which medicine it is
+  assert.deepEqual(m.aliases, []); // no plain "Metoprolol 50" that a tartrate strip would match
+  assert.equal(parseLabel(label('LOSARTAN POT 25MG TAB')).name, 'Losartan');
+  assert.equal(parseLabel(label('LIPITOR 20 MG TABLET')).contents, ''); // a brand alone: contents not guessed
+  assert.equal(isPharmacyLabel('Clopilet 75\nClopidogrel Tablets IP 75 mg\nMfg. Lic. No. 123\nRx only'), false);
+});

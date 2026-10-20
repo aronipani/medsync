@@ -236,6 +236,69 @@ export function describeIngredients(ings: Ingredient[]): string {
  * including combinations), then the brand, which is often smaller, torn off or printed upside down.
  */
 export function parseLabel(lines: OcrLine[], barcode?: string): LabelResult {
+  const box = parseBox(lines, barcode);
+  return isPharmacyLabel(lines.map((l) => l.text).join('\n')) ? fromPharmacyLabel(lines, box) : box;
+}
+
+// ---------- US pharmacy labels (prescription bottles) ----------
+// A pharmacy prints the patient, the pharmacy, the doctor and the directions in big letters, and the medicine on one line
+// ("AMLODIPINE BESYLATE 5 MG TAB"). The biggest print is often the pharmacy or the patient, so the name is taken from
+// that medicine line instead. Brands from the built-in (Indian) list are not offered for a US label.
+
+const PHARMACY_SIGNS = [
+  /\bRX\s*(#|NO\b|NUMBER)/i,
+  /\bREFILLS?\b/i,
+  /\bBY MOUTH\b/i,
+  /\bQTY\b/i,
+  /\b(DISCARD|USE)\s+(AFTER|BY|BEFORE)\b/i,
+  /\b(CVS|WALGREENS|RITE\s?AID|WALMART|COSTCO|KAISER|SAFEWAY|KROGER|TARGET|ALBERTSONS|PUBLIX|EXPRESS SCRIPTS|OPTUM)\b/i,
+  /\b(DR|PRESCRIBER)\.?\s*:?\s+[A-Z]/,
+];
+export function isPharmacyLabel(text: string): boolean {
+  return PHARMACY_SIGNS.filter((r) => r.test(text)).length >= 2;
+}
+
+const DIRECTIONS = /\b(take|use|inhale|apply|place|give|dissolve|chew|instill|insert|spray|mix)\b/i;
+const LABEL_FIELDS = /\b(rx|qty|quantity|refills?|discard|dr|prescriber|pharmacy|date|filled|ndc|mfg|mfr|lot|exp)\b/i;
+const DRUG_LINE = /^\s*([A-Za-z][A-Za-z\- ]{2,40}?)\s+(\d+(?:\.\d+)?(?:\s*[-\/]\s*\d+(?:\.\d+)?)?)\s*(mg|mcg|ml|g|units?|%)\b(.*)$/i;
+const RELEASE = /\b(ER|XR|XL|SR|CR|DR|ODT|LA|CD|EC)\b/;
+
+function fromPharmacyLabel(lines: OcrLine[], box: LabelResult): LabelResult {
+  const line = lines.map((l) => l.text).find((t) => !DIRECTIONS.test(t) && !LABEL_FIELDS.test(t) && DRUG_LINE.test(t));
+  const m = line ? DRUG_LINE.exec(line) : null;
+  if (!m) return { ...box, nameOptions: box.nameOptions.filter((o) => box.ingredients.some((i) => i.name === o)) };
+  const release = RELEASE.exec(m[4].toUpperCase())?.[1] ?? RELEASE.exec(m[1].toUpperCase())?.[1];
+  // Pharmacy abbreviations for salts ("LOSARTAN POT", "NAPROXEN NA") go like the salts themselves; "SUCC" stays (spec 17).
+  const words = titleCase(
+    m[1].replace(SALTS, ' ').replace(/\b(pot|na|hcl|hbr|mal|cit)\b/gi, ' ').replace(RELEASE, ' ').replace(NOISE, ' ').replace(/\s+/g, ' ').trim(),
+  );
+  const name = release ? `${words} ${release}` : words;
+  const strength = formatStrength(m[2].replace(/\s*[-\/]\s*/, '/'), m[3]);
+  const unit = detectForm(m[4]) ?? box.unit;
+  // Contents only from the built-in list: the box reader also takes the directions ("TAKE ONE …") for contents, and a
+  // brand on its own (Lipitor) says nothing about what is inside. Unknown contents are left empty, not guessed.
+  const known = lookupBrand(words);
+  const ingredients = known
+    ? known.ingredients.map((name) => ({ name }))
+    : lookupIngredients([words]).length
+      ? [{ name: words, strength }]
+      : [];
+  const contents = describeIngredients(ingredients);
+  const generic = ingredients.map((i) => i.name).join(' + ');
+  return {
+    ...box,
+    name,
+    strength,
+    unit,
+    ingredients,
+    contents,
+    brand: name,
+    aliases: generic && generic.toLowerCase() !== words.toLowerCase() ? [`${generic} ${strength}`] : [],
+    nameOptions: generic && generic.toLowerCase() !== words.toLowerCase() ? [generic] : [],
+  };
+}
+
+function parseBox(lines: OcrLine[], barcode?: string): LabelResult {
   const texts = lines.map((l) => l.text);
   const rows = mergeRows(lines);
   const allText = texts.join('\n');
