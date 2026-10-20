@@ -16,7 +16,7 @@ import { useStore } from '../../src/store.tsx';
 import { ReportProblem } from '../../src/components/ReportProblem.tsx';
 import { PersonImport } from '../../src/components/PersonImport.tsx';
 import { DoseScanDisclosure } from '../../src/components/DoseScanSwitch.tsx';
-import { doseScanOn, DOSE_SCAN_DISCLOSURE_VERSION, inUnitedStates } from '../../src/doseScan.ts';
+import { doseScanOn, DOSE_SCAN_DISCLOSURE_VERSION, setUpInUS } from '../../src/doseScan.ts';
 import { shareHistoryCsv } from '../../src/historyExport.ts';
 import { Button, Card, Label, More, NumberField, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
@@ -335,7 +335,7 @@ function DoseScanSetting() {
   const t = useTheme();
   const { state, saveSettings } = useStore();
   const on = doseScanOn(state.settings);
-  const us = inUnitedStates();
+  const us = setUpInUS(state.settings);
   const [asking, setAsking] = useState(false);
   const c = state.settings.doseScan;
   return (
@@ -357,7 +357,7 @@ function DoseScanSetting() {
         {on
           ? 'Off: doses are marked as taken on the Today tab instead. Adding medicines by scanning works either way.'
           : us
-            ? 'Off in the US unless you turn it on. Doses are marked as taken on the Today tab.'
+            ? 'Off when TakeSure is set up in the US, unless you turn it on. Doses are marked as taken on the Today tab.'
             : 'Doses are marked as taken on the Today tab.'}
         {c?.on && c.disclosure ? ` You read the notice on ${new Date(c.at).toLocaleDateString()}.` : ''}
       </Text>

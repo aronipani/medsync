@@ -24,3 +24,10 @@ test('in the US it turns on only with the disclosure read; anyone can turn it of
   assert.equal(doseScanOn(s({ on: true, at, disclosure: DOSE_SCAN_DISCLOSURE_VERSION }), true), true);
   assert.equal(doseScanOn(s({ on: false, at }), false), false);
 });
+
+test('where the app was set up decides: a parent from India visiting the US keeps scanning', async () => {
+  const { setUpInUS } = await import('../src/doseScan.ts');
+  assert.equal(doseScanOn({ setupInUS: false } as never), true);
+  assert.equal(doseScanOn({ setupInUS: true } as never), false);
+  assert.equal(setUpInUS({ setupInUS: false } as never), false);
+});

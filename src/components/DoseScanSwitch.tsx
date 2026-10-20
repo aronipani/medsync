@@ -52,7 +52,7 @@ export function DoseScanOff() {
     <View style={{ marginTop: 16 }}>
       <Text style={{ color: t.text, fontSize: 22, fontWeight: '800' }}>Scanning at dose time is off</Text>
       <Text style={{ color: t.text, fontSize: 17, lineHeight: 24, marginTop: 8 }}>
-        In the US, TakeSure gives reminders and keeps a record of what was taken. Mark doses as taken on the Today tab. Adding a medicine by scanning
+        TakeSure was set up in the US, where it gives reminders and keeps a record of what was taken. Mark doses as taken on the Today tab. Adding a medicine by scanning
         still works.
       </Text>
       {show ? <DoseScanDisclosure /> : <Button title="Turn on scanning" kind="secondary" onPress={() => setShow(true)} style={{ marginTop: 16 }} />}

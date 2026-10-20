@@ -327,3 +327,11 @@ test('US label directions become draft dose times', async () => {
   assert.equal(prn.asNeeded, true);
   assert.equal(prn.doses.length, 0); // no reminders for "as needed"
 });
+
+test('"as needed" on a US label gives no reminder times but the amount per dose', async () => {
+  const { parseUsDirections } = await import('../src/rx.ts');
+  const r = parseUsDirections('INHALE 2 PUFFS BY MOUTH EVERY 4 TO 6 HOURS AS NEEDED FOR WHEEZING', 'puff');
+  assert.equal(r.asNeeded, true);
+  assert.equal(r.perDose, 2);
+  assert.equal(r.doses.length, 0);
+});

@@ -34,6 +34,7 @@ export interface Medication {
   overlapOk?: string[]; // ids of medicines a doctor confirmed this one is meant to be taken with (same ingredient)
   found?: FoundRecord[]; // what pharmacies said when asked for this medicine, newest last, at most 8 (spec 17)
   buyLeadDays?: number; // "Time to buy" this many days before it runs out (default 7, or 14 when hard to find)
+  asNeeded?: { qty: number }; // taken only when needed (an inhaler, a pain reliever): no reminders, doses is empty; logged from Today
 }
 
 /** A pharmacy the family buys from (spec 17). Kept on the phone only; nothing is looked up online. */
@@ -101,6 +102,7 @@ export interface Settings {
   lastBackupAt?: string; // ISO time of the last backup the person saved
   acceptedNotice?: number; // version of the safety & privacy notice the person accepted
   acceptedNoticeAt?: string; // when they agreed to it (with the terms of use from notice version 3), on this phone only
+  setupInUS?: boolean; // where the app was set up (first agreed to the notice): decides the dose-scan default, so a parent visiting the US keeps it (spec 19)
   doseScan?: { on: boolean; at: string; disclosure?: number }; // dose-time scan check chosen by the person (default: on, off in the US; spec 19)
 }
 

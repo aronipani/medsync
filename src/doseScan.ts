@@ -28,8 +28,16 @@ export function inUnitedStates(p: Place = phonePlace()): boolean {
   return p.region === 'US' || (!!p.timeZone && US_ZONES.test(p.timeZone));
 }
 
-/** Is the dose-time scan check on? A person's own choice wins; otherwise on everywhere except the US. */
-export function doseScanOn(settings: Settings, us: boolean = inUnitedStates()): boolean {
+/**
+ * Is the dose-time scan check on? A person's own choice wins; otherwise on everywhere except where the app was set up
+ * in the US. "Set up" (not "is now") so a parent from India visiting family in the US keeps scanning.
+ * This is a default, not a lock: anyone can turn scanning on after the disclosure.
+ */
+export function setUpInUS(settings: Settings): boolean {
+  return settings.setupInUS ?? inUnitedStates();
+}
+
+export function doseScanOn(settings: Settings, us: boolean = setUpInUS(settings)): boolean {
   const c = settings.doseScan;
   if (c && !c.on) return false;
   if (c?.on) return !us || (c.disclosure ?? 0) >= DOSE_SCAN_DISCLOSURE_VERSION;

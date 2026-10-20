@@ -64,7 +64,7 @@ export default function EditMed() {
         barcodes: draft.barcodes ?? [],
         learned: draft.learned ?? [],
         unit: draft.unit ?? 'tablet',
-        doses: draft.doses?.length ? draft.doses : [newDose()],
+        doses: draft.asNeeded ? [] : draft.doses?.length ? draft.doses : [newDose()],
         stock: 10,
         lowStockAt: 5,
         active: true,
@@ -88,7 +88,7 @@ export default function EditMed() {
     if (!med.name.trim()) return Alert.alert('Name needed', 'Enter the name printed on the strip, e.g. Dolo.');
     const now = new Date().toISOString();
     // A dose whose time/days changed only counts from now (so it isn't marked missed retroactively).
-    const doses = med.doses.map((d) => {
+    const doses = (med.asNeeded ? [] : med.doses).map((d) => {
       const old = existing?.doses.find((x) => x.id === d.id);
       const changed = !old || JSON.stringify([old.timing, old.days]) !== JSON.stringify([d.timing, d.days]) || existing?.memberId !== med.memberId;
       return changed && old ? { ...d, since: now } : d;
@@ -296,6 +296,19 @@ export default function EditMed() {
         )}
 
         <Label>When to take it</Label>
+        <View style={s.wrap}>
+          <Chip label="At set times" active={!med.asNeeded} onPress={() => med.asNeeded && set({ asNeeded: undefined, doses: [newDose()] })} />
+          <Chip label="Only when needed" active={!!med.asNeeded} onPress={() => !med.asNeeded && set({ asNeeded: { qty: med.doses[0]?.qty ?? 1 }, doses: [] })} />
+        </View>
+        {med.asNeeded && (
+          <Card style={{ marginBottom: 10 }}>
+            <Text style={{ color: t.text, fontSize: 17, lineHeight: 24 }}>
+              No reminders. Each time it is taken, press "Took a dose" on the Today tab — it is recorded and counted off the stock.
+            </Text>
+            <Text style={{ color: t.sub, fontSize: 16, marginTop: 12, marginBottom: 6 }}>How many each time</Text>
+            <NumberField value={med.asNeeded.qty} step={0.5} min={0.25} onChange={(qty) => set({ asNeeded: { qty } })} />
+          </Card>
+        )}
         {med.doses.map((d, i) => (
           <Card key={d.id} style={{ marginBottom: 10 }}>
             <View style={s.between}>
@@ -358,11 +371,13 @@ export default function EditMed() {
             </View>
           </Card>
         ))}
-        <Button
-          title="+ Add another time"
-          kind="secondary"
-          onPress={() => set({ doses: [...med.doses, newDose(MEALS[Math.min(med.doses.length, 2)])] })}
-        />
+        {!med.asNeeded && (
+          <Button
+            title="+ Add another time"
+            kind="secondary"
+            onPress={() => set({ doses: [...med.doses, newDose(MEALS[Math.min(med.doses.length, 2)])] })}
+          />
+        )}
 
         <Label>How many are left</Label>
         <NumberField value={med.stock} step={1} onChange={(stock) => set({ stock })} />

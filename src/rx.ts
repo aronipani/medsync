@@ -405,7 +405,7 @@ const WORD_NUM: Record<string, number> = { one: 1, two: 2, three: 3, four: 4, ha
  * US wording is turned into the notation parseInstructions reads ("every 12 hours" → twice a day, "every night" →
  * at dinner), and the amount per dose ("take 2 tablets") is applied. "As needed" gives no reminders.
  */
-export function parseUsDirections(text: string, unit: string): { doses: DraftDose[]; asNeeded: boolean; durationDays?: number; warnings: string[] } {
+export function parseUsDirections(text: string, unit: string): { doses: DraftDose[]; asNeeded: boolean; perDose?: number; durationDays?: number; warnings: string[] } {
   const t = ` ${text.toLowerCase().replace(/[–—]/g, '-').replace(/\s+/g, ' ')} `;
   const norm = t
     .replace(/\b(every|q)\s*24\s*(hours|hrs|h)\b/g, ' once daily ')
@@ -420,7 +420,7 @@ export function parseUsDirections(text: string, unit: string): { doses: DraftDos
   const qm = /\b(?:take|inhale|use|give|chew|place|instill|spray)\s+(1\/2|½|\d+(?:\.\d+)?|one|two|three|four|half|1\/2|½)\s*(?:tablets?|tabs?|capsules?|caps?|puffs?|inhalations?|sprays?|drops?|ml|pills?)?\b/.exec(t);
   const per = qm ? (WORD_NUM[qm[1]] ?? parseFloat(qm[1])) : 1;
   if (r.asNeeded) {
-    return { doses: [], asNeeded: true, warnings: ['Taken only when needed — no reminder times were set.'] };
+    return { doses: [], asNeeded: true, perDose: per, warnings: ['Taken only when needed: set to "Only when needed" (no reminders; record each dose on Today).'] };
   }
   const doses = unit === 'ml' ? r.doses : r.doses.map((d) => ({ ...d, qty: d.qty * per }));
   // US labels seldom say before or after food; the default (after) isn't worth a warning.

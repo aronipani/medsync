@@ -69,3 +69,19 @@ test('reminders group by time and split weekday-only times', () => {
   assert.equal(nine.find((x) => x.weekday === 1)!.lines.length, 2);
   assert.ok(slots.find((x) => x.time === '08:00')!.lines.some((l) => l.startsWith('Ma:')));
 });
+
+test('a medicine taken only when needed has no doses due, no reminders and is never marked missed', async () => {
+  const { occurrencesForDate, computeMissed, reminderSlots } = await import('../src/schedule.ts');
+  const st = {
+    version: 1,
+    members: [{ id: 'me', name: 'Me', color: '#000', mealTimes: { breakfast: '08:00', lunch: '13:00', dinner: '20:00' } }],
+    meds: [{ id: 'alb', memberId: 'me', name: 'Albuterol', strength: '90 mcg', aliases: [], barcodes: [], unit: 'puff', doses: [], asNeeded: { qty: 2 }, stock: 200, lowStockAt: 20, active: true, createdAt: '2026-01-01T00:00:00Z' }],
+    logs: [{ id: 'l', key: '2026-10-20|alb|prn-1', memberId: 'me', medId: 'alb', medName: 'Albuterol 90 mcg', date: '2026-10-20', time: '14:10', status: 'taken', method: 'manual', qty: 2, at: '2026-10-20T21:10:00Z' }],
+    stock: [],
+    settings: { mealOffsetMin: 15, dueWindowMin: 30, missedAfterMin: 120, followUpMin: 0, testReminderMin: 0, snoozeMin: 10 },
+  } as never;
+  const now = new Date('2026-10-20T23:00:00Z');
+  assert.equal(occurrencesForDate(st, '2026-10-20', now).length, 0);
+  assert.equal(computeMissed(st, now, () => 'x').length, 0);
+  assert.equal(reminderSlots(st).length, 0);
+});

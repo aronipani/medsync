@@ -1,6 +1,7 @@
 import { useCurrentMember } from '../../src/currentMember.tsx';
 import { Ionicons } from '@expo/vector-icons';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
+import { AsNeededCard } from '../../src/components/AsNeeded.tsx';
 import { router } from 'expo-router';
 import { doseScanOn } from '../../src/doseScan.ts';
 import React, { useMemo, useState } from 'react';
@@ -250,6 +251,8 @@ export default function Today() {
               ) : null}
             </Card>
           )}
+
+          {offset === 0 && <AsNeededCard memberId={memberId} now={now} />}
 
           {offset !== 0 ? (
             // Another day: one list, time on the left — the same shape as "Earlier today".

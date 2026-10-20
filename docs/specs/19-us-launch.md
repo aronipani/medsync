@@ -38,6 +38,13 @@ an hour with a US health-app lawyer (or a free university law clinic) is still r
 ## Built (Oct 2026)
 * **Dose-time scanning off in the US** (phone region US, or a US time zone): the Scan tab and Check the strips say so;
   Today offers "I took it" instead of "Scan the strip". Scan to add still works. India: unchanged (on).
+* **Set up, not "is now":** the default follows where the app was set up (first agreed to the notice), kept in
+  settings as `setupInUS`. A parent from India visiting family in the US keeps scanning. Setting up abroad to avoid the
+  disclosure isn't a concern: it's a default, not a lock — anyone can turn scanning on after reading it.
+* **Only when needed** (an inhaler, a pain reliever; common on US prescriptions): no reminders, never "missed"; Today
+  has "Only when needed" with "Took a dose" and the times taken today; stock goes down. A US label saying "as needed"
+  sets it, with the amount per dose. The app never says how many are allowed.
+* **About & safety** shows the date of the FDA list in the app.
 * **Turning it back on** (Scan tab or Settings → Scanning at dose time): the disclosure is shown and needs a tick
   ("I have read this and understand it") before the switch works. Anyone can turn it off again.
 * **Where the acceptance is kept:** on the phone only, in settings (`doseScan: { on, at, disclosure: version }`), and in
@@ -49,7 +56,7 @@ an hour with a US health-app lawyer (or a free university law clinic) is still r
 
 ## Before the US beta
 * US medicine list built (spec 18) and checked on 5–10 real US boxes and pharmacy bottles.
-* Safety notice v3 with the US wording above; About & safety shows the US list's date.
+* Safety notice v3 with the US wording above (done: terms of use, 911); US list date in About (done).
 * TestFlight "What to test" text and a one-page setup guide (QR code to the TestFlight link and APK).
 
 ## Store listing (when the US is added)

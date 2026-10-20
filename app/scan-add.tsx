@@ -299,7 +299,8 @@ function labelDoses(directions: string | undefined, unit: string) {
   const end = r.durationDays ? new Date(Date.now() + (r.durationDays - 1) * 86_400_000).toISOString().slice(0, 10) : undefined;
   return {
     ...(r.doses.length ? { doses: r.doses.map((d) => ({ ...d, id: uid(), since: now })) } : {}),
+    ...(r.asNeeded ? { asNeeded: { qty: r.perDose ?? 1 } } : {}),
     ...(end ? { endDate: end } : {}),
-    doseNote: { directions, warnings: r.warnings, set: r.doses.length > 0 },
+    doseNote: { directions, warnings: r.warnings, set: r.doses.length > 0 || r.asNeeded },
   };
 }

@@ -2,6 +2,7 @@ import React from 'react';
 import { Linking, ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { NOTICE_VERSION, PRIVACY_URL, TERMS_URL } from '../legal.ts';
+import { inUnitedStates } from '../doseScan.ts';
 import { useStore } from '../store.tsx';
 import { Button, useTheme } from '../ui.tsx';
 import { SafetyText } from './SafetyText.tsx';
@@ -27,7 +28,9 @@ export function FirstRunNotice() {
         <Button
           title="I agree"
           big
-          onPress={() => saveSettings({ ...state.settings, acceptedNotice: NOTICE_VERSION, acceptedNoticeAt: new Date().toISOString() })}
+          onPress={() =>
+            saveSettings({ ...state.settings, acceptedNotice: NOTICE_VERSION, acceptedNoticeAt: new Date().toISOString(), setupInUS: state.settings.setupInUS ?? inUnitedStates() })
+          }
         />
       </View>
     </View>
