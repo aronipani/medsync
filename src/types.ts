@@ -100,6 +100,7 @@ export interface Settings {
   collectTraining?: boolean; // save confirmed scan photos for training an image model (off by default)
   lastBackupAt?: string; // ISO time of the last backup the person saved
   acceptedNotice?: number; // version of the safety & privacy notice the person accepted
+  acceptedNoticeAt?: string; // when they agreed to it (with the terms of use from notice version 3), on this phone only
   doseScan?: { on: boolean; at: string; disclosure?: number }; // dose-time scan check chosen by the person (default: on, off in the US; spec 19)
 }
 

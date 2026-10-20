@@ -1,6 +1,6 @@
 # TakeSure privacy policy
 
-_Last updated: 17 October 2026_
+_Last updated: 20 October 2026_
 
 TakeSure is a free app that helps a family keep track of medicines: schedules, reminders, checking strips and
 bottles by photo, and stock. It has **no account**, **no ads** and **no tracking**. The App Store and Play Store versions send **nothing** to
@@ -59,7 +59,7 @@ TakeSure is a reminder and record-keeping aid. It is not a medical device and do
 medical advice. It does not work out doses: the amount shown is what you or your family entered from the
 prescription, and a prescription read from a photo is only a draft to check. The scanner can be wrong — always read
 the name and strength on the strip yourself. Follow your prescription and ask your doctor or pharmacist before
-changing anything. In an emergency call your doctor or emergency services (112 in India).
+changing anything. In an emergency call your doctor or emergency services (112 in India, 911 in the US). The terms of use are in [TERMS.md](TERMS.md).
 
 ## Changes
 If a future version adds anything that sends data off the phone (for example, optional sharing of photos of

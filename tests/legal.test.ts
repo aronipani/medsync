@@ -20,3 +20,12 @@ test('the data statement names every way data can leave the phone, and PRIVACY.m
   const policy = readFileSync(fileURLToPath(new URL('../PRIVACY.md', import.meta.url).href), 'utf8');
   for (const w of ['backup', 'training', 'ML Kit', 'Apple Vision', 'email', 'no account']) assert.ok(policy.toLowerCase().includes(w.toLowerCase()), `PRIVACY.md: ${w}`);
 });
+
+test('the terms of use are linked, versioned, and agree with the notice', async () => {
+  const { TERMS_POINTS, TERMS_VERSION, TERMS_URL } = await import('../src/legal.ts');
+  const terms = readFileSync(fileURLToPath(new URL('../TERMS.md', import.meta.url).href), 'utf8');
+  assert.ok(terms.includes(`Version ${TERMS_VERSION}`), 'TERMS.md version matches TERMS_VERSION');
+  assert.ok(TERMS_URL.endsWith('/TERMS.md'));
+  for (const w of ['as is', 'not a medical device', 'FDA', 'consumer law', 'permission', '911', '112']) assert.ok(terms.toLowerCase().includes(w.toLowerCase()), `TERMS.md: ${w}`);
+  assert.ok(TERMS_POINTS.join(' ').includes('consumer law'));
+});

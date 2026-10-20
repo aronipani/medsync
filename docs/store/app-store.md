@@ -161,3 +161,12 @@ upload it unlisted (YouTube or Google Drive "anyone with the link") and put the 
   diagnose, treat or calculate doses — keep it that way when adding features.
 * Digital Personal Data Protection Act: obligations stay light because the developer receives no personal data.
   Revisit before the TakeSure server (spec 16) goes live.
+
+## Terms of use (added 20 Oct 2026)
+* Keep Apple's **Standard EULA** in App Store Connect (App Information → License Agreement); TakeSure's own terms
+  (`TERMS.md`) add to it and say so.
+* Put the terms link in the description's last line and in the Support / Marketing URL page:
+  https://github.com/aronipani/medsync/blob/main/TERMS.md
+* The first-run notice (version 3) shows the terms in brief with **I agree**; the date is kept on the phone and shown
+  in About & safety. Raising `NOTICE_VERSION` asks everyone again.
+
