@@ -88,3 +88,19 @@ test('existing duplicates merge into one, with stock and taken logs kept', () =>
 test('same medicine at different strengths is not auto-merged', () => {
   assert.equal(duplicateGroups([med('m1', 'Telma', '40', []), med('m2', 'Telma', '20', [])]).length, 0);
 });
+
+test('the same person entered twice is spotted; two people sharing one medicine are not', async () => {
+  const { samePersonTwice } = await import('../src/consolidate.ts');
+  const m = (memberId: string, name: string, strength: string) =>
+    ({ id: `${memberId}-${name}`, memberId, name, strength, aliases: [], barcodes: [], unit: 'tablet', doses: [], stock: 0, lowStockAt: 0, active: true, createdAt: '' }) as never;
+  const people = [{ id: 'me', name: 'Me' }, { id: 'ar', name: 'Aroni' }, { id: 'ma', name: 'Ma' }];
+  const meds = [
+    m('me', 'Thyroxin', '50 mcg'), m('me', 'Ismo', '10'), m('me', 'Tide', '20'), m('me', 'Vonasec', '20'),
+    m('ar', 'Thyroxin', '50 mcg'), m('ar', 'Ismo', '10'), m('ar', 'Tide', '20'), m('ar', 'Cordarone', '200'),
+    m('ma', 'Ismo', '10'), m('ma', 'Amlong', '5'), m('ma', 'Dolo', '650'), m('ma', 'Pan', '40'),
+  ];
+  const pairs = samePersonTwice(people, meds);
+  assert.equal(pairs.length, 1);
+  assert.deepEqual([pairs[0].a, pairs[0].b], ['me', 'ar']);
+  assert.equal(pairs[0].shared.length, 3);
+});

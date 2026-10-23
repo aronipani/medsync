@@ -27,6 +27,7 @@ export default function Today() {
   const date = dateKey(addDays(now, offset));
 
   const scanOn = doseScanOn(state.settings);
+  const whose = (o: Occurrence) => (!memberId && state.members.length > 1 ? state.members.find((m) => m.id === o.memberId)?.name : undefined);
   const occs = useMemo(() => occurrencesForDate(state, date, now, memberId), [state, date, now, memberId]);
   // Scan for the person being looked at, not whoever is first in the family.
   const openScan = (forMember?: string) =>
@@ -288,6 +289,8 @@ export default function Today() {
                           {list.map((o) => (
                             <Text key={o.key} style={{ color: t.text, fontSize: 19, fontWeight: '600' }}>
                               {medLabel(o.med)}
+                              {/* Everyone: say whose it is, so two people's same medicine doesn't look like a repeat. */}
+                              {whose(o) ? <Text style={{ color: t.sub, fontSize: 16, fontWeight: '400' }}>{`  ${whose(o)}`}</Text> : null}
                             </Text>
                           ))}
                         </View>

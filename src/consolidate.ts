@@ -222,3 +222,22 @@ export function remapLogs(logs: DoseLog[], remap: Map<string, { medId: string; d
   }
   return [...out.values()];
 }
+
+/**
+ * Two people on this phone with mostly the same medicines are probably one person entered twice ("Me" and "Aroni",
+ * or a file opened as a new person). Returns such pairs: at least 2 shared medicines (same name and strength), and
+ * at least half of the smaller list. Two people who really take a couple of the same medicines rarely meet both.
+ */
+export function samePersonTwice(members: { id: string; name: string }[], meds: Medication[]): { a: string; b: string; shared: string[] }[] {
+  const out: { a: string; b: string; shared: string[] }[] = [];
+  const active = (id: string) => meds.filter((m) => m.memberId === id && m.active);
+  for (let i = 0; i < members.length; i++)
+    for (let j = i + 1; j < members.length; j++) {
+      const A = active(members[i].id);
+      const B = active(members[j].id);
+      const shared = A.filter((x) => B.some((y) => sameMedicine(x, y) && strengthKey(x.strength) === strengthKey(y.strength)));
+      if (shared.length >= 2 && shared.length * 2 >= Math.min(A.length, B.length))
+        out.push({ a: members[i].id, b: members[j].id, shared: shared.map((m) => `${m.name} ${m.strength}`.trim()) });
+    }
+  return out;
+}

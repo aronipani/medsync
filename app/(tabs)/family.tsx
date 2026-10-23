@@ -3,6 +3,7 @@ import React from 'react';
 import { ScrollView } from 'react-native';
 import { PersonImport } from '../../src/components/PersonImport.tsx';
 import { SettingsRow } from '../../src/components/SettingsRow.tsx';
+import { SamePersonCard } from '../../src/components/SamePerson.tsx';
 import { useStore } from '../../src/store.tsx';
 import { fmt12, otherZone, zoneLabel } from '../../src/time.ts';
 import { Button, Card, Label } from '../../src/ui.tsx';
@@ -12,6 +13,7 @@ export default function FamilyPage() {
   const { state } = useStore();
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 60 }}>
+      <SamePersonCard />
       <Card style={{ padding: 0, overflow: 'hidden' }}>
         {state.members.map((m, i) => {
           const n = state.meds.filter((x) => x.memberId === m.id && x.active).length;

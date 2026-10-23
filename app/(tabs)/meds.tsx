@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { router, useLocalSearchParams } from 'expo-router';
 import React, { useEffect, useState } from 'react';
 import { Supplies } from '../../src/components/Supplies.tsx';
+import { SamePersonCard } from '../../src/components/SamePerson.tsx';
 import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { duplicateGroups } from '../../src/consolidate.ts';
 import { findOverlaps, overlapMessage } from '../../src/overlap.ts';
@@ -44,6 +45,7 @@ function MedicineList() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
+      <SamePersonCard />
       {state.pending && (
         <Pressable accessibilityRole="button" onPress={() => router.push('/rx-review')}>
           <Card style={{ backgroundColor: t.warnSoft, borderColor: t.warn, marginBottom: 16 }}>

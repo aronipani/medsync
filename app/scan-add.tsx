@@ -3,13 +3,14 @@ import * as Haptics from 'expo-haptics';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import React, { useEffect, useRef, useState } from 'react';
-import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
+import { ActivityIndicator, Alert, Pressable, ScrollView, Text, View } from 'react-native';
 import { parseExpiry } from '../src/expiry.ts';
 import { parseLabel, type LabelResult, type OcrLine } from '../src/label.ts';
 import { isNotLinkedError, readBurst } from '../src/ocr.ts';
 import { loadRegionModel, setRegionDetectorEnabled } from '../src/regionModel.ts';
 import { encode, fingerprint } from '../src/learn.ts';
 import { normalizeCode } from '../src/match.ts';
+import { sameMedicine, strengthKey } from '../src/consolidate.ts';
 import { parseUsDirections } from '../src/rx.ts';
 import { uid } from '../src/store.tsx';
 import { findUsMedicine, usDraft } from '../src/usLookup.ts';
@@ -27,7 +28,7 @@ const BARCODES: BarcodeType[] = ['qr', 'datamatrix', 'ean13', 'ean8', 'upc_a', '
 export default function ScanToAdd() {
   const t = useTheme();
   const { memberId } = useLocalSearchParams<{ memberId?: string }>();
-  const { state } = useStore();
+  const { state, saveMed } = useStore();
   const [perm, requestPerm] = useCameraPermissions();
   const camera = useRef<CameraView>(null);
   const [barcode, setBarcode] = useState<string>();
@@ -154,7 +155,40 @@ export default function ScanToAdd() {
       saveTrainingPhotos(photoUris.current, { name: prefill.name, strength: prefill.strength, contents: result.contents }, 'scan-to-add', lines.map((l) => l.text).join('\n')).catch(() => {});
     }
     photoUris.current = []; // saved with their label; nothing left to keep as unlabelled
-    router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId: memberId ?? state.members[0]?.id, prefill: JSON.stringify(prefill) } });
+    const forId = memberId ?? state.members[0]?.id;
+    // Already on this person's list (scanned again, a new strip): update it instead of adding it twice.
+    const existing = state.meds.find(
+      (m) => m.memberId === forId && m.active && sameMedicine(m, { name: prefill.name, aliases: prefill.aliases }) && strengthKey(m.strength) === strengthKey(prefill.strength),
+    );
+    const addNew = () => router.replace({ pathname: '/med/[id]', params: { id: 'new', memberId: forId, prefill: JSON.stringify(prefill) } });
+    if (!existing) return addNew();
+    const who = state.members.find((m) => m.id === forId)?.name;
+    Alert.alert(
+      `${existing.name} ${existing.strength} is already on ${who ? `${who}'s` : 'the'} list`,
+      'Update it with this scan? Its times and stock stay as they are; the scanner learns this strip and barcode.',
+      [
+        {
+          text: 'Update it',
+          onPress: () => {
+            const union = (a: string[] = [], b: string[] = []) => [...new Set([...a, ...b])];
+            saveMed({
+              ...existing,
+              aliases: union(existing.aliases, prefill.aliases.filter((x) => x.toLowerCase() !== existing.name.toLowerCase())),
+              barcodes: union(existing.barcodes, prefill.barcodes),
+              learned: union(existing.learned, prefill.learned),
+              // Photos of the strip scanned before are kept alongside the new one.
+              profile: prefill.profile
+                ? { ...prefill.profile, anchors: union(existing.profile?.anchors, prefill.profile.anchors), refs: existing.profile?.refs }
+                : existing.profile,
+              expiry: prefill.expiry ?? existing.expiry,
+            });
+            router.replace({ pathname: '/med/[id]', params: { id: existing.id } });
+          },
+        },
+        { text: 'Add as another medicine', onPress: addNew },
+        { text: 'Cancel', style: 'cancel' },
+      ],
+    );
   };
 
   return (

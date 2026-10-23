@@ -88,6 +88,8 @@ interface Store {
   updatePendingItem(id: string, patch: Partial<PendingRxItem>): void;
   /** Applies the checked prescription items to the schedule (updating, not duplicating). Returns a summary. */
   approvePending(): { added: number; changed: number; stopped: number };
+  /** One person entered twice (e.g. "Me" and "Aroni"): moves everything of `fromId` to `intoId`, merges repeats, removes `fromId`. */
+  mergeMembers(fromId: string, intoId: string): void;
   /** Merges medicines that are listed twice for a person. Returns how many entries were removed. */
   mergeDuplicates(memberId: string): number;
   /** Puts a person's schedule back to how it was before a saved change (saving the current one first). */
@@ -325,6 +327,32 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           stopped: changes.filter((c) => c.kind === 'stopped').length,
         };
       },
+      mergeMembers: (fromId, intoId) =>
+        update((s) => {
+          if (fromId === intoId || !s.members.some((m) => m.id === intoId)) return s;
+          const from = s.members.find((m) => m.id === fromId);
+          if (!from) return s;
+          const into = s.members.find((m) => m.id === intoId)!;
+          const moved = s.meds.filter((m) => m.memberId === fromId).map((m) => ({ ...m, memberId: intoId }));
+          let next = withVersion(s, intoId, `${from.name} combined into ${into.name}`, moved.map((m) => ({ kind: 'added' as const, medName: label(m), detail: `From ${from.name}` })));
+          let meds = [...next.meds.filter((m) => m.memberId !== fromId), ...moved];
+          let logs = next.logs.map((l) => (l.memberId === fromId ? { ...l, memberId: intoId } : l));
+          let stock = next.stock.map((e) => (e.memberId === fromId ? { ...e, memberId: intoId } : e));
+          const changes: ScheduleChange[] = [];
+          for (const g of duplicateGroups(meds.filter((m) => m.memberId === intoId))) {
+            const { med, removed, remap } = mergeGroup(g);
+            const gone = new Set(removed);
+            meds = meds.filter((m) => !gone.has(m.id)).map((m) => (m.id === med.id ? med : m));
+            logs = remapLogs(logs, remap);
+            stock = stock.map((e) => (gone.has(e.medId) ? { ...e, medId: med.id } : e));
+            changes.push({ kind: 'merged', medName: label(med), detail: `${g.length} entries combined into one` });
+          }
+          // Two records for the same dose (one from each person): keep one.
+          const seen = new Set<string>();
+          logs = [...logs].reverse().filter((l) => (seen.has(l.key) ? false : (seen.add(l.key), true))).reverse();
+          next = { ...next, meds, logs, stock, members: next.members.filter((m) => m.id !== fromId) };
+          return changes.length ? { ...next, history: withVersion(next, intoId, 'Merged duplicates', changes).history } : next;
+        }),
       mergeDuplicates: (memberId) => {
         const groups = duplicateGroups(state.meds.filter((m) => m.memberId === memberId));
         if (!groups.length) return 0;
