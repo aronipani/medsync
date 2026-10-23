@@ -4,7 +4,7 @@ import { Alert, Text, View } from 'react-native';
 import { LockNote } from '../settingsParts.tsx';
 import { findPerson, type PersonFile } from '../personFile.ts';
 import { pickPersonFile, sharePerson } from '../personShare.ts';
-import { useStore } from '../store.tsx';
+import { starterPerson, useStore } from '../store.tsx';
 import { fmt12, clockIn, otherZone, zoneLabel } from '../time.ts';
 import { Button, useTheme } from '../ui.tsx';
 
@@ -47,6 +47,14 @@ export function usePersonImport(): () => Promise<void> {
           { text: 'Cancel', style: 'cancel' },
           { text: 'Add as a new person', onPress: () => apply(f) },
           { text: `Yes, update ${sameName.name}`, onPress: () => apply(f, sameName.id) },
+        ]);
+      // Not found by name: it may be this phone's "Me" (the same person, sent from another phone under their name).
+      const me = starterPerson(state.members);
+      if (me)
+        return Alert.alert(`Is ${f.member.name} "${me.name}" on this phone?`, `${what}\n\nIf so, "${me.name}" is updated and renamed ${f.member.name}, instead of adding a second person.`, [
+          { text: `Yes — update "${me.name}"`, onPress: () => apply(f, me.id) },
+          { text: `No — add ${f.member.name}`, onPress: () => apply(f) },
+          { text: 'Cancel', style: 'cancel' },
         ]);
       Alert.alert(`Add ${f.member.name}?`, what, [
         { text: 'Cancel', style: 'cancel' },

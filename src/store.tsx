@@ -35,6 +35,10 @@ export function newMember(name: string, index: number): Member {
   };
 }
 
+/** The person every phone starts with. Someone adding themselves by name is usually this person (spec 21 follow-up). */
+export const STARTER_NAME = 'Me';
+export const starterPerson = (members: Member[]) => members.find((m) => m.name.trim().toLowerCase() === STARTER_NAME.toLowerCase());
+
 const initialState = (): AppState => ({
   version: 1,
   members: [newMember('Me', 0)],

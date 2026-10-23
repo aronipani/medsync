@@ -11,7 +11,7 @@ import { MemberDot, MemberPicker } from '../../src/components.tsx';
 import { buyList } from '../../src/buylist.ts';
 import { backupOverdue } from '../../src/backup.ts';
 import { describeTiming, medLabel, occurrencesForDate, qtyLabel } from '../../src/schedule.ts';
-import { useStore } from '../../src/store.tsx';
+import { STARTER_NAME, starterPerson, useStore } from '../../src/store.tsx';
 import { addDays, atTime, dateKey, fmt12, fmtDay } from '../../src/time.ts';
 import type { Occurrence } from '../../src/types.ts';
 import { Button, Card, Empty, s, useTheme } from '../../src/ui.tsx';
@@ -204,6 +204,15 @@ export default function Today() {
             }
           />
           <Button big title="Add a medicine" onPress={() => router.push('/add')} />
+          {/* "Me" is a placeholder: give it the real name first, so the person isn't added a second time later. */}
+          {starterPerson(state.members) && (
+            <Button
+              title={`Put your name instead of "${STARTER_NAME}"`}
+              kind="secondary"
+              onPress={() => router.push({ pathname: '/member/[id]', params: { id: starterPerson(state.members)!.id } })}
+              style={{ marginTop: 10 }}
+            />
+          )}
           {/* Family first if it's for more than one person. */}
           <Button
             title={state.members.length > 1 ? '+ Add another person' : '+ Add a family member'}

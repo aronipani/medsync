@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { Alert, ScrollView, Switch, Text, View } from 'react-native';
 import { LANGS, MAIN_LANGS, MORE_LANGS, matchAnnouncement, type LangCode } from '../../../src/phrases.ts';
 import { hasVoice, say, type SpeakStatus } from '../../../src/speech.ts';
-import { MEMBER_COLORS, newMember, useStore } from '../../../src/store.tsx';
+import { MEMBER_COLORS, newMember, STARTER_NAME, starterPerson, useStore } from '../../../src/store.tsx';
 import type { Meal, Member } from '../../../src/types.ts';
 import { Button, Card, Chip, Field, Label, s, TimeField, useTheme } from '../../../src/ui.tsx';
 import { Pressable } from 'react-native';
@@ -33,7 +33,16 @@ function EditMember() {
 
   const save = () => {
     if (!m.name.trim()) return Alert.alert('Name needed');
-    saveMember({ ...m, name: m.name.trim() });
+    const name = m.name.trim();
+    // Every phone starts with "Me". Adding yourself by name would make you two people: ask first.
+    const me = !existing && name.toLowerCase() !== STARTER_NAME.toLowerCase() ? starterPerson(state.members) : undefined;
+    if (me)
+      return Alert.alert(`Is ${name} you?`, `This phone already has "${me.name}". If ${name} is you, "${me.name}" is renamed — your medicines stay.`, [
+        { text: `Yes — rename "${me.name}" to ${name}`, onPress: () => (saveMember({ ...me, name }), router.back()) },
+        { text: `No — add ${name}`, onPress: () => (saveMember({ ...m, name }), router.back()) },
+        { text: 'Cancel', style: 'cancel' },
+      ]);
+    saveMember({ ...m, name });
     router.back();
   };
 
