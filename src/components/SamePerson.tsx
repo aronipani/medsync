@@ -28,7 +28,7 @@ export function SamePersonCard() {
             kind="secondary"
             style={{ marginTop: 10 }}
             onPress={() =>
-              Alert.alert('Which name to keep?', 'The other name is removed; its medicines and records move across. You can undo it from History of the list.', [
+              Alert.alert('Which name to keep?', 'The other name is removed; its medicines and dose records move across. This can\'t be undone in one step — save a backup first (Settings → Your data) if you\'re unsure.', [
                 { text: 'Cancel', style: 'cancel' },
                 { text: `Keep ${name(a)}`, onPress: () => mergeMembers(b, a) },
                 { text: `Keep ${name(b)}`, onPress: () => mergeMembers(a, b) },
