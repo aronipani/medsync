@@ -128,6 +128,13 @@ skips it; skip at each step lands on Today with "Finish setting up"; person impo
 nothing; `setupFor` only changes words. `tests/tips.test.ts`: each tip once; never two at once; tips already taught
 by the setup are skipped; reset shows them again. Practice scan: no log, no stock event, records a test result.
 
+## Built (23 Oct 2026)
+* **Step 1:** Settings → Help → **How to use TakeSure** (`app/(tabs)/howto.tsx`): five cards (At medicine time with the
+  example reminder, Green · amber · red open first, When a scan doesn't work → Check the strips, Running low → Supplies,
+  Keeping a backup → Your data). `ColourKey` speaks each colour in the chosen person's language — English, Hindi and
+  Bengali for now (`src/howto.ts`); other languages speak English and say so. "Run the first setup again" and "Reset
+  tips" come with steps 2 and 4. Tests: `tests/howto.test.ts`.
+
 ## Build order
 1. `ColourKey` + Help → "How to use TakeSure" (cheapest, useful at once, reused later).
 2. Guided setup steps 0–2 with skip and "Finish setting up".
