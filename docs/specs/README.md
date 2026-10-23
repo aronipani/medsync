@@ -23,3 +23,4 @@
 | [19](19-us-launch.md) | Reaching Indian families in the US: TestFlight beta, full disclosure, App Store US listing | Plan; built: US dose-scan switch with disclosure, members in another time zone |
 | [20](20-share-a-person.md) | Send one person's medicines to another phone (caregiver anywhere) | Built |
 | [21](21-regrouping.md) | One obvious place for everything: Settings as six pages, Privacy & safety page, Medicines · Supplies | Built (Oct 2026) |
+| [22](22-first-setup-and-help.md) | First setup by doing (who it's for, meal times, one medicine, practice scan, colours), first-time tips, How to use TakeSure | Spec; built: How to use TakeSure (Help) with the colour key |

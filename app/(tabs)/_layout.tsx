@@ -45,6 +45,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="data" options={{ href: null, title: 'Your data', headerLeft: back }} />
       <Tabs.Screen name="privacy" options={{ href: null, title: 'Privacy & safety', headerLeft: back }} />
       <Tabs.Screen name="help" options={{ href: null, title: 'Help', headerLeft: back }} />
+      <Tabs.Screen name="howto" options={{ href: null, title: 'How to use TakeSure', headerLeft: back }} />
       <Tabs.Screen name="history" options={{ href: null, title: 'History of the list', headerLeft: back }} />
     </Tabs>
   );
