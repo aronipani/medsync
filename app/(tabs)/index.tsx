@@ -164,6 +164,7 @@ export default function Today() {
   );
 
   return (
+    <View style={{ flex: 1, backgroundColor: t.bg }}>
     <ScrollView contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 40 }}>
       <View style={{ marginTop: 8, marginBottom: 12 }}>
         <Text maxFontSizeMultiplier={1.4} style={{ color: t.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.3 }}>{fmtDay(date, today)}</Text>
@@ -303,7 +304,6 @@ export default function Today() {
                             </Text>
                           ))}
                         </View>
-                        {list.length > 1 && <Text style={{ color: t.sub, fontSize: 16 }}>{list.length}</Text>}
                       </Pressable>
                     ))}
                   </Card>
@@ -357,5 +357,8 @@ export default function Today() {
       )}
 
     </ScrollView>
+    {/* Content scrolls under a solid band, so it never runs into the clock and battery. */}
+    <View pointerEvents="none" style={{ position: 'absolute', top: 0, left: 0, right: 0, height: insets.top, backgroundColor: t.bg }} />
+    </View>
   );
 }
