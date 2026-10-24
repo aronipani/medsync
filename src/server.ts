@@ -3,8 +3,10 @@
 // The address comes from the build (EXPO_PUBLIC_API_URL, set from the GitHub variable TAKESURE_API_URL for test
 // builds). No address = no server features in this build; store builds don't set it yet.
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { STORE_BUILD } from './edition.ts';
 
-export const API_URL = (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/+$/, '');
+// Store builds never talk to the server in v1, even if a URL is set in the EAS environment by mistake.
+export const API_URL = STORE_BUILD ? '' : (process.env.EXPO_PUBLIC_API_URL || '').replace(/\/+$/, '');
 
 /** Whether this build talks to a TakeSure server. */
 export const serverAvailable = (url: string = API_URL): boolean => /^https:\/\/[^\s]+$/.test(url);

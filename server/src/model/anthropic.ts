@@ -6,7 +6,7 @@ export class AnthropicReader implements StripReader {
   apiKey: () => Promise<string>;
   model: string;
   timeoutMs: number;
-  constructor(apiKey: () => Promise<string>, model: string, timeoutMs = 25_000) {
+  constructor(apiKey: () => Promise<string>, model: string, timeoutMs = 20_000 /* stays under API Gateway's 30 s limit with a cold start */) {
     this.apiKey = apiKey;
     this.model = model;
     this.timeoutMs = timeoutMs;

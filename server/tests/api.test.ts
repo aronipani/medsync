@@ -151,6 +151,36 @@ test('vault: encrypted backup round trip, wrong token refused, previous version 
   assert.equal((deps.blobs as MemoryBlobs).files.size, 0);
 });
 
+test('vault: two saves at the same moment never lose the winning backup', async () => {
+  const { call, install, deps } = setup();
+  const h = await install();
+  const k = keysFrom(randomBytes(32), 'vault');
+  const save = (text: string) => call('PUT', `/v1/vault/${k.id}`, { raw: seal(k.enc, Buffer.from(text)), headers: { ...h, 'x-vault-token': k.token } });
+  assert.equal((await save('{"backup":1}')).status, 201);
+  // Hold both saves until each has read the current record, so they race for the same version.
+  const kv = deps.kv as unknown as { get: (pk: string, sk: string) => Promise<unknown> };
+  const realGet = kv.get.bind(kv);
+  let waiting = 0;
+  let release: () => void = () => {};
+  const both = new Promise<void>((r) => (release = r));
+  kv.get = async (pk, sk) => {
+    const v = await realGet(pk, sk);
+    if (pk.startsWith('VAULT#') && sk === 'meta') {
+      if (++waiting === 2) release();
+      await both;
+    }
+    return v;
+  };
+  const [a, b] = await Promise.all([save('{"backup":"A"}'), save('{"backup":"B"}')]);
+  kv.get = realGet;
+  assert.deepEqual([a.status, b.status].sort(), [201, 409]);
+  const won = [a, b].filter((r) => r.status === 201);
+  assert.ok(won.length >= 1);
+  const latest = await call('GET', `/v1/vault/${k.id}`, { headers: { ...h, 'x-vault-token': k.token } });
+  assert.equal(latest.status, 200);
+  assert.match(open(k.enc, latest.body as Buffer).toString(), /"backup":"[AB]"/);
+});
+
 test('vault: only two versions are kept', async () => {
   const { call, install, deps } = setup();
   const h = await install();

@@ -15,7 +15,8 @@ export class MemoryKV implements KV {
   }
   async put(item: Item, cond?: { ifVersion?: number }) {
     if (cond?.ifVersion !== undefined) {
-      const cur = await this.get(item.pk, item.sk);
+      // Check and write with no await in between: atomic, like a DynamoDB conditional write.
+      const cur = this.live(this.items.get(`${item.pk}|${item.sk}`));
       if ((cur ? Number(cur.version ?? 0) : 0) !== cond.ifVersion) return false;
     }
     this.items.set(`${item.pk}|${item.sk}`, structuredClone(item));

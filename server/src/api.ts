@@ -156,6 +156,14 @@ async function vaultMeta(req: Req, d: Required<Deps>, id: string, create: boolea
   return { meta, token };
 }
 
+/** File holding the latest or previous backup. Older records (before per-upload names) used vault/<id>/<version>. */
+function vaultBlob(id: string, meta: Record<string, unknown>, which: 'latest' | 'previous'): string | undefined {
+  const v = Number(meta.version);
+  if (which === 'latest') return typeof meta.blob === 'string' ? meta.blob : v > 0 ? `vault/${id}/${v}` : undefined;
+  if (typeof meta.blob === 'string') return typeof meta.prevBlob === 'string' ? meta.prevBlob : undefined;
+  return v > 1 ? `vault/${id}/${v - 1}` : undefined;
+}
+
 async function vaultPut(req: Req, d: Required<Deps>, [rawId]: string[]): Promise<Res> {
   const id = idParam(rawId, 'vault_id');
   const who = installFrom(req, d.installSecret);
@@ -166,16 +174,31 @@ async function vaultPut(req: Req, d: Required<Deps>, [rawId]: string[]): Promise
   const ifMatch = req.headers['if-match'];
   if (ifMatch !== undefined && Number(ifMatch) !== current) throw new HttpError(409, 'newer_backup_exists', 'Another phone saved a newer backup.');
   const version = current + 1;
-  await d.blobs.put(`vault/${id}/${version}`, req.body, 'application/octet-stream');
+  // Each upload gets its own file name, recorded in the meta item, so two saves racing for the same version never
+  // write to (or delete) the same file: the loser only removes its own upload.
+  const blob = `vault/${id}/${version}-${randomBytes(6).toString('base64url')}`;
+  await d.blobs.put(blob, req.body, 'application/octet-stream');
   const written = await d.kv.put(
-    { pk: `VAULT#${id}`, sk: 'meta', tokenHash: meta?.tokenHash ?? sha256(token), version, size: req.body.length, savedMonth: month(d), expiresAt: secs(d) + VAULT_KEEP_DAYS * DAY },
+    {
+      pk: `VAULT#${id}`,
+      sk: 'meta',
+      tokenHash: meta?.tokenHash ?? sha256(token),
+      version,
+      blob,
+      prevBlob: meta ? vaultBlob(id, meta, 'latest') : undefined,
+      size: req.body.length,
+      savedMonth: month(d),
+      expiresAt: secs(d) + VAULT_KEEP_DAYS * DAY,
+    },
     { ifVersion: current },
   );
   if (!written) {
-    await d.blobs.delete(`vault/${id}/${version}`);
+    await d.blobs.delete(blob);
     throw new HttpError(409, 'newer_backup_exists', 'Another phone saved a newer backup.');
   }
-  if (version > 2) await d.blobs.delete(`vault/${id}/${version - 2}`); // keep this one and the one before
+  // Keep this one and the one before; the one before that is no longer referenced.
+  const twoAgo = meta ? vaultBlob(id, meta, 'previous') : undefined;
+  if (twoAgo) await d.blobs.delete(twoAgo);
   return ok({ version }, 201);
 }
 
@@ -185,8 +208,10 @@ async function vaultGet(req: Req, d: Required<Deps>, [rawId]: string[]): Promise
   const { meta } = await vaultMeta(req, d, id, false);
   await spend(d.kv, who, LIMITS.vaultRead, d.now());
   const latest = Number(meta!.version);
-  const version = req.query.version === 'previous' ? latest - 1 : latest;
-  const data = version > 0 ? await d.blobs.get(`vault/${id}/${version}`) : undefined;
+  const which = req.query.version === 'previous' ? 'previous' : 'latest';
+  const version = which === 'previous' ? latest - 1 : latest;
+  const key = vaultBlob(id, meta!, which);
+  const data = key ? await d.blobs.get(key) : undefined;
   if (!data) throw new HttpError(404, 'no_backup');
   return { status: 200, headers: { 'content-type': 'application/octet-stream', 'x-vault-version': String(version) }, body: data };
 }
@@ -195,8 +220,8 @@ async function vaultDelete(req: Req, d: Required<Deps>, [rawId]: string[]): Prom
   const id = idParam(rawId, 'vault_id');
   installFrom(req, d.installSecret);
   const { meta } = await vaultMeta(req, d, id, false);
-  const v = Number(meta!.version);
-  await Promise.all([d.blobs.delete(`vault/${id}/${v}`), d.blobs.delete(`vault/${id}/${v - 1}`)]);
+  const keys = [vaultBlob(id, meta!, 'latest'), vaultBlob(id, meta!, 'previous')].filter((k): k is string => !!k);
+  await Promise.all(keys.map((k) => d.blobs.delete(k)));
   await d.kv.delete(`VAULT#${id}`, 'meta');
   return { status: 204 };
 }

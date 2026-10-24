@@ -4,11 +4,16 @@ on:
   push:
     branches: [main]
     # Server-only and docs-only changes don't need a new app build.
-    paths-ignore: ['server/**', 'docs/**', '.github/workflows/server.yml']
+    paths-ignore: ['server/**', 'docs/**', 'training/**', '**/*.md', '.github/workflows/server.yml', '.github/workflows/ios.yml', '.github/workflows/us-medicine-list.yml']
   workflow_dispatch:
 
 permissions:
   contents: write
+
+# A newer push cancels a build still running for an older one (saves runner minutes).
+concurrency:
+  group: android-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   build:

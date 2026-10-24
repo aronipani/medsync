@@ -69,7 +69,8 @@ resource "aws_dynamodb_table" "main" {
     enabled        = true
   }
   server_side_encryption { enabled = true }
-  point_in_time_recovery { enabled = true }
+  # No point-in-time recovery: it would keep deleted and expired items restorable for 35 days (spec 16: everything expires).
+  point_in_time_recovery { enabled = false }
 }
 
 # Private bucket: encrypted backups (already ciphertext) and opt-in training photos.
@@ -137,8 +138,8 @@ resource "aws_iam_role_policy" "lambda" {
     Statement = [
       {
         Effect   = "Allow"
-        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query", "dynamodb:BatchGetItem", "dynamodb:BatchWriteItem", "dynamodb:ConditionCheckItem"]
-        Resource = [aws_dynamodb_table.main.arn, "${aws_dynamodb_table.main.arn}/index/*"]
+        Action   = ["dynamodb:GetItem", "dynamodb:PutItem", "dynamodb:UpdateItem", "dynamodb:DeleteItem", "dynamodb:Query"]
+        Resource = aws_dynamodb_table.main.arn
       },
       {
         Effect   = "Allow"
