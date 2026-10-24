@@ -23,11 +23,15 @@ export function verifyInstallToken(token: string, secret: string): boolean {
   return got.length === want.length && timingSafeEqual(got, want);
 }
 
-/** Checks `Authorization: Install <token>` and returns a hash of it (for rate-limit keys only). */
-export function installFrom(req: Req, secret: string): string {
+/**
+ * Checks `Authorization: Install <token>` and returns a key for rate limits only. The key changes every UTC day, so
+ * stored counters can't tie one install's activity together across days (limits are per day anyway).
+ */
+export function installFrom(req: Req, secret: string, now: number = Date.now()): string {
   const m = /^Install\s+(\S+)$/.exec(req.headers['authorization'] ?? '');
   if (!m || !verifyInstallToken(m[1], secret)) throw new HttpError(401, 'bad_install_token');
-  return sha256(`install:${m[1]}`).slice(0, 32);
+  const day = Math.floor(now / 86_400_000);
+  return createHmac('sha256', secret).update(`rate:${day}:${m[1]}`).digest('base64url').slice(0, 32);
 }
 
 export const sha256 = (s: string | Buffer) => createHash('sha256').update(s).digest('base64url');

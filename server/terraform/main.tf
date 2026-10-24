@@ -221,6 +221,13 @@ resource "aws_apigatewayv2_route" "all" {
   target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
 }
 
+# Getting an install token has its own, lower limit, so one client can't use up the day's installs for everyone.
+resource "aws_apigatewayv2_route" "install" {
+  api_id    = aws_apigatewayv2_api.api.id
+  route_key = "POST /v1/install"
+  target    = "integrations/${aws_apigatewayv2_integration.lambda.id}"
+}
+
 resource "aws_apigatewayv2_stage" "default" {
   api_id      = aws_apigatewayv2_api.api.id
   name        = "$default"
@@ -228,6 +235,11 @@ resource "aws_apigatewayv2_stage" "default" {
   default_route_settings {
     throttling_burst_limit = 50
     throttling_rate_limit  = 20
+  }
+  route_settings {
+    route_key              = aws_apigatewayv2_route.install.route_key
+    throttling_burst_limit = 5
+    throttling_rate_limit  = 2
   }
 }
 

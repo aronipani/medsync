@@ -9,7 +9,7 @@ export interface Limit {
 }
 
 export const LIMITS = {
-  install: { name: 'install', perDay: 20_000 }, // global, all phones together
+  install: { name: 'install', perMinute: 200, perDay: 20_000 }, // global, all phones together; per minute so one client can't use up the day
   stripRead: { name: 'strip', perMinute: 3, perDay: 30 },
   catalogueRead: { name: 'catr', perMinute: 30, perDay: 500 },
   catalogueAdd: { name: 'catw', perMinute: 5, perDay: 50 },

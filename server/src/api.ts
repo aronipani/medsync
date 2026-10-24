@@ -83,7 +83,7 @@ async function install(_req: Req, d: Required<Deps>): Promise<Res> {
 // ---------- Strip reading (spec 15) ----------
 
 async function stripRead(req: Req, d: Required<Deps>): Promise<Res> {
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   const body = json<{ photos?: unknown }>(req, 4.5 * PHOTO_MAX);
   if (!isObj(body) || !Array.isArray(body.photos) || body.photos.length < 1 || body.photos.length > 2 || !body.photos.every((p) => typeof p === 'string')) {
     throw new HttpError(400, 'need_1_or_2_photos');
@@ -110,7 +110,7 @@ const variantOf = (p: ServerProfile) =>
   sha256(JSON.stringify([p.brand.toUpperCase(), p.strength.toUpperCase().replace(/\s/g, ''), p.maker?.toUpperCase() ?? '', p.generic?.toUpperCase() ?? '', p.grid ?? null])).slice(0, 16);
 
 async function catalogueGet(req: Req, d: Required<Deps>): Promise<Res> {
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   const brand = req.query.brand?.slice(0, 40);
   const strength = req.query.strength?.slice(0, 30);
   if (!brand || !strength) throw new HttpError(400, 'need_brand_and_strength');
@@ -125,7 +125,7 @@ async function catalogueGet(req: Req, d: Required<Deps>): Promise<Res> {
 }
 
 async function catalogueAdd(req: Req, d: Required<Deps>): Promise<Res> {
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   const body = json<{ profile?: unknown }>(req, 20_000);
   const { profile } = checkProfile(isObj(body) ? { ...(isObj(body.profile) ? body.profile : {}), confidence: undefined } : undefined);
   if (!profile) throw new HttpError(400, 'need_brand_and_strength');
@@ -166,7 +166,7 @@ function vaultBlob(id: string, meta: Record<string, unknown>, which: 'latest' | 
 
 async function vaultPut(req: Req, d: Required<Deps>, [rawId]: string[]): Promise<Res> {
   const id = idParam(rawId, 'vault_id');
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   if (req.body.length < 28 || req.body.length > VAULT_MAX) throw new HttpError(413, 'backup_size');
   const { meta, token } = await vaultMeta(req, d, id, true);
   await spend(d.kv, who, LIMITS.vaultWrite, d.now());
@@ -204,7 +204,7 @@ async function vaultPut(req: Req, d: Required<Deps>, [rawId]: string[]): Promise
 
 async function vaultGet(req: Req, d: Required<Deps>, [rawId]: string[]): Promise<Res> {
   const id = idParam(rawId, 'vault_id');
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   const { meta } = await vaultMeta(req, d, id, false);
   await spend(d.kv, who, LIMITS.vaultRead, d.now());
   const latest = Number(meta!.version);
@@ -218,7 +218,7 @@ async function vaultGet(req: Req, d: Required<Deps>, [rawId]: string[]): Promise
 
 async function vaultDelete(req: Req, d: Required<Deps>, [rawId]: string[]): Promise<Res> {
   const id = idParam(rawId, 'vault_id');
-  installFrom(req, d.installSecret);
+  installFrom(req, d.installSecret, d.now());
   const { meta } = await vaultMeta(req, d, id, false);
   const keys = [vaultBlob(id, meta!, 'latest'), vaultBlob(id, meta!, 'previous')].filter((k): k is string => !!k);
   await Promise.all(keys.map((k) => d.blobs.delete(k)));
@@ -249,7 +249,7 @@ async function circleAuth(req: Req, d: Required<Deps>, id: string, create: boole
 
 async function circlePost(req: Req, d: Required<Deps>, [rawId]: string[]): Promise<Res> {
   const id = idParam(rawId, 'circle_id');
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   const body = json<{ events?: unknown }>(req, 25 * EVENT_MAX);
   if (!isObj(body) || !Array.isArray(body.events) || !body.events.length || body.events.length > 20) throw new HttpError(400, 'need_1_to_20_events');
   for (const e of body.events) if (typeof e !== 'string' || !/^[A-Za-z0-9+/=_-]{24,}$/.test(e) || e.length > EVENT_MAX) throw new HttpError(400, 'bad_event');
@@ -266,7 +266,7 @@ async function circlePost(req: Req, d: Required<Deps>, [rawId]: string[]): Promi
 
 async function circleGet(req: Req, d: Required<Deps>, [rawId]: string[]): Promise<Res> {
   const id = idParam(rawId, 'circle_id');
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   await circleAuth(req, d, id, false);
   await spend(d.kv, who, LIMITS.circleRead, d.now());
   const after = req.query.after && /^E#\d{15}#[0-9a-f]{8}$/.test(req.query.after) ? req.query.after : 'E#';
@@ -277,7 +277,7 @@ async function circleGet(req: Req, d: Required<Deps>, [rawId]: string[]): Promis
 
 async function circleDelete(req: Req, d: Required<Deps>, [rawId]: string[]): Promise<Res> {
   const id = idParam(rawId, 'circle_id');
-  installFrom(req, d.installSecret);
+  installFrom(req, d.installSecret, d.now());
   await circleAuth(req, d, id, false);
   for (;;) {
     const items = await d.kv.query(`CIRCLE#${id}`, '', 200);
@@ -326,7 +326,7 @@ export function trainingDetails(v: unknown): Record<string, unknown> {
 }
 
 async function photoAdd(req: Req, d: Required<Deps>): Promise<Res> {
-  const who = installFrom(req, d.installSecret);
+  const who = installFrom(req, d.installSecret, d.now());
   const body = json<Record<string, unknown>>(req, 1.4 * PHOTO_MAX + TRAINING_DETAILS_MAX + 2_000);
   if (!isObj(body) || typeof body.photo !== 'string') throw new HttpError(400, 'need_photo');
   const photo = cleanJpeg(Buffer.from(body.photo, 'base64'), PHOTO_MAX);
