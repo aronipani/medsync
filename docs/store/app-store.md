@@ -73,6 +73,8 @@ medical advice. It does not work out doses — the amount shown is what you ente
 can be wrong: always read the name and strength on the strip yourself, and follow your doctor's and pharmacist's
 instructions.
 
+Terms of use: https://github.com/aronipani/medsync/blob/main/TERMS.md
+
 **Keywords (100, comma-separated, no spaces after commas):**
 `medicine reminder,tablet,pill,strip scanner,family,elderly,parents,dose log,refill,stock,India,hindi`
 No medicine brand names or other apps' names (guideline 2.3.7 / 5.2.1).
@@ -80,7 +82,7 @@ No medicine brand names or other apps' names (guideline 2.3.7 / 5.2.1).
 **Support URL:** https://github.com/aronipani/medsync/issues
 **Privacy policy URL:** https://github.com/aronipani/medsync/blob/main/PRIVACY.md
 **Marketing URL:** leave empty.
-**Copyright:** `2026 <your name as on the developer account>`
+**Copyright:** `2026 Aroni Pani`
 
 ## Screenshots
 * Required: 6.9" iPhone (1320 × 2868). Apple scales them for smaller iPhones.
@@ -110,32 +112,63 @@ Answer per data type; the developer receives nothing, but Apple counts what thir
   is clearly disclosed stay out of the label; it is described in the privacy policy (done).
 
 ## App Review Information
-**Sign-in required:** No.
-**Contact:** your name, phone, email.
-**Notes for the reviewer (paste):**
-> TakeSure is a free, offline medicine reminder for families in India. There is no account and no server; all data
-> stays on the phone.
+**Sign-in required:** No — **untick** "Sign-in required" (the app has no account).
+**Contact:** your name, phone with country code (+1 …), email.
+**Attachment:** the 30–60 s screen recording (reminder → scan an Indian strip → green → I took it). Attaching the
+video file here is easier than a link.
+**Notes for the reviewer (paste, under 4,000 characters):**
+> TakeSure is a free medicine reminder for families in India. There is no account, no server and no in-app purchase;
+> all data stays on the phone.
 >
-> How to try it in 2 minutes:
-> 1. On first launch, read and accept the safety notice.
-> 2. Tap "Add a medicine", type a medicine you have at hand with its strength (for example "Tylenol 500" or
->    "Advil 200"), choose a time a few minutes from now, and save.
-> 3. When the reminder arrives (or from the Scan tab), point the camera at that medicine's box or blister strip.
->    The app reads the printed name and shows green with the amount from your list. Scanning anything else shows red.
-> 4. Today tab shows the dose as taken; Stock shows the count going down.
+> How to try it (about 3 minutes):
+> 1. On first launch, read the safety notice and tap "I agree".
+> 2. On Today, tap "Add a medicine" → "Other ways to add" → "Type it in". Enter any medicine you have at hand with
+>    its strength (for example "Tylenol 500"), 1 tablet, at a time 2–3 minutes from now, and save. Allow
+>    notifications when asked.
+> 3. IMPORTANT on a US device: the strip check at dose time is OFF by default in the United States, because it goes
+>    beyond FDA's medication-reminder category. To try it: Settings → Scanning → "Turn on scanning" → read the
+>    disclosure → tick "I have read this and understand it" → "Turn on scanning". (In India it is on by default.)
+> 4. When the reminder arrives (or from the Scan tab), point the camera at that medicine's box or blister strip.
+>    The app reads the printed name and shows green "Matches your list" with the amount you entered; anything else
+>    shows red "scan the next one". Then tap "I took it".
+> 5. Today shows the dose as taken, and the stock count on the Medicines tab goes down by one.
+>    Without scanning, Today's "I took it" button records the dose too.
 >
-> The scanner is tuned for Indian medicine strips; a short video of it working with Indian strips: <VIDEO LINK>.
+> The scanner is tuned for Indian medicine strips; the attached video shows it with Indian strips.
 >
-> Medical scope: TakeSure is a reminder and record-keeping aid, not a medical device. It does not calculate or
-> suggest doses — the amount shown is exactly what the user entered from their prescription. Prescription photos are
-> read on the phone into a draft that the user must check and save. A safety notice on first launch and the
-> About & safety page say this, and that the scanner can be wrong.
+> Medical scope: TakeSure is a reminder and record-keeping aid, not a medical device. It does not identify medicines,
+> diagnose, or calculate or suggest doses — the amount shown is exactly what the user entered from their
+> prescription. Prescription photos are read on the phone into a draft that the user must check and save. The
+> first-launch notice and Settings → Privacy & safety say this, and that the scanner can be wrong.
 >
 > Permissions: camera (scan strips and prescriptions), photos (choose a prescription photo), notifications
 > (reminders), contacts (only when picking a pharmacy's phone number).
+> Support: Settings → Help → Report a problem.
 
-Record the video on a real iPhone (screen recording, 30–60 s: reminder → scan an Indian strip → green → I took it),
-upload it unlisted (YouTube or Google Drive "anyone with the link") and put the link in the notes.
+## The version page in App Store Connect (field by field)
+| Field | What to put |
+|---|---|
+| Header asset (Header and Search Results) | Optional — leave empty for v1 |
+| App Previews and Screenshots | Required: 6.9" iPhone screenshots (1320 × 2868), 4–6 of them (see Screenshots) |
+| Promotional Text | From "Listing text" |
+| Description | From "Listing text" (ends with the terms link) |
+| Keywords | From "Listing text" (exactly 100 characters) |
+| Support URL | https://github.com/aronipani/medsync/issues |
+| Marketing URL | Empty |
+| Version | **1.0.0** — must match the build (`app.json` "version": "1.0.0"); "1.0" is a different version to Apple |
+| Copyright | 2026 Aroni Pani |
+| Routing App Coverage File, App Clip, iMessage App, Game Center | Not used — leave empty / unticked |
+| Build | "+" → pick the processed EAS build 1.0.0 (n). Missing? It's still processing (TestFlight tab), or build and upload with `eas build -p ios --profile production --auto-submit` |
+| Sign-in required | **Unticked** |
+| App Store Version Release | **Manually release this version** for the first release: check the live page once more, then press Release |
+
+Other pages to finish before "Add for Review" (left sidebar):
+* **App Information:** name `TakeSure: Medicine Reminder`, subtitle, category Medical + Health & Fitness, content
+  rights (no third-party content), age rating questionnaire, License Agreement = Apple's standard EULA. If US (or
+  EU/UK) is in availability: Regulated Medical Device → **No** for each region.
+* **Pricing and Availability:** Free; countries (see Availability).
+* **App Privacy:** privacy policy URL, then the data types (see App Privacy).
+* **App Accessibility** (optional): declare only what you tested on the phone (VoiceOver, Larger Text).
 
 ## Medical-category rules checklist (why apps like this get rejected)
 | Guideline | What it asks | How TakeSure meets it |
