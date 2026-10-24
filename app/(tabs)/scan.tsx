@@ -7,7 +7,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ActivityIndicator, Pressable, ScrollView, Text, View } from 'react-native';
 import { MemberPicker } from '../../src/components.tsx';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
-import { householdMatch, householdWords } from '../../src/household.ts';
+import { householdMatch, householdWords, strengthSeen } from '../../src/household.ts';
 import { lookAt, lookLabel } from '../../src/look.ts';
 import { liveHint } from '../../src/liveHint.ts';
 import { waitUntilStill } from '../../src/stillness.ts';
@@ -18,7 +18,7 @@ import { findUsMedicine } from '../../src/usLookup.ts';
 import { doseScanOn } from '../../src/doseScan.ts';
 import { DoseScanOff } from '../../src/components/DoseScanSwitch.tsx';
 import { usText } from '../../src/uslist.ts';
-import { findConflict, matchBarcode, matchDetail, matchText, readsAsMedicine } from '../../src/match.ts';
+import { codeLinked, findConflict, matchBarcode, matchDetail, matchText, printedStrengths, readsAsMedicine } from '../../src/match.ts';
 import { diagnoseScan, type ScanDiagnosis } from '../../src/scanIssue.ts';
 import { exchangeable, splitName, substituteCard } from '../../src/substitute.ts';
 import { amountText, matchAnnouncement, phrase, spokenStrength, type LangCode, type PhraseKey } from '../../src/phrases.ts';
@@ -72,6 +72,13 @@ export default function Scan() {
   }, [params.memberId, params.at]);
 
   const due = useMemo(() => dueNow(state, now, memberId), [state, now, memberId]);
+  // The person on screen right now, for scan code that finishes seconds after it started (review 24 Oct 2026).
+  const memberNow = useRef(memberId);
+  memberNow.current = memberId;
+  /** A scan is for the person on screen when it starts: keep them chosen so the 30-second tick can't switch person. */
+  const lockPerson = () => {
+    if (!chosen && memberId) setMemberId(memberId);
+  };
   const [testRecords, setTestRecords] = useState<TestRecords>({});
   useFocusEffect(
     useCallback(() => {
@@ -185,6 +192,12 @@ export default function Scan() {
   // Weak reads in a row (nothing read, or no verdict): after a few, the server's model is asked (stubbed for now).
   const weakInARow = useRef(0);
   const show = (r: Result) => {
+    // Never show a result for someone other than the person on screen (the person changed while it was reading).
+    const occsOf = 'occs' in r && r.occs ? r.occs : 'occ' in r && r.occ ? [r.occ] : [];
+    if (occsOf.some((o) => o.memberId !== memberNow.current)) {
+      forgetRead();
+      return;
+    }
     const weak = r.kind === 'unread' || (r.kind === 'nomatch' && !!r.weak);
     weakInARow.current = weak ? weakInARow.current + 1 : r.kind === 'match' ? 0 : weakInARow.current;
     if (weak && shouldAskServer(weakInARow.current) && lastRead.current.photos.length) {
@@ -209,12 +222,16 @@ export default function Scan() {
 
   const onBarcode = ({ data }: BarcodeScanningResult) => {
     if (result || busy || !due.length) return;
+    lockPerson();
     forgetRead(); // a barcode result has no photo text
     const t0 = Date.now();
     if (data === lastCode.current.code && t0 - lastCode.current.at < 3000) return;
     lastCode.current = { code: data, at: t0 };
-    const hits = due.filter((o) => matchBarcode(data, o.med));
+    // Only a code already linked to the medicine goes straight to green. A QR code carrying the product name as text
+    // ("TELMA-H 40MG TAB") goes through the same checks as printed text: look-alikes, strength (review 24 Oct 2026).
+    const hits = due.filter((o) => codeLinked(data, o.med));
     if (hits.length) return show({ kind: 'match', occs: hits, method: 'barcode' });
+    if (/[A-Za-z]{3,}/.test(data) && due.some((o) => matchText(data, o.med).nameFound)) return checkText(data, 'barcode');
     const why = explainMiss((o) => matchBarcode(data, o.med));
     // A US box not linked yet: its barcode's NDC names the product exactly (US list), so check that name and strength.
     const us = !why ? findUsMedicine(data) : undefined;
@@ -246,9 +263,16 @@ export default function Scan() {
       });
     }
     // A strip a person taught earlier (by what was printed on it) — unless it plainly says something else.
-    const learned = bestLearned(text.split('\n'), due.map((o) => o.med));
+    // Compared against every taught strip in the house, so a taught strip of another person's medicine wins over a
+    // weaker likeness to the one due. Green only when the strength is read too; otherwise a person checks (amber).
+    const learned = bestLearned(text.split('\n'), household);
     const learnedOcc = learned && due.find((o) => o.med.id === learned.medId);
-    if (learnedOcc && !findConflict(text, learnedOcc.med, household)) return show({ kind: 'match', occs: [learnedOcc], method, learned: true });
+    if (learnedOcc && !findConflict(text, learnedOcc.med, household)) {
+      const seen = strengthSeen(text, learnedOcc.med.strength);
+      if (seen === 'same' || !learnedOcc.med.strength.trim()) return show({ kind: 'match', occs: [learnedOcc], method, learned: true });
+      if (seen === 'other') return show({ kind: 'strength', occ: learnedOcc, found: printedStrengths(text, learnedOcc.med), detail: text });
+      return show({ kind: 'check', occ: learnedOcc, method });
+    }
     const nameOnly = checked.find((x) => x.d.level === 'nameOnly');
     if (nameOnly) return show({ kind: 'check', occ: nameOnly.o, method, note: nameOnly.d.note });
     // Worn or cut strip: decide among the household's own medicines from fragments ("…LOPIL… 75"), spec 15.
@@ -308,6 +332,7 @@ export default function Scan() {
 
   const readStrip = async () => {
     if (!camera.current || busy) return;
+    lockPerson();
     forgetRead(); // a previous unconfirmed scan's photos are kept before this one replaces them
     setBusy(true);
     startScanStats();
@@ -534,7 +559,8 @@ export default function Scan() {
 
   return (
     <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }} keyboardShouldPersistTaps="handled">
-      <MemberPicker value={memberId} onChange={setMemberId} />
+      {/* Not while a strip is being read: the result belongs to the person it was started for. */}
+      {!busy && <MemberPicker value={memberId} onChange={setMemberId} />}
 
       {!due.length ? (
         // Nothing due: a calm screen — where things stand, what comes next (all medicines at that time), one suggestion.

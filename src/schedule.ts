@@ -85,7 +85,10 @@ export function occurrencesForDate(state: AppState, date: string, now: Date, mem
 
 /** Doses that can be verified by scanning right now (today, inside the window, not yet logged). */
 export function dueNow(state: AppState, now: Date, memberId?: string): Occurrence[] {
-  return occurrencesForDate(state, dateKey(now), now, memberId).filter((o) => o.status === 'due');
+  // Yesterday and tomorrow too: a 23:30 dose is still due at 00:30, and a 00:15 dose is due at 23:45 (review 24 Oct 2026).
+  return [addDays(now, -1), now, addDays(now, 1)]
+    .flatMap((d) => occurrencesForDate(state, dateKey(d), now, memberId))
+    .filter((o) => o.status === 'due');
 }
 
 /** Doses scheduled today for this member but not due now — used to explain a "wrong time" scan. */
@@ -130,12 +133,12 @@ export interface ReminderSlot {
  * Groups every active dose into one reminder per clock time.
  * Times where some dose is limited to certain weekdays are split into per-weekday reminders.
  */
-export function reminderSlots(state: AppState): ReminderSlot[] {
+export function reminderSlots(state: AppState, skipMed: (med: Medication) => boolean = () => false): ReminderSlot[] {
   type Item = { time: string; days: number[]; line: string; member: string };
   const items: Item[] = [];
   const today = dateKey(new Date());
   for (const med of state.meds) {
-    if (!med.active || (med.endDate && med.endDate < today)) continue;
+    if (!med.active || (med.endDate && med.endDate < today) || skipMed(med)) continue;
     const member = state.members.find((m) => m.id === med.memberId);
     if (!member) continue;
     // Reminders for someone in another time zone go off on their own phone, at their time — not on this one.
@@ -167,4 +170,71 @@ export function reminderSlots(state: AppState): ReminderSlot[] {
     }
   }
   return slots;
+}
+
+// ---------- What to schedule on this phone (review 24 Oct 2026) ----------
+
+/** iOS keeps at most 64 pending reminders; dose reminders get this many, the rest is for checks, buying, follow-ups. */
+export const DOSE_REMINDER_MAX = 48;
+const DATED_DAYS = 8;
+
+export interface DatedReminder {
+  when: Date;
+  time: string; // HH:MM on this phone
+  lines: string[];
+}
+
+export interface ReminderPlan {
+  repeating: ReminderSlot[]; // daily or weekly
+  dated: DatedReminder[]; // one-off, for the next days
+}
+
+/**
+ * Dose reminders for this phone:
+ *  - repeating daily/weekly reminders for ongoing medicines;
+ *  - one-off reminders for medicines whose course ends within a week, so they stop on the last day even if the app
+ *    isn't opened again (a daily repeat would keep ringing after the course);
+ *  - if the repeating ones would pass DOSE_REMINDER_MAX (many times with weekday-only doses), one-off reminders for
+ *    as many coming days as fit instead, refreshed whenever the app opens — rather than iOS silently dropping some.
+ * Members in another time zone get none here: their own phone reminds them.
+ */
+export function reminderPlan(state: AppState, now: Date = new Date()): ReminderPlan {
+  const horizon = dateKey(addDays(now, DATED_DAYS - 1));
+  const endingSoon = (m: Medication) => !!m.endDate && m.endDate <= horizon;
+  let repeating = reminderSlots(state, endingSoon);
+  const allDated = repeating.length > DOSE_REMINDER_MAX;
+  if (allDated) repeating = [];
+  const datedMed = (m: Medication) => allDated || endingSoon(m);
+  const multi = state.members.length > 1;
+  const byInstant = new Map<number, DatedReminder>();
+  for (let d = 0; d < DATED_DAYS; d++) {
+    for (const o of occurrencesForDate(state, dateKey(addDays(now, d)), now)) {
+      if (!datedMed(o.med) || o.localTime || (o.status !== 'upcoming' && o.status !== 'due') || (o.at ?? 0) <= now.getTime()) continue;
+      const member = state.members.find((m) => m.id === o.memberId);
+      const line = `${multi && member ? `${member.name}: ` : ''}${medLabel(o.med)} · ${qtyLabel(o.dose.qty, o.med.unit)} · ${describeTiming(o.dose).toLowerCase()}`;
+      const r = byInstant.get(o.at!) ?? { when: new Date(o.at!), time: o.time, lines: [] };
+      if (!r.lines.includes(line)) r.lines.push(line);
+      byInstant.set(o.at!, r);
+    }
+  }
+  const dated = [...byInstant.values()].sort((a, b) => a.when.getTime() - b.when.getTime()).slice(0, Math.max(0, DOSE_REMINDER_MAX - repeating.length));
+  return { repeating, dated };
+}
+
+/** "Not taken yet" follow-ups for today's and tomorrow's open doses on this phone (not other-time-zone members). */
+export function followUps(state: AppState, now: Date, followUpMin: number): DatedReminder[] {
+  const out = new Map<number, DatedReminder>();
+  const multi = state.members.length > 1;
+  for (const day of [now, addDays(now, 1)]) {
+    for (const o of occurrencesForDate(state, dateKey(day), now)) {
+      if ((o.status !== 'due' && o.status !== 'upcoming') || o.localTime || o.at === undefined) continue;
+      const when = o.at + followUpMin * 60000;
+      if (when <= now.getTime()) continue;
+      const who = multi ? `${state.members.find((m) => m.id === o.memberId)?.name}: ` : '';
+      const r = out.get(when) ?? { when: new Date(when), time: o.time, lines: [] };
+      r.lines.push(`${who}${o.med.name} ${o.med.strength}`.trim());
+      out.set(when, r);
+    }
+  }
+  return [...out.values()].sort((a, b) => a.when.getTime() - b.when.getTime());
 }

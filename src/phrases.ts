@@ -38,10 +38,10 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'Matches your list: {name}.', // never "correct": the app can't be sure (store guideline 1.4.1)
       take: 'Take {amount} now.',
-      wrong: 'Wrong medicine. Do not take this one.',
+      wrong: 'Not a match for your list. Do not take it — check the strip.', // never "wrong medicine": only what the screen says
       notNow: 'This medicine is not due now.',
       taken: 'This dose has already been taken.',
-      otherStrength: 'Wrong strength on this strip. Do not take it. Please ask the pharmacist.',
+      otherStrength: 'This strip shows a different strength. Do not take it. Please ask the pharmacist.',
       checkStrength: 'The name matches. Check that the strip says {strength}.',
       checkName: 'Only part of the name could be read. Check that the strip says {name}.',
       unread: "The name couldn't be read clearly. Please scan the strip again.",
@@ -70,11 +70,11 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'आपकी सूची की दवा: {name}।',
       take: 'अभी {amount} लीजिए।',
-      wrong: 'यह गलत दवा है। इसे मत लीजिए।',
+      wrong: 'यह आपकी सूची से मेल नहीं खाती। इसे मत लीजिए, पत्ता जाँच लीजिए।',
       notNow: 'यह दवा अभी लेने की नहीं है।',
       taken: 'यह खुराक पहले ही ली जा चुकी है।',
       otherStrength: 'ताकत अलग है। इसे मत लीजिए। डॉक्टर या फार्मासिस्ट से पूछिए।',
-      checkStrength: 'नाम सही है। जाँच लीजिए कि पत्ते पर {strength} लिखा है।',
+      checkStrength: 'नाम मिलता है। जाँच लीजिए कि पत्ते पर {strength} लिखा है।',
       checkName: 'नाम पूरा नहीं पढ़ा गया। जाँच लीजिए कि पत्ते पर {name} लिखा है।',
       unread: 'नाम साफ़ नहीं पढ़ा गया। पत्ते को फिर से स्कैन कीजिए।',
       substitute: 'यही दवा है, पर कंपनी अलग है। लेने से पहले जाँच लीजिए।',
@@ -92,7 +92,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'আপনার তালিকার ওষুধ: {name}।',
       take: 'এখন {amount} নিন।',
-      wrong: 'এটা ভুল ওষুধ। এটা খাবেন না।',
+      wrong: 'এটা আপনার তালিকার সঙ্গে মিলছে না। এটা খাবেন না, পাতাটা দেখে নিন।',
       notNow: 'এই ওষুধ এখন খাওয়ার সময় নয়।',
       taken: 'এই ডোজ আগেই নেওয়া হয়ে গেছে।',
       otherStrength: 'মাত্রা আলাদা। এটা খাবেন না। ডাক্তার বা ফার্মাসিস্টকে জিজ্ঞেস করুন।',
@@ -114,11 +114,11 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'ਤੁਹਾਡੀ ਸੂਚੀ ਦੀ ਦਵਾਈ: {name}।',
       take: 'ਹੁਣ {amount} ਲਓ।',
-      wrong: 'ਇਹ ਗਲਤ ਦਵਾਈ ਹੈ। ਇਸਨੂੰ ਨਾ ਲਓ।',
+      wrong: 'ਇਹ ਤੁਹਾਡੀ ਸੂਚੀ ਨਾਲ ਮੇਲ ਨਹੀਂ ਖਾਂਦੀ। ਇਸਨੂੰ ਨਾ ਲਓ, ਪੱਤਾ ਜਾਂਚੋ।',
       notNow: 'ਇਹ ਦਵਾਈ ਹੁਣ ਲੈਣ ਵਾਲੀ ਨਹੀਂ ਹੈ।',
       taken: 'ਇਹ ਖੁਰਾਕ ਪਹਿਲਾਂ ਹੀ ਲੈ ਲਈ ਗਈ ਹੈ।',
       otherStrength: 'ਤਾਕਤ ਵੱਖਰੀ ਹੈ। ਇਸਨੂੰ ਨਾ ਲਓ। ਡਾਕਟਰ ਜਾਂ ਫਾਰਮਾਸਿਸਟ ਤੋਂ ਪੁੱਛੋ।',
-      checkStrength: 'ਨਾਮ ਸਹੀ ਹੈ। ਜਾਂਚ ਕਰੋ ਕਿ ਪੱਤੇ ਉੱਤੇ {strength} ਲਿਖਿਆ ਹੈ।',
+      checkStrength: 'ਨਾਮ ਮਿਲਦਾ ਹੈ। ਜਾਂਚ ਕਰੋ ਕਿ ਪੱਤੇ ਉੱਤੇ {strength} ਲਿਖਿਆ ਹੈ।',
       checkName: 'ਨਾਮ ਪੂਰਾ ਨਹੀਂ ਪੜ੍ਹਿਆ ਗਿਆ। ਜਾਂਚ ਕਰੋ ਕਿ ਪੱਤੇ ਉੱਤੇ {name} ਲਿਖਿਆ ਹੈ।',
       unread: 'ਨਾਮ ਸਾਫ਼ ਨਹੀਂ ਪੜ੍ਹਿਆ ਗਿਆ। ਪੱਤੇ ਨੂੰ ਫਿਰ ਤੋਂ ਸਕੈਨ ਕਰੋ।',
       substitute: 'ਇਹੀ ਦਵਾਈ ਹੈ, ਪਰ ਕੰਪਨੀ ਵੱਖਰੀ ਹੈ। ਲੈਣ ਤੋਂ ਪਹਿਲਾਂ ਜਾਂਚ ਕਰੋ।',
@@ -136,7 +136,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'మీ జాబితాలోని మందు: {name}.',
       take: 'ఇప్పుడు {amount} తీసుకోండి.',
-      wrong: 'ఇది తప్పు మందు. దీన్ని తీసుకోకండి.',
+      wrong: 'ఇది మీ జాబితాతో సరిపోలడం లేదు. దీన్ని తీసుకోకండి, స్ట్రిప్‌ను చూడండి.',
       notNow: 'ఈ మందు ఇప్పుడు తీసుకోవలసినది కాదు.',
       taken: 'ఈ మోతాదు ఇప్పటికే తీసుకున్నారు.',
       otherStrength: 'బలం వేరుగా ఉంది. దీన్ని తీసుకోకండి. డాక్టర్‌ను లేదా ఫార్మసిస్ట్‌ను అడగండి.',
@@ -158,7 +158,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'તમારી યાદીની દવા: {name}.',
       take: 'હમણાં {amount} લો.',
-      wrong: 'આ ખોટી દવા છે. આ ન લો.',
+      wrong: 'આ તમારી યાદી સાથે મેળ ખાતી નથી. આ ન લો, પટ્ટી તપાસો.',
       notNow: 'આ દવા અત્યારે લેવાની નથી.',
       taken: 'આ ડોઝ પહેલેથી લેવાઈ ગયો છે.',
       otherStrength: 'તાકાત અલગ છે. આ ન લો. ડૉક્ટર અથવા ફાર્માસિસ્ટને પૂછો.',
@@ -180,7 +180,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'உங்கள் பட்டியலில் உள்ள மருந்து: {name}.',
       take: 'இப்போது {amount} எடுத்துக்கொள்ளுங்கள்.',
-      wrong: 'இது தவறான மருந்து. இதை எடுக்க வேண்டாம்.',
+      wrong: 'இது உங்கள் பட்டியலுடன் பொருந்தவில்லை. இதை எடுக்க வேண்டாம், அட்டையைச் சரிபாருங்கள்.',
       notNow: 'இந்த மருந்தை இப்போது எடுக்க வேண்டியதில்லை.',
       taken: 'இந்த அளவு ஏற்கனவே எடுக்கப்பட்டது.',
       otherStrength: 'வலிமை வேறுபடுகிறது. இதை எடுக்க வேண்டாம். மருத்துவரிடம் அல்லது மருந்தாளுநரிடம் கேளுங்கள்.',
@@ -202,7 +202,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'ನಿಮ್ಮ ಪಟ್ಟಿಯಲ್ಲಿರುವ ಔಷಧಿ: {name}.',
       take: 'ಈಗ {amount} ತೆಗೆದುಕೊಳ್ಳಿ.',
-      wrong: 'ಇದು ತಪ್ಪು ಔಷಧಿ. ಇದನ್ನು ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ.',
+      wrong: 'ಇದು ನಿಮ್ಮ ಪಟ್ಟಿಗೆ ಹೊಂದುತ್ತಿಲ್ಲ. ಇದನ್ನು ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ, ಸ್ಟ್ರಿಪ್ ಪರಿಶೀಲಿಸಿ.',
       notNow: 'ಈ ಔಷಧಿಯನ್ನು ಈಗ ತೆಗೆದುಕೊಳ್ಳುವ ಸಮಯವಲ್ಲ.',
       taken: 'ಈ ಡೋಸ್ ಈಗಾಗಲೇ ತೆಗೆದುಕೊಳ್ಳಲಾಗಿದೆ.',
       otherStrength: 'ಶಕ್ತಿ ಬೇರೆಯಾಗಿದೆ. ಇದನ್ನು ತೆಗೆದುಕೊಳ್ಳಬೇಡಿ. ವೈದ್ಯರನ್ನು ಅಥವಾ ಫಾರ್ಮಸಿಸ್ಟ್ ಅವರನ್ನು ಕೇಳಿ.',
@@ -224,7 +224,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'আপোনাৰ তালিকাৰ ঔষধ: {name}।',
       take: 'এতিয়া {amount} লওক।',
-      wrong: 'এইটো ভুল ঔষধ। এইটো নাখাব।',
+      wrong: 'এইটো আপোনাৰ তালিকাৰ সৈতে মিল নাখায়। এইটো নাখাব, পাতখন চাওক।',
       notNow: 'এই ঔষধ এতিয়া খোৱাৰ সময় হোৱা নাই।',
       taken: 'এই মাত্ৰা আগতেই লোৱা হৈছে।',
       otherStrength: 'শক্তি বেলেগ। এইটো নাখাব। ডাক্তৰ বা ফাৰ্মাচিষ্টক সোধক।',
@@ -244,9 +244,9 @@ export const LANGS: Record<LangCode, Lang> = {
     english: 'Mandarin',
     tts: ['zh-CN', 'zh-TW'],
     phrases: {
-      correct: '这是您清单上的药：{name}。',
+      correct: '与您的清单相符：{name}。',
       take: '现在服用{amount}。',
-      wrong: '药品不对，请不要服用。',
+      wrong: '与您的清单不符，请不要服用，请检查药板。',
       notNow: '现在不是服用这种药的时间。',
       taken: '这一次的药已经服用过了。',
       otherStrength: '药的规格不同，请不要服用。请咨询医生或药剂师。',
@@ -275,7 +275,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'Coincide con su lista: {name}.',
       take: 'Tome {amount} ahora.',
-      wrong: 'Medicamento equivocado. No lo tome.',
+      wrong: 'No coincide con su lista. No lo tome; revise el blíster.',
       notNow: 'Ahora no le toca este medicamento.',
       taken: 'Esta dosis ya se tomó.',
       otherStrength: 'La dosis del envase es diferente. No lo tome. Consulte al médico o al farmacéutico.',
@@ -309,7 +309,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'Tugma sa iyong listahan: {name}.',
       take: 'Uminom ng {amount} ngayon.',
-      wrong: 'Maling gamot. Huwag itong inumin.',
+      wrong: 'Hindi tugma sa iyong listahan. Huwag itong inumin; tingnan ang strip.',
       notNow: 'Hindi pa oras para sa gamot na ito.',
       taken: 'Nainom na ang dosis na ito.',
       otherStrength: 'Iba ang lakas ng gamot. Huwag itong inumin. Magtanong sa doktor o parmasyutiko.',
@@ -338,7 +338,7 @@ export const LANGS: Record<LangCode, Lang> = {
     phrases: {
       correct: 'リストのお薬と一致しました。{name}。',
       take: '今、{amount}飲んでください。',
-      wrong: '違うお薬です。飲まないでください。',
+      wrong: 'リストのお薬と一致しません。飲まずに、シートを確認してください。',
       notNow: 'このお薬は今飲む時間ではありません。',
       taken: 'この分はもう飲みました。',
       otherStrength: 'お薬の強さが違います。飲まないでください。医師か薬剤師に相談してください。',

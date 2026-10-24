@@ -1,6 +1,7 @@
 import * as Notifications from 'expo-notifications';
 import { Platform } from 'react-native';
-import { occurrencesForDate, reminderSlots } from './schedule.ts';
+import { followUps, reminderPlan } from './schedule.ts';
+import { doseScanOn } from './doseScan.ts';
 import { testReminders } from './testScan.ts';
 import { loadTestRecords } from './testScanStore.ts';
 import { addDays, atTime, dateKey, fmt12 } from './time.ts';
@@ -75,7 +76,11 @@ async function doReschedule(state: AppState) {
   await Notifications.cancelAllScheduledNotificationsAsync();
   const channelId = Platform.OS === 'android' ? CHANNEL : undefined;
   let count = 0;
-  for (const slot of reminderSlots(state)) {
+  const now0 = new Date();
+  // Repeating reminders, plus one-off ones for courses ending soon or when too many repeating ones would pass
+  // iOS's limit of 64 (src/schedule.ts reminderPlan).
+  const plan = reminderPlan(state, now0);
+  for (const slot of plan.repeating) {
     const [hour, minute] = slot.time.split(':').map(Number);
     const title = `💊 Medicine time · ${fmt12(slot.time)}`;
     const trigger: Notifications.NotificationTriggerInput =
@@ -85,10 +90,18 @@ async function doReschedule(state: AppState) {
     await Notifications.scheduleNotificationAsync({ content: content(title, slot.lines), trigger });
     count++;
   }
+  for (const r of plan.dated) {
+    await Notifications.scheduleNotificationAsync({
+      content: content(`💊 Medicine time · ${fmt12(r.time)}`, r.lines),
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.when, channelId },
+    });
+    count++;
+  }
 
-  const now0 = new Date();
   const lead = state.settings.testReminderMin ?? 60;
-  for (const r of testReminders(state, await loadTestRecords(), now0, lead, 48)) {
+  // "Check the strips" reminders only where dose-time scanning is on (off by default in the US, spec 19).
+  const tests = doseScanOn(state.settings) ? testReminders(state, await loadTestRecords(), now0, lead, 48) : [];
+  for (const r of tests) {
     if (count >= 50) break; // leave room for "not taken yet" follow-ups (iOS keeps at most 64 pending)
     await Notifications.scheduleNotificationAsync({
       content: {
@@ -142,24 +155,13 @@ async function doReschedule(state: AppState) {
 
   const { followUpMin } = state.settings;
   if (!followUpMin) return;
-  const now = new Date();
-  for (const day of [now, addDays(now, 1)]) {
-    const date = dateKey(day);
-    const open = occurrencesForDate(state, date, now).filter((o) => o.status === 'due' || o.status === 'upcoming');
-    const byTime = new Map<string, string[]>();
-    for (const o of open) {
-      const who = state.members.length > 1 ? `${state.members.find((m) => m.id === o.memberId)?.name}: ` : '';
-      byTime.set(o.time, [...(byTime.get(o.time) ?? []), `${who}${o.med.name} ${o.med.strength}`.trim()]);
-    }
-    for (const [time, lines] of byTime) {
-      const when = new Date(atTime(date, time).getTime() + followUpMin * 60000);
-      if (when <= now || count >= 60) continue; // iOS keeps at most 64 pending
-      await Notifications.scheduleNotificationAsync({
-        content: content(`⏰ Not taken yet · ${fmt12(time)} dose`, lines),
-        trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: when, channelId },
-      });
-      count++;
-    }
+  for (const r of followUps(state, new Date(), followUpMin)) {
+    if (count >= 60) break; // iOS keeps at most 64 pending
+    await Notifications.scheduleNotificationAsync({
+      content: content(`⏰ Not taken yet · ${fmt12(r.time)} dose`, r.lines),
+      trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: r.when, channelId },
+    });
+    count++;
   }
 }
 

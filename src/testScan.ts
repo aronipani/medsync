@@ -134,8 +134,9 @@ export function testReminders(state: AppState, records: TestRecords, now = new D
   for (let d = 0; d <= Math.ceil(hours / 24); d++) {
     const date = dateKey(addDays(now, d));
     for (const o of occurrencesForDate(state, date, now)) {
-      if (o.status !== 'upcoming' && o.status !== 'due') continue;
-      const dose = new Date(`${o.date}T${o.time}:00`);
+      // Not for someone in another time zone (their own phone reminds them), and from the dose's real instant.
+      if ((o.status !== 'upcoming' && o.status !== 'due') || o.localTime) continue;
+      const dose = o.at !== undefined ? new Date(o.at) : new Date(`${o.date}T${o.time}:00`);
       const when = new Date(dose.getTime() - leadMin * 60000);
       if (when <= now || dose.getTime() > now.getTime() + hours * 3600e3) continue;
       const r = readinessOf(records[o.med.id], dose); // a test that will have expired by dose time doesn't count

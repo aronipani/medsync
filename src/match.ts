@@ -77,6 +77,13 @@ export function strengthText(text: string): string {
         // From a price / batch / date / licence word to the end of the line.
         .replace(/(\b(m\.?\s?r\.?\s?p|rs\.?|price|b\.?\s?no|batch|lot|mfg|mfd|exp|expiry|lic|m\.?\s?l\.?|reg|incl|taxes)\b|₹).*$/i, ' ')
         .replace(/\b(per|of|pack of|strip of|x)\s*\d+\s*(tablets?|tabs?|capsules?|caps?)\b/gi, ' ')
+        // Storage temperatures ("Store below 25°C", "30 ºC", "25 degrees").
+        .replace(/\d+(?:\.\d+)?\s*(?:°|º|˚|deg(?:rees?)?\b)\s*[CF]?/gi, ' ')
+        // Addresses and plot numbers ("Plot No. 40", "Sector 18", "Survey No 12").
+        .replace(/\b(plot|sector|survey|khasra|shed|phase|unit|house|block|gali|ward|no)\.?\s*(no\.?)?\s*[:#-]?\s*\d+[a-z]?\b/gi, ' ')
+        // Pack counts ("5 strips", "10 x 15", "3 blisters").
+        .replace(/\b\d+\s*(strips?|blisters?|cartons?|boxes|bottles?|sachets?)\b/gi, ' ')
+        .replace(/\b\d+\s*[x×]\s*\d+\b/gi, ' ')
         .replace(/^\s*\d+\s*(tablets?|tabs?|capsules?|caps?)\s*$/gi, ' ')
         .replace(/\b\d{1,2}\s*[/.-]\s*\d{2,4}\b/g, ' '),
     )
@@ -153,6 +160,13 @@ export function normalizeCode(raw: string): string {
   return s.toUpperCase();
 }
 
+/** The scanned code is one already linked to this medicine (a box or strip barcode a person confirmed). */
+export function codeLinked(raw: string, med: Pick<Medication, 'barcodes'>): boolean {
+  const code = normalizeCode(raw);
+  return med.barcodes.some((b) => normalizeCode(b) === code);
+}
+
+/** Linked code, or QR text naming the medicine. QR text must still go through matchDetail before any green. */
 export function matchBarcode(raw: string, med: Pick<Medication, 'barcodes' | 'name' | 'strength' | 'aliases'>): boolean {
   const code = normalizeCode(raw);
   if (med.barcodes.some((b) => normalizeCode(b) === code)) return true;
@@ -249,18 +263,37 @@ export function matchDetail(text: string, med: Med, others: Med[] = []): MatchDe
 }
 
 function baseDetail(text: string, med: Med): MatchDetail {
-  const own = matchText(text, med);
-  if (own.matched) return { level: 'match', via: own.candidate };
-
   const rel = relatedNames(med);
+  const printed = printedStrengths(text, med, rel.generic);
+  const clash = strengthClash(printed, med.strength);
+  const own = matchText(text, med);
+  // A strength printed with its unit or after the name ("50 mcg", "Telma 80") that disagrees with the prescription
+  // wins over the expected number turning up somewhere else on the strip (review 24 Oct 2026).
+  if (own.matched) return clash.length ? { level: 'otherStrength', foundStrengths: clash } : { level: 'match', via: own.candidate };
+
   const extra = [rel.generic, ...rel.otherBrands].filter((x): x is string => !!x);
   const relMatch = extra.length ? matchText(text, { name: '', strength: '', aliases: extra }) : { matched: false, nameFound: false };
-  if (relMatch.matched) return checkedRelated(text, med, relMatch.candidate ?? '', relMatch.candidate === rel.generic);
+  if (relMatch.matched) {
+    if (clash.length) return { level: 'otherStrength', foundStrengths: clash };
+    return checkedRelated(text, med, relMatch.candidate ?? '', relMatch.candidate === rel.generic);
+  }
 
   if (!own.nameFound && !relMatch.nameFound) return { level: 'none' };
-  const expected = new Set(med.strength.split('/').map((x) => x.replace(/[^\d.]/g, '')));
-  const found = printedStrengths(text, med, rel.generic).filter((x) => !expected.has(x));
-  return found.length ? { level: 'otherStrength', foundStrengths: found } : { level: 'nameOnly' };
+  return clash.length ? { level: 'otherStrength', foundStrengths: clash } : { level: 'nameOnly' };
+}
+
+/**
+ * Printed strengths that contradict the prescription, or [] when they agree or none were read.
+ * They agree when one of them is the expected strength, or when the parts add up to it (Augmentin 625 printed as
+ * "500 mg" + "125 mg"). A medicine saved without a strength (a syrup) never clashes.
+ */
+export function strengthClash(printed: string[], strength: string): string[] {
+  const expected = strength.split('/').map((x) => x.replace(/[^\d.]/g, '')).filter(Boolean);
+  if (!expected.length || !printed.length) return [];
+  if (printed.some((p) => expected.includes(p))) return [];
+  const total = printed.reduce((a, p) => a + Number(p), 0);
+  if (expected.length === 1 && printed.length > 1 && Math.abs(total - Number(expected[0])) < 0.01) return [];
+  return printed;
 }
 
 // Words a bare number can follow without being a strength (addresses, counts, licence lines).

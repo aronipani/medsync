@@ -350,7 +350,7 @@ function Result({
   const fill = o.kind === 'ok' ? t.okFill : o.kind === 'check' ? t.warnFill : t.badFill;
   const icon = o.kind === 'ok' ? '✓' : o.kind === 'check' ? '!' : '✕';
   const title =
-    o.kind === 'ok' ? 'Recognised' : o.kind === 'check' ? (o.partial ? 'Only part of the name read' : 'Strength not read') : o.kind === 'strength' ? 'Wrong strength' : o.kind === 'conflict' ? 'A different medicine' : 'Not recognised';
+    o.kind === 'ok' ? 'Recognised' : o.kind === 'check' ? (o.partial ? 'Only part of the name read' : 'Strength not read') : o.kind === 'strength' ? 'Different strength' : o.kind === 'conflict' ? 'A different medicine' : 'Not recognised';
   const meaning =
     o.kind === 'ok'
       ? o.substitute

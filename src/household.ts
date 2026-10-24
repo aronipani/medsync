@@ -4,7 +4,7 @@
 // accept a look-alike. Pure — no React Native — so it can be unit tested.
 
 import { sameMedicine } from './consolidate.ts';
-import { levenshtein, strengthText, tokenize } from './match.ts';
+import { levenshtein, strengthClash, strengthText, tokenize } from './match.ts';
 import { relatedNames } from './drugdb.ts';
 import { decode, SHARED_PRINT } from './learn.ts';
 import type { Medication } from './types.ts';
@@ -90,10 +90,11 @@ export function strengthSeen(text: string, strength: string): 'same' | 'other' |
   const want = numbersOf(strength);
   if (!want.length) return 'unknown';
   const clean = strengthText(text);
+  // A strength printed with its unit that disagrees wins over the number turning up elsewhere (review 24 Oct 2026).
+  const mgs = [...clean.matchAll(/(\d+(?:\.\d+)?)\s*(mg|mcg|µg|ug)\b/gi)].map((m) => m[1]);
+  if (strengthClash(mgs, strength).length) return 'other';
   const nums = tokenize(clean).map((t) => t.replace(/[OQD]/g, '0').replace(/[IL]/g, '1')).filter((t) => /^\d+(\.\d+)?$/.test(t)).map(Number);
-  if (want.every((n) => nums.includes(n))) return 'same';
-  const mgs = [...clean.matchAll(/(\d+(?:\.\d+)?)\s*(mg|mcg)\b/gi)].map((m) => Number(m[1]));
-  return mgs.length && !mgs.some((n) => want.includes(n)) ? 'other' : 'unknown';
+  return want.every((n) => nums.includes(n)) ? 'same' : 'unknown';
 }
 
 /** Two household medicines that are easy to confuse: same contents, or brand names a letter or two apart. */
