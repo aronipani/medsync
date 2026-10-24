@@ -23,7 +23,7 @@ show hands, rooms, pharmacy stickers with the patient's name, and carry GPS loca
 Prescriptions are never offered for sharing.
 
 ## Flow
-* Settings → **Help improve recognition** (off). Turning it on shows the principles above and needs **Turn on**.
+* (Planned, not built) Settings → **Help improve recognition** (off). Turning it on shows the principles above and needs **Turn on**.
 * After a scan the app could not recognise (red "not recognised", or scan-to-add with no brand found), if sharing is
   on: a card "Help the app learn this strip?" → preview screen with the prepared image, the details list, an optional
   "What medicine is it?" field, and **Share** / **Don't share**.
@@ -32,8 +32,8 @@ Prescriptions are never offered for sharing.
 * Turning sharing off deletes anything still waiting.
 
 ## Server (decision needed before this ships)
-The app has no server. Sending needs an upload endpoint that accepts anonymous image uploads with rate limiting
-(e.g. a storage bucket behind a small function). Until `SHARE_ENDPOINT` is configured, the whole feature stays
+The TakeSure server (spec 16) has the upload endpoint, `POST /v1/photos` (anonymous, rate limited); test builds
+already send training photos there. This public opt-in stays hidden until `SHARE_ENDPOINT` is set: until then, the whole feature stays
 hidden in the app. PRIVACY.md must be updated before release.
 
 ## Built now

@@ -29,7 +29,7 @@ If it expires within 30 days: a grey line "Strip expires end of Mar 2028."
 When a scan is confirmed for one medicine, its `expiry` (YYYY-MM) is saved on that medicine — it describes the strip
 currently in use. Scan-to-add fills it in too. A newer reading replaces it.
 
-## Stock tab
+## Medicines → Supplies
 Each medicine shows "Strip expires Mar 2028" — amber when within 30 days ("Expires soon"), red when passed
 ("Strip expired — replace it"). A small **Clear** link removes a wrong reading.
 

@@ -56,7 +56,7 @@ Check it: `curl <api_url>/v1/health`.
 
 **Point the test builds at it:** GitHub → repo Settings → Secrets and variables → Actions → **Variables** → New
 variable `TAKESURE_API_URL` = `api_url`. The next iPhone/Android test build sends training photos there instead of
-email (Settings → Helper → Send photos). Store builds don't use it.
+email (Settings → Your data → Photos for improving the scanner → **Send photos**). Store builds don't use it.
 
 **Get the photos:**
 ```bash
@@ -70,7 +70,7 @@ Terraform state on purpose), then `terraform apply -var model_calls_per_day=200`
 
 **What it creates:** HTTP API (throttled, no access logs — they would record IP addresses) → Lambda `takesure-api`
 (Node 22, arm64, 512 MB, 14-day logs, one line per request) → DynamoDB `takesure` (on demand, TTL, encrypted,
-point-in-time recovery) and a private, encrypted S3 bucket (backups expire after 400 days unchanged, training
+no point-in-time recovery, so deleted items are gone) and a private, encrypted S3 bucket (backups expire after 400 days unchanged, training
 photos after 2 years). IAM allows only those, plus reading the two SSM parameters.
 
 CI (`.github/workflows/server.yml`) runs the tests, the bundle and `terraform fmt/validate` on every server change.

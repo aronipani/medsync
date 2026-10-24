@@ -60,7 +60,7 @@ these signals:
 | Barcode | Exact barcode match | decisive |
 | Look | Cosine similarity of the photo's image embedding to `references` (small on-device image model, e.g. MobileNetV3 / DINOv2-small in TFLite, ~5–15 MB) | medium |
 | Colours and grid | Foil/print colours and pocket rows × columns close to the profile | low |
-| Pockets left | Full pockets counted vs stock expected (Stock tab) | low, tie-break only |
+| Pockets left | Full pockets counted vs stock expected (Medicines → Supplies) | low, tie-break only |
 
 **Due now is not a signal.** It only decides the order when two medicines are tied, and it never turns an
 uncertain scan into a green.
@@ -195,11 +195,11 @@ recognise" (Add a strip, offline-capable) in the medicine's screen, not at dose 
 
 ### Privacy and consent
 * First enrollment asks once per household: *"Send strip photos to TakeSure to read them? Photos are read and deleted;
-  nothing that names you is kept."* **Allow** / **Not now**. Changeable in Settings → Helper tools.
+  nothing that names you is kept."* **Allow** / **Not now**. Changeable in Settings → Privacy & safety.
 * Photos are cropped to the strip on the phone where the region/strip finder can, so pharmacy stickers with a
   patient's name are less likely to be sent. Text read on the phone is not sent.
 * Server keeps photos only in memory for the request; logs keep no image and no text read.
-* PRIVACY.md (both platforms) and spec 03's About & safety page must describe this before it ships. Store forms
+* PRIVACY.md (both platforms) and spec 03's Privacy & safety page must describe this before it ships. Store forms
   (spec 08) must declare health-related photos sent for processing.
 
 ## 4. What this means for the region detector (spec 10)
@@ -265,8 +265,8 @@ To build with profiles and enrollment (`tests/profile.test.ts`):
 * **Look (iPhone):** Apple Vision's image feature print compares the first scan photo with each medicine's saved
   strip photos (fresh-strip anchors and confirmed scans; `src/look.ts`, `src/lookMatch.ts`). It is used only when
   the text read doesn't point elsewhere, and lifts a weak read to amber ("the name couldn't be read, but the strip
-  looks like your X") — never to green or "wrong medicine". Distances are shown to helpers (Settings → show scanner
-  details) so `LOOK_MAX` / `LOOK_MARGIN` can be tuned from real scans. Android: not yet.
+  looks like your X") — never to green or "wrong medicine". Distances are shown to helpers (Settings → Scanning → Change → Show scanner
+  details on scan results) so `LOOK_MAX` / `LOOK_MARGIN` can be tuned from real scans. Android: not yet.
 * **Live scanning:** the Scan tab reads by itself — waits for a steady hand (motion sensor), takes a small photo,
   says "bring the strip closer" or "hold the strip in front of the camera", and runs the full read once the print
   is big enough (`src/liveHint.ts`, `src/stillness.ts`). Stops after a minute without a strip. Setting: "Read
@@ -274,3 +274,8 @@ To build with profiles and enrollment (`tests/profile.test.ts`):
 * **Box barcode:** every weak read offers "Scan the box barcode"; a barcode, once linked, is decisive.
 * **Server fallback (stub):** after two weak reads in a row, `readOnServer` (`src/serverFallback.ts`) is asked; it
   answers "not built" for now. When built it posts to `/v1/strip/read` with the household's opt-in, amber at most.
+
+## Strength safety (24 Oct 2026)
+* The household fragment matcher uses the same strength rule as `src/match.ts` (`strengthClash`): a printed
+  strength that disagrees with the medicine wins over its number appearing elsewhere. Taught strips give green only
+  when the strength is read too. Details in spec 12.

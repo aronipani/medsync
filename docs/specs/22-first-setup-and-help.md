@@ -16,7 +16,7 @@ for a parent needs to know what the parent will see.
 The guided setup is the main piece; 2 and 3 cover people who skipped it or get the phone handed to them.
 
 ## 1. Guided first setup
-Starts right after **I understand** on the first-run notice (spec 03), only when there are no medicines. Full
+Starts right after **I agree** on the first-run notice (spec 03), only when there are no medicines. Full
 screen, one job per step, `Steps` progress line ("Step 1 of 3"), **Skip for now** small at the bottom of every step.
 Skipping lands on Today as now; Today offers **"Finish setting up"** (one line, Today's "needs attention" slot, spec 21)
 until step 3 is done or dismissed.

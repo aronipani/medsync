@@ -1,7 +1,7 @@
 # Spec 04 — A bigger offline medicine list
 
 ## Problem
-The built-in list has ~65 hand-checked brands. India sells tens of thousands. When a strip's brand isn't in the
+The built-in list has 68 hand-checked entries (~134 brand names, `DRUGS` in `src/drugdb.ts`). India sells tens of thousands. When a strip's brand isn't in the
 list, the app can't fill in its contents, can't recognise a torn brand by its contents, and the same-medicine
 warning (spec 02) can't see it.
 

@@ -69,7 +69,6 @@ Expected: about 3–6 small reads instead of 5–8 full ones, and names found un
 misses the line.
 
 ### 5. Switch and comparison
-* Settings → Training photos gets **"Reader: automatic / old method"** while this is new.
 * Each scan records which path ran and whether it matched (stays on the phone; included in the training export),
   so old and new can be compared on the same strips before the old path becomes fallback-only.
 
@@ -83,14 +82,15 @@ misses the line.
   uses it first and falls back to ML Kit if Vision is missing from the build or fails on a photo. ML Kit therefore
   stays in the iPhone build for now; remove it once Vision has proven itself. Each training photo records
   `reader` (`apple-vision` / `ml-kit`) so the two can be compared. Privacy text is per platform.
-* **Done:** "Send for training" emails unsent training photos to the developer (the person presses Send).
+* **Done:** "Send photos" sends unsent training photos to the TakeSure server, or by email in builds without one
+  (the person presses Send).
 * **Done (trial):** steps 2–3. A first model trained on 52 auto-labelled photos of 11 medicines (640 px, 50 epochs,
   CPU) is in `assets/models/strip-regions.tflite`. Differences from the plan above:
   * Input is 640 px (960 trained too slowly on CPU for a trial); the model takes channels-first input `[1, 3, 640, 640]`.
   * No native RGB helper: the photo is shrunk to 640 px with ImageManipulator and decoded in JS (`jpeg-js`).
   * The detector path reads the upright photo plus up to 6 found areas (2 brand, 2 strength, 1 contents, 1 expiry),
     each level and upside down. It falls back to the old path when no brand or contents area scores ≥ 0.35.
-  * Settings → Strip reading → "Use the region detector" switches it off to compare. Scan results say what it did.
+  * Settings → Scanning → Change → "Use the strip area finder" switches it off to compare. Scan results say what it did.
 * **Done:** scan traces (spec 12). Every photo read keeps what both steps saw — the detector's boxes with confidence
   and the text of every reading — and training photos carry it: `predictions/`, `scans/` and a boxed copy of each
   photo (`boxed/*.svg`) in the export, next to the clean photo. A failed scan now shows whether finding (detector) or
@@ -107,18 +107,16 @@ misses the line.
 
 ## Training data (done on this branch)
 * The phone's auto-labels and `training/regions.py` now mark an `expiry` box on any line with a readable expiry date.
-* Photos of scans nobody confirmed (red, unreadable, closed — Scan tab and Scan to add) are kept when "Save scan photos
-  for training" is on, without a label, and exported under `unlabelled/` with the reason. Before, only confirmed or
+* Photos of scans nobody confirmed (red, unreadable, closed — Scan tab and Scan to add) are kept when "Also keep photos
+  from everyday scans" is on, without a label, and exported under `unlabelled/` with the reason. Before, only confirmed or
   taught scans were kept, so the hardest strips never reached training.
 * A photo where no box was found gets no label file (it used to get an empty one, which would teach "nothing here").
 
 ## Needed
-* The trained weights (`best.pt`, or the exported `.tflite`) — not in the repo yet. Add them under
-  `assets/models/` (a few MB) or keep `training/runs/` out of git and attach the exported file to a release.
-* An iPhone for testing step 1 (the CI IPA via AltStore is enough).
+* An iPhone for testing step 1 (the CI IPA via AltStore is enough). The trial model is in
+  `assets/models/strip-regions.tflite`.
 
 ## Tests
 * `tests/obb.test.ts`: decoding a recorded raw model output gives the expected boxes; NMS keeps the best of
   overlapping boxes at different angles; mapping from 960×960 letterbox back to photo pixels.
-* `tests/textReader.test.ts`: Vision → `OcrLine` conversion (bottom-left normalised → top-left pixels, corners order).
 * Existing `strips.test.ts`, `label-rx.test.ts` and `regions.test.ts` unchanged and passing.

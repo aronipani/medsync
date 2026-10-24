@@ -7,7 +7,7 @@ Friends can take them, but installing the app is easy only on Android (APK link)
 work for everyone — but on their own they have no label and no scan trace.
 
 ## What it does
-**Settings → Helper tools → "Collect strip photos"** (or the quiet link on Today for a new user) — works like Test scan:
+**Settings → Your data → Photos for improving the scanner → "Collect strip photos"** (or the quiet link on Today and Scan for a new user) — works like Test scan:
 
 1. **Which medicine is in the next photos?** — pick one of the medicines in the app, type a name and strength
    ("Vonzai" / "20"; "Vonzai 20" in the name field also works), or "Don't know". Stays chosen for the next photos.
@@ -63,7 +63,7 @@ Then add each friend's photos one medicine at a time.
 
 ## Privacy
 Photos of someone's medicines are health information about them. Ask before using them, keep personal details out of
-the frame, and don't share the photos further. Imported photos stay on the phone until exported or emailed (spec 03).
+the frame, and don't share the photos further. Imported photos stay on the phone until exported or sent with Send photos (TakeSure server or email; spec 03).
 
 ## Code
 `app/import-photos.tsx` (screen, route `/import-photos`), `src/importPhotos.ts` (pure: `judgeImport`, `parseTypedLabel`, `importSummary`),
@@ -77,6 +77,6 @@ the frame, and don't share the photos further. Imported photos stay on the phone
   plain photos, added with "From library".
 * A new user with no medicines sees **"Help train the strip scanner → Collect strip photos"** on the Today and Scan tabs,
   so friends don't have to find it in Settings. `medsync://import-photos` opens the screen directly.
-* The first time, Collect strip photos shows **"Before you start"**: what is collected, that photos go to the training
-  address only when they press Send, to keep personal details out of the frame, to photograph only strips they may
+* The first time, Collect strip photos shows **"Before you start"**: what is collected, that photos are sent (to the TakeSure server, or the training
+  address in builds without one) only when they press Send, to keep personal details out of the frame, to photograph only strips they may
   share, and how to delete photos. Agreeing is stored as `settings.collectConsent` (time).

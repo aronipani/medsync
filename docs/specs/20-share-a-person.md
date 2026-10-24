@@ -25,7 +25,7 @@ forth. Until the family circle (spec 16) runs on the server, a file per person d
   otherwise the later one wins.
 * Where they live: if it's this phone's zone, they live with this phone (reminders here); otherwise their zone is kept
   and their reminders stay on their own phone (spec 19).
-* The schedule before is saved as a version ("Sent from another phone (date)"): Settings → Earlier versions of the list.
+* The schedule before is saved as a version ("Sent from another phone (date)"): Settings → Your data → Earlier versions of the list.
 
 ## Privacy
 The file contains health information. The send screen says to send it only to people you trust. Nothing goes through
@@ -38,3 +38,9 @@ The family circle (spec 16) replaces the manual file: changes and records go bot
 Only that person in the file, zone written out, no photo paths; India phone updates its own "Ma" (zone cleared, stock
 kept, matched by name); records go back to the caregiver mapped to its ids; a medicine missing from the file is
 paused; a taken record beats an automatic missed; backups, newer files and broken files are refused clearly.
+
+## 24 Oct 2026
+* "Is X 'Me' on this phone?" is asked only when it's plausible: "Me" has no medicines yet, or shares one with the
+  file. *No — add X* comes first. Otherwise a caregiver opening a parent's file could merge it into their own "Me"
+  and pause their own medicines.
+* Renaming "Me" keeps the meal times, language and time zone just typed.

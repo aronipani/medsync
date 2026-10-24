@@ -23,6 +23,10 @@ understand at a glance and should never make the person read or decide more than
    link under "Add a medicine".
 
 ## What changed (Oct 2026)
+> **Superseded in part by spec 21 (20 Oct 2026):** the Settings tabs below (Everyday, Timing, Helper tools /
+> Scanner & photos) and the simple / helper view are gone. Settings is now one list: Family · Reminders · Scanning ·
+> Your data · Privacy & safety · Help; the bottom bar is Today · Scan · Medicines · Settings for everyone.
+
 * **Settings** is three tabs (`SegmentTabs`), opening on Everyday:
   * **Everyday** — Family, Send a test reminder (with one platform-specific line), Backup (status, *Save a backup*;
     *Restore* folded under "Restore from a backup"), About & safety.
@@ -88,7 +92,7 @@ understand at a glance and should never make the person read or decide more than
 * Darker light-mode red (#B91C1C), grey text (#4F5F5B) and afternoon/evening headings.
 
 ## Look: "less, but better" (Oct 2026)
-Design board: MedSync — Calm Design (claude.ai artifact). Black and white do the work; colour only means something.
+Design board: MedSync (now TakeSure) — Calm Design (claude.ai artifact). Black and white do the work; colour only means something.
 * **Palette** (`src/ui.tsx`): paper #F6F6F3, white cards, ink #111111, quiet ink #5C5C57. One main button per screen
   in ink (light in dark mode). Signal orange #B84A0E only for "due now". Go #1E7A46, check #8F5A00, stop #B3261E —
   always with a symbol and a word. Dark/night: charcoal #121212, cards #1E1E1E. Every pair ≥ 4.5:1.
@@ -98,7 +102,7 @@ Design board: MedSync — Calm Design (claude.ai artifact). Black and white do t
   (green ✓ "Taken 9:04 AM", outline when still to take), "1 of 3 done", and one button ("Scan the strips" →
   "Scan the next strip" → "Scan the last strip"). Then **Later today** grouped by time (several medicines under one
   time), then **Done**. Other days list each time with its medicines.
-* **Scan result** fills the screen in its colour: big icon, "Right medicine", "Take 1 tablet" at 46 pt, and when
+* **Scan result** fills the screen in its colour: big icon, "Matches your list", "Take 1 tablet" at 46 pt, and when
   several medicines are due together, "9:00 AM · medicine 2 of 3" with a progress bar and "Still to take now: …";
   the button reads "I took it — next strip". The camera stays running underneath, so the next scan starts at once.
 

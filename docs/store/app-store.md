@@ -57,7 +57,7 @@ many tablets a day.
   at that time.
 • Check the strip before taking it: point the camera at the medicine strip or box. TakeSure reads the printed name and
   shows green when it matches a medicine due now, with the amount from your list, spoken in English, Hindi, Bengali
-  and 10 more languages. Red with "scan the next one" when it doesn't.
+  and 10 more languages. Red "Not a match" when it doesn't.
 • Made for Indian strips: worn and half-cut strips, brand and generic names, and other brands with the same
   medicine.
 • Every dose logged as taken, missed or skipped; stock goes down by itself, with a warning before it runs out and a
@@ -130,8 +130,8 @@ video file here is easier than a link.
 >    disclosure → tick "I have read this and understand it" → "Turn on scanning". (In India it is on by default.)
 > 4. When the reminder arrives (or from the Scan tab), point the camera at that medicine's box or blister strip.
 >    The app reads the printed name and shows green "Matches your list" with the amount you entered; anything else
->    shows red "scan the next one". Then tap "I took it".
-> 5. Today shows the dose as taken, and the stock count on the Medicines tab goes down by one.
+>    shows red "Not a match" with "Scan next". Then tap "I took it".
+> 5. Today shows the dose as taken, and the count in Medicines → Supplies goes down by one.
 >    Without scanning, Today's "I took it" button records the dose too.
 >
 > The scanner is tuned for Indian medicine strips; the attached video shows it with Indian strips.
@@ -173,12 +173,12 @@ Other pages to finish before "Add for Review" (left sidebar):
 ## Medical-category rules checklist (why apps like this get rejected)
 | Guideline | What it asks | How TakeSure meets it |
 |---|---|---|
-| 1.4.1 Physical harm — medical apps | Greater scrutiny if data could be inaccurate; disclose how accuracy claims are backed; remind people to check with a doctor | No accuracy claims ("Matches your list", not "Correct medicine"); first-run notice and About & safety: scanner can be wrong, read the strip, follow the doctor |
+| 1.4.1 Physical harm — medical apps | Greater scrutiny if data could be inaccurate; disclose how accuracy claims are backed; remind people to check with a doctor | No accuracy claims ("Matches your list", not "Correct medicine"); first-run notice and Settings → Privacy & safety: scanner can be wrong, read the strip, follow the doctor |
 | 1.4.2 Drug dosage calculators | Must come from a manufacturer, hospital, pharmacy or approved body | The app never calculates doses; amounts come only from what the user enters. Said in the notice, the description and the review notes |
 | 2.1 App completeness | Reviewer must be able to use every feature | Review notes with a no-strips path (any packaged medicine), plus a video for Indian strips. No hidden server features (spec 07/16 off) |
 | 2.3 Accurate metadata | Description and screenshots match the app | Listing describes only what v1 does; no server, cloud backup or family sharing mentioned |
 | 2.3.7 / 5.2.1 Keywords, trademarks | No other brands in keywords or screenshots | Generic medicine names in screenshots; no brand keywords |
-| 5.1.1 Privacy policy | Link in App Store Connect and inside the app; explains what is collected, retained and deleted | PRIVACY.md (updated 17 Oct 2026), linked from About & safety |
+| 5.1.1 Privacy policy | Link in App Store Connect and inside the app; explains what is collected, retained and deleted | PRIVACY.md (updated 24 Oct 2026), linked from Settings → Privacy & safety |
 | 5.1.1 Permission strings | Each permission explains its use | Camera, photos, contacts strings in app.json |
 | 5.1.1(ix) Highly regulated fields | Healthcare *services* must come from the provider | TakeSure is a personal tracker, not a healthcare service: no consultations, prescriptions or pharmacy orders |
 | 5.1.3 Health data | No use for ads or data mining; don't store personal health information in iCloud | No ads, nothing uploaded; backup is a file the user saves where they choose |
@@ -201,5 +201,5 @@ Other pages to finish before "Add for Review" (left sidebar):
 * Put the terms link in the description's last line and in the Support / Marketing URL page:
   https://github.com/aronipani/medsync/blob/main/TERMS.md
 * The first-run notice (version 3) shows the terms in brief with **I agree**; the date is kept on the phone and shown
-  in About & safety. Raising `NOTICE_VERSION` asks everyone again.
+  in Settings → Privacy & safety. Raising `NOTICE_VERSION` asks everyone again.
 

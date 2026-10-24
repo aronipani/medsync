@@ -19,7 +19,7 @@ which US apps don't, and now reads US boxes and pharmacy bottles (spec 18).
 
 ## Full disclosure instead of a lawyer (for now)
 The app says plainly what it is and isn't, everywhere it matters: store listing, first-run notice (version 3),
-About & safety, and the TestFlight "What to test" text.
+Privacy & safety, and the TestFlight "What to test" text.
 * **What it is:** a reminder and record-keeping aid for medicines a person enters themselves.
 * **What it is not:** not a medical device, not reviewed or cleared by the FDA, doesn't diagnose, treat, or decide
   doses; amounts come from the prescription the person enters.
@@ -44,7 +44,7 @@ an hour with a US health-app lawyer (or a free university law clinic) is still r
 * **Only when needed** (an inhaler, a pain reliever; common on US prescriptions): no reminders, never "missed"; Today
   has "Only when needed" with "Took a dose" and the times taken today; stock goes down. A US label saying "as needed"
   sets it, with the amount per dose. The app never says how many are allowed.
-* **About & safety** shows the date of the FDA list in the app.
+* **Privacy & safety** shows the date of the FDA list in the app.
 * **Turning it back on** (Scan tab or Settings → Scanning at dose time): the disclosure is shown and needs a tick
   ("I have read this and understand it") before the switch works. Anyone can turn it off again.
 * **Where the acceptance is kept:** on the phone only, in settings (`doseScan: { on, at, disclosure: version }`), and in
@@ -71,3 +71,6 @@ desi parents' WhatsApp and Facebook groups; Indian student and alumni associatio
 ## What makes it worth it
 The family circle (spec 16: taken / missed / low stock, shared with chosen family) — "see that Ma took her medicine
 in Kolkata" — needs the TakeSure server deployed. It is the main reason a US family would choose TakeSure.
+
+## 24 Oct 2026
+* "Check the strips" reminders come only when dose-time scanning is on, so a US phone with scanning off gets none.

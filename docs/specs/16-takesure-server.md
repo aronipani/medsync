@@ -18,7 +18,7 @@ Code: `server/` (TypeScript, AWS Lambda). API: `server/openapi.yaml`. Run and de
 4. **No identifying logs.** One log line per request: route shape, status, time. No bodies, ids, tokens or IP
    addresses; API Gateway access logs are off.
 5. **The phone never depends on it at dose time.** Scanning, reminders and logging stay offline (spec 15).
-6. **Opt-in per feature,** asked in plain words (spec 14), changeable in Settings → Helper tools.
+6. **Opt-in per feature,** asked in plain words (spec 14), changeable in Settings → Privacy & safety.
 
 ## What the server can and cannot see
 
@@ -74,7 +74,7 @@ the budget. Over the cap, or if the model fails, the answer is 503/502 and the a
 ### 2. Cloud backup (encrypted)
 `PUT /v1/vault/{id}` with the sealed backup file of spec 01 (photos still left out, ≤2 MB). The server keeps the
 latest and the one before, so one bad save can be undone (`GET …?version=previous`). `If-Match` stops two phones
-overwriting each other. Settings → Backup: *Also keep a copy online* (off), *Restore from online copy*,
+overwriting each other. Settings → Your data → Backup: *Also keep a copy online* (off), *Restore from online copy*,
 *Delete online copy*. The 30-day backup reminder counts an online save.
 
 ### 3. Family circle (activity sharing)
@@ -123,13 +123,13 @@ always as a draft a person checks. Later, Apple App Attest / Google Play Integri
 real app without identifying the person.
 
 ## Build order
-1. **Server** (done in `server/`): all endpoints, tests, AWS template. Not deployed.
+1. **Server** (done in `server/`): all endpoints, tests, AWS infrastructure in Terraform (`server/terraform/`). Not deployed.
 2. **Deploy** (needs the AWS account and a model key, see `server/README.md`); set `EXPO_PUBLIC_API_URL`.
 3. **App: strip enrollment** (spec 15 step 3) using the catalogue first, then strip read.
-4. **App: cloud backup** — keys, recovery code, Settings → Backup.
+4. **App: cloud backup** — keys, recovery code, Settings → Your data → Backup.
 5. **App: family circle** — join by QR / link, events, a simple "Family" view on Today.
 6. **App: training photos** switch from email to `/v1/photos` — done for helper test builds (17 Oct 2026).
-Before 3–6 ship: PRIVACY.md (both platforms), the About & safety page (spec 03), store data-safety forms (spec 08).
+Before 3–6 ship: PRIVACY.md (both platforms), the Privacy & safety page (spec 03), store data-safety forms (spec 08).
 
 ## Tests (`server/tests/`, `npm test` in `server/`)
 * Install tokens: forged and missing tokens are refused.
@@ -142,3 +142,11 @@ Before 3–6 ship: PRIVACY.md (both platforms), the About & safety page (spec 03
   and oversized events refused.
 * Training photo: cleaned, filed by month, extra fields (member, text read, time) dropped.
 * No stored item contains an install token or a vault token.
+
+## Review fixes (24 Oct 2026)
+* **Backups:** each upload gets its own file name, stored in the vault record, so two saves racing for the same
+  version can't overwrite or delete the winner's backup (test in `server/tests/api.test.ts`).
+* **Terraform:** DynamoDB point-in-time recovery is off (deleted items must not stay restorable); unused batch and
+  index permissions removed. Deploy is `terraform apply` in `server/terraform/` (see `server/README.md`).
+* Model call timeout 20 s, under API Gateway's 30 s.
+* Store builds never get a server address (`src/server.ts`).

@@ -6,7 +6,7 @@ camera isn't allowed, reminders are off, or a strip isn't recognised (glare, new
 that's the worst moment to find out.
 
 ## What it does
-**Test scan** screen (Scan tab when nothing is due and a strip for the next 24 hours is unchecked → "Check the next strips now"; Settings → Helper tools → Test scan):
+**Test scan** screen (Scan tab when nothing is due → "Check the next strips" or "Check the strips for 8:00 AM"; Settings → Scanning → Before a first dose → **Check the strips**):
 
 1. **Ready for the next dose?** — camera allowed, reminders (notifications) allowed and the next dose time, which
    text reader this build uses, and whether the region detector is loaded.
@@ -24,7 +24,7 @@ that's the worst moment to find out.
    Picking one keeps the photos labelled with it (the most useful training photos: the scanner failed and the
    answer is known) and marks that medicine's test failed. "None of these" keeps them unlabelled.
 
-Every test's photos are kept exactly once when training photos are on (Settings → Training photos): labelled when
+Every test's photos are kept exactly once when training photos are on (Settings → Your data → Photos for improving the scanner): labelled when
 the medicine is known, otherwise unlabelled with what the test read — including when the person leaves or starts
 the next test without answering. They go out with Export or Send for training like other training photos. Each carries the scan's trace (spec 12): the detector's boxes and the text read at each step, plus a copy of the photo with the boxes drawn on it.
 
@@ -54,3 +54,7 @@ and again after every test scan, so a pass removes its reminder and a failure ad
 "not taken yet" follow-ups always fit in iOS's 64 pending notifications.
 
 Code: `testReminders` in `src/testScan.ts` (pure, tested); scheduled in `src/notifications.ts`.
+
+## Reminders only when scanning is on (24 Oct 2026)
+* "Check the strips" reminders are set only when dose-time scanning is on (off by default in the US, spec 19), and
+  skip people who live in another time zone.

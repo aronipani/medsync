@@ -78,7 +78,7 @@ After the strict matcher and household matching (spec 15) fail to find a due med
    * "Ask the pharmacist or doctor before taking it."
 5. Never green on the first sight of a new brand. Never added without a person tapping Yes.
 
-The same check runs on **Scan to add** and on **refill** (Stock tab → *Add a refill* → scan): a new brand of an
+The same check runs on **Scan to add** and on **refill** (Medicines → Supplies → **Refill**; scanning a refill is not built yet): a new brand of an
 existing medicine is offered as *Add as another brand of Clopilet 75* instead of a second medicine — which also stops
 the duplicate that spec 02 would otherwise have to warn about.
 
@@ -128,7 +128,7 @@ server never learns which brands a household swapped between.
 * Medicines due on the same week are grouped into one reminder and one list ("3 medicines to buy this week").
 
 ### B2. My pharmacies
-Settings → Helper tools → **My pharmacies**: a short list the family keeps (most families use 2–4).
+Medicines → Supplies → **Buy list and pharmacies** → **My pharmacies**: a short list the family keeps (most families use 2–4).
 ```ts
 interface Pharmacy { id: string; name: string; phone?: string; whatsapp?: string; note?: string; }
 ```
@@ -189,7 +189,7 @@ only: `needBuy`, `buying`, `bought`. The server sees nothing new.
   from other names, "only" for ask-before-swap), `pharmacyMessage`, `pharmacyOrder`, WhatsApp/SMS links,
   `withAnswer`, `pickups`.
 * **Buy medicines** page (`app/(tabs)/buy.tsx`), opened from Today ("Time to buy …", replacing "running low"),
-  Stock (*Buy list and pharmacies*) and the reminders: the list, **Show to pharmacist**, **Bought — add to stock**,
+  Supplies (*Buy list and pharmacies*) and the reminders: the list, **Show to pharmacist**, **Bought — add to stock**,
   *Buy something else too*, **Ask a pharmacy** (Call / WhatsApp or SMS with the list, then *What did they say?*:
   Has it / Doesn't have it / Will order + ready day), **My pharmacies** (name, phone, WhatsApp yes/no).
 * Reminders: "🛒 Time to buy …" at 9 am, repeated every 3 days while something is still to buy; "Pick up from …
@@ -211,7 +211,7 @@ only: `needBuy`, `buying`, `bought`. The server sees nothing new.
 ## Simple for older people (spec 14 checklist)
 * Scan: one question, two big buttons; the difference shown side by side, spoken too.
 * Buy list: one tap from the reminder; the main action (call / WhatsApp the usual pharmacy) is the biggest button.
-* Pharmacy list and family hand-off live in Helper tools; the elder never has to set them up.
+* Pharmacy list and family hand-off live on the Buy medicines page (Supplies); the elder never has to set them up.
 * Works with no settings changed: without pharmacies the buy list still shows, with *Show to pharmacist*.
 
 ## Build order

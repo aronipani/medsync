@@ -12,7 +12,7 @@ email, computer), and bring it back on the same or a new phone. No account, no s
 Automatic cloud sync, syncing between two phones, merging two backups. (Sync needs accounts — see the product notes.)
 
 ## The file
-* Name: `MedSync backup 2026-10-15.json` (date of export).
+* Name: `TakeSure backup 2026-10-15.json` (date of export).
 * JSON, human-readable:
   ```json
   { "app": "medsync", "kind": "backup", "format": 1,
@@ -28,7 +28,7 @@ Automatic cloud sync, syncing between two phones, merging two backups. (Sync nee
 * The file contains health information. The export screen says so in one line.
 
 ## Export
-Settings → **Backup** card → **Save a backup** → the phone's share sheet opens with the file.
+Settings → **Your data** → Backup → **Save a backup** → the phone's share sheet opens with the file.
 After a successful share, `settings.lastBackupAt` is set and the card shows "Last backup: today / 12 days ago".
 
 ## Reminder to back up
@@ -36,8 +36,8 @@ If there is at least one medicine and the last backup is more than 30 days old (
 "No backup for 30+ days" in the warning colour. No pop-ups, no nagging elsewhere.
 
 ## Restore
-Settings → Backup → **Restore from a backup** → pick the file (document picker).
-1. The file is checked (`parseBackup`). Rejected with a clear message if: not JSON; not a MedSync backup;
+Settings → Your data → Backup → **Restore from a backup** → **Restore…** → pick the file (document picker).
+1. The file is checked (`parseBackup`). Rejected with a clear message if: not JSON; not a TakeSure backup;
    from a newer format than this app understands ("Update the app to restore this backup"); missing required parts.
 2. A confirmation shows what's in it: "Backup from 15 Oct 2026: 3 people, 12 medicines, 410 dose records."
    and warns "This replaces everything on this phone."
@@ -61,3 +61,10 @@ are not known to the new one.
 * Rejects: garbage, other JSON, `kind` not backup, newer `format`.
 * Repairs: missing settings fields, missing arrays, orphan medicines dropped and counted.
 * Prescription image paths are not in the file.
+
+## Restore checks (24 Oct 2026)
+* Shapes are checked, not trusted: a medicine needs a list of doses, damaged doses are dropped, missing meal times get
+  the defaults (a medicine without doses used to crash the app on every launch).
+* This phone keeps its own `acceptedNotice`, `acceptedNoticeAt` and `setupInUS`: they describe who agreed on this
+  phone and where it was set up, not the schedule.
+* If saved data can't be read at start, nothing is saved over it; the app says so and suggests a restore.

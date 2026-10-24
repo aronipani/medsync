@@ -97,3 +97,15 @@ Size: about 1–3 KB of text per photo next to a ~200 KB photo. Traces are kept 
 steps capped; readable account per step; "no boxes" said plainly; boxed SVG points at the exported photo by relative
 path, picked boxes solid and others dashed, text escaped. `tests/obb.test.ts` and `tests/testScan.test.ts` cover the
 detector decoding and test-scan outcomes.
+
+## Strength and QR safety (24 Oct 2026)
+* A strength printed with its unit, or right after the name, that disagrees with the prescription wins over the
+  expected number turning up elsewhere on the strip (`strengthClash` in `src/match.ts`; same rule in
+  `src/household.ts`). Temperatures, addresses and pack counts are removed first. Combination strengths that add up
+  agree (500 + 125 = 625).
+* QR text goes through the same look-alike and strength checks as printed text. Only a linked barcode goes straight
+  to green.
+* A taught strip gives green only when the strength is read too (amber otherwise), and is compared against every
+  taught strip in the house.
+* A result is dropped if the person on screen changed during the read; the person picker is hidden while reading.
+* Tests: `tests/strength-safety.test.ts`.

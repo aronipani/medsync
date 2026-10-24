@@ -29,7 +29,7 @@ be guessed.
 | Medicine page | Name, strength, form, when, stock, notes, other names, warn at, course end, barcodes, learned strips, delete | Three blocks: **When to take it** (first; most edited) · **Supplies** (left, warn at, course end) · **For the scanner** (collapsed: other names, barcodes, learned strips, scan the strip once). Delete last. |
 | Add medicine | Scan the medicine, photograph a prescription, type it in, other ways | Four equal choices: Scan the medicine · Photograph a prescription · Type it in · **From another phone** (opens a shared file — today only in Settings). |
 | Stock, Buy (hidden) | Opened from a medicine or the low-stock line | Become **Medicines → Supplies**. |
-| Earlier versions | Settings → Scanner & photos → Medicine list | **Medicines** (top-right "History"): it is the list's history. |
+| Earlier versions | Settings → Scanner & photos → Medicine list | **Medicines** (**History of the list** button under the list; also Settings → Your data): it is the list's history. |
 | Check the strips | Settings → Check the scanner | **Scanning** page (and still offered before a first dose). |
 | About & safety | Settings → Help | Split: safety and agreements → **Privacy & safety**; version → **Help**. |
 
