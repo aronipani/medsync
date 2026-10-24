@@ -95,7 +95,7 @@ export function ReportProblem() {
 
       <View style={[s.between, { marginTop: 16 }]}>
         <Text style={{ color: t.text, fontSize: 17, flex: 1, paddingRight: 12 }}>Add app version and phone type (helps us fix it)</Text>
-        <Switch value={details} onValueChange={setDetails} />
+        <Switch value={details} onValueChange={setDetails} accessibilityLabel="Add app version and phone type" />
       </View>
       <Text style={{ color: t.sub, fontSize: 15, marginTop: 6 }}>No medicine names or photos are added.</Text>
 

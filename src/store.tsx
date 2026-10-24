@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
-import { AppState as RNAppState } from 'react-native';
+import { Alert, AppState as RNAppState } from 'react-native';
 import { computeMissed, medLabel } from './schedule.ts';
 import { applyPrescription, duplicateGroups, mergeGroup, planPrescription, remapLogs, type ScheduleChange } from './consolidate.ts';
 import { describeMedTimes } from './describe.ts';
@@ -127,12 +127,17 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           const parsed = JSON.parse(raw) as AppState;
           setState({ ...initialState(), ...parsed, settings: { ...DEFAULT_SETTINGS, ...parsed.settings } });
         }
-      })
-      .catch(() => {})
-      .finally(() => {
         loaded.current = true;
-        setReady(true);
-      });
+      })
+      .catch(() => {
+        // The saved data couldn't be read. Don't save over it (review 24 Oct 2026): keep it untouched and say so.
+        // A restore from a backup (replaceAll) saves again.
+        Alert.alert(
+          "Couldn't open your saved medicines",
+          'Nothing has been changed or deleted. Restart the app; if this keeps happening, restore your latest backup in Settings → Your data, or use Settings → Help → Report a problem.',
+        );
+      })
+      .finally(() => setReady(true));
   }, []);
 
   // Persist on change.
@@ -303,7 +308,10 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
         // The same merge on the state as shown, for the summary (the update above applies it to the latest state).
         return mergePerson(state, file, deviceZone(), intoMemberId);
       },
-      replaceAll: (next) => update(() => next),
+      replaceAll: (next) => {
+        loaded.current = true; // a restore saves even after a failed load
+        update(() => next);
+      },
       setPending: (pending) => update((s) => ({ ...s, pending })),
       updatePendingItem: (id, patch) =>
         update((s) =>

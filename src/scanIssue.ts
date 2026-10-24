@@ -29,7 +29,7 @@ const CONTENTS_SIDE = "Scan the side that lists what's in each tablet.";
 const UPRIGHT = 'Turn the strip so the name reads left to right.';
 const SHINE = 'Tilt the strip a little away from lights, or turn on the torch.';
 const FLATTEN = 'Flatten creases and keep fingers off the name.';
-const TEACH = 'Or press "Teach this strip" so it is known next time.';
+const TEACH = 'Or open "Helper: it is the right medicine" and tap its name, so it is known next time.';
 export const BOX_BARCODE = 'Or scan the barcode on the box — once it is linked, it works every time.';
 
 /**

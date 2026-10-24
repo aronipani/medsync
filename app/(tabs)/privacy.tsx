@@ -1,3 +1,4 @@
+import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import React from 'react';
 import { Alert, Linking, Platform, ScrollView, Text, View } from 'react-native';
@@ -54,6 +55,9 @@ export default function PrivacyPage() {
                 for (const m of state.meds) deleteReferences([...(m.profile?.anchors ?? []), ...(m.profile?.refs ?? [])]);
                 if (TRAINING_AVAILABLE) clearTraining();
                 await clearSafetyCopy();
+                // Reminders name the medicines: cancel them now, not after the notice is accepted again.
+                await Notifications.cancelAllScheduledNotificationsAsync().catch(() => {});
+                await Notifications.dismissAllNotificationsAsync().catch(() => {});
                 replaceAll({ version: 1, members: [newMember('Me', 0)], meds: [], logs: [], stock: [], settings: DEFAULT_SETTINGS });
               },
             },

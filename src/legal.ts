@@ -1,4 +1,4 @@
-// Safety notice and privacy text, shared by the first-run notice and the About & safety page.
+// Safety notice and privacy text, shared by the first-run notice and the Privacy & safety page.
 // See docs/specs/03-safety-and-privacy.md. Keep PRIVACY.md in step with dataPoints().
 
 import { TRAINING_AVAILABLE } from './edition.ts';
@@ -39,7 +39,7 @@ export const PRIVACY_HEADLINE = 'Your data stays on this phone. No account, no a
 
 const READER_ANDROID = 'Text is read from photos on the phone (Google ML Kit). ML Kit may send Google anonymous usage statistics, never your photos.';
 const READER_IOS =
-  "Text is read from photos on the phone by Apple's built-in reader (Apple Vision); nothing is sent. If it can't read a photo, Google ML Kit is used instead, which may send Google anonymous usage statistics, never your photos.";
+  "Text is read from photos on the phone by Apple's built-in reader (Apple Vision); nothing is sent. If it can't read a photo, or a scan matches nothing, Google ML Kit also reads it on the phone; ML Kit may send Google anonymous usage statistics, never your photos.";
 
 /** The privacy points for this phone: the text reader differs between iPhone and Android. */
 export function dataPoints(os: string): string[] {
@@ -47,9 +47,9 @@ export function dataPoints(os: string): string[] {
     'Medicines, schedules, dose history and photos are stored only on this phone.',
     os === 'ios' ? READER_IOS : READER_ANDROID,
     "Spoken announcements use your phone's own voices. Reminders are set on the phone — there is no server.",
-    TRAINING_AVAILABLE
-      ? 'Data leaves the phone only when you choose: a backup file you share, or training photos you export or email yourself.'
-      : 'Data leaves the phone only when you choose: a backup file you share, or a problem report you email.',
+    `Data leaves the phone only when you choose: a backup file, a person's medicines you send to family, a medicine history you share with the doctor, or a problem report you email${
+      TRAINING_AVAILABLE ? ', or training photos you send (to the TakeSure server or by email)' : ''
+    }.`,
   ];
 }
 

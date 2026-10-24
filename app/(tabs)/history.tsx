@@ -43,7 +43,7 @@ function History() {
       ),
     ];
     try {
-      const file = new File(Paths.cache, `medsync-schedule-changes.csv`);
+      const file = new File(Paths.cache, `TakeSure list changes.csv`);
       file.write(rows.join('\n'));
       await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Export schedule changes' });
     } catch (e) {

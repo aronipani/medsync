@@ -10,7 +10,7 @@
       "bundleIdentifier": "com.takesure.app",
       "supportsTablet": false,
       "infoPlist": {
-        "NSCameraUsageDescription": "TakeSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken.",
+        "NSCameraUsageDescription": "TakeSure uses the camera to scan medicine strips, boxes and prescriptions and compare them with your own medicine list.",
         "ITSAppUsesNonExemptEncryption": false
       },
       "privacyManifests": {
@@ -55,15 +55,14 @@
         "android.permission.POST_NOTIFICATIONS",
         "android.permission.SCHEDULE_EXACT_ALARM",
         "android.permission.VIBRATE",
-        "android.permission.READ_CONTACTS",
-        "android.permission.RECORD_AUDIO",
-        "android.permission.WRITE_CONTACTS"
+        "android.permission.READ_CONTACTS"
       ],
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#F6F6F3"
       },
       "blockedPermissions": [
+        "android.permission.RECORD_AUDIO",
         "android.permission.WRITE_CONTACTS"
       ]
     },
@@ -74,7 +73,9 @@
       [
         "expo-camera",
         {
-          "cameraPermission": "TakeSure uses the camera to scan medicine strips and boxes so it can confirm the right medicine is taken."
+          "cameraPermission": "TakeSure uses the camera to scan medicine strips, boxes and prescriptions and compare them with your own medicine list.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false
         }
       ],
       [
@@ -89,7 +90,8 @@
         "expo-image-picker",
         {
           "photosPermission": "TakeSure opens your photos so you can choose a prescription to read.",
-          "cameraPermission": "TakeSure uses the camera to photograph prescriptions and scan medicine strips."
+          "cameraPermission": "TakeSure uses the camera to photograph prescriptions and scan medicine strips.",
+          "microphonePermission": false
         }
       ],
       [
@@ -98,7 +100,13 @@
           "contactsPermission": "TakeSure opens your contacts only when you pick a pharmacy, to fill in its name and phone number. Nothing is uploaded."
         }
       ],
-      "react-native-fast-tflite"
+      "react-native-fast-tflite",
+      [
+        "expo-sensors",
+        {
+          "motionPermission": "TakeSure uses motion only to tell when the phone is held still, so it can read a medicine strip by itself. Nothing is recorded."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": false

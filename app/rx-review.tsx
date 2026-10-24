@@ -170,7 +170,7 @@ export default function PrescriptionReview() {
             </View>
             <View style={[s.between, { marginTop: 10 }]}>
               <Text style={{ color: t.text }}>Add to schedule</Text>
-              <Switch value={i.include} onValueChange={(include) => updatePendingItem(i.id, { include })} />
+              <Switch value={i.include} onValueChange={(include) => updatePendingItem(i.id, { include })} accessibilityLabel={`Add ${i.med.name || 'this medicine'} to schedule`} />
             </View>
           </Card>
         ))}

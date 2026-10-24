@@ -384,7 +384,7 @@ export default function EditMed() {
 
         <View style={[s.between, { marginTop: 18 }]}>
           <Text style={{ color: t.text, fontSize: 17, flex: 1 }}>Remind me about this medicine</Text>
-          <Switch value={med.active} onValueChange={(active) => set({ active })} />
+          <Switch value={med.active} onValueChange={(active) => set({ active })} accessibilityLabel="Remind me about this medicine" />
         </View>
 
         <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 28 }}>Supplies</Text>

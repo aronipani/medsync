@@ -14,7 +14,7 @@ export async function shareHistoryCsv(state: AppState, today: string): Promise<v
       .filter((e) => e.reason === 'refill' || e.reason === 'adjust')
       .map((e) => [e.reason, memberName(e.memberId), e.medName, '', '', '', e.at, e.delta, ''].map(csv).join(',')),
   ];
-  const file = new File(Paths.cache, `medsync-history-${today}.csv`);
+  const file = new File(Paths.cache, `TakeSure history ${today}.csv`);
   file.write(lines.join('\n'));
   await Sharing.shareAsync(file.uri, { mimeType: 'text/csv', dialogTitle: 'Medicine history' });
 }

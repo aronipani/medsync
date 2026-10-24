@@ -38,7 +38,7 @@ function EditMember() {
     const me = !existing && name.toLowerCase() !== STARTER_NAME.toLowerCase() ? starterPerson(state.members) : undefined;
     if (me)
       return Alert.alert(`Is ${name} you?`, `This phone already has "${me.name}". If ${name} is you, "${me.name}" is renamed — your medicines stay.`, [
-        { text: `Yes — rename "${me.name}" to ${name}`, onPress: () => (saveMember({ ...me, name }), router.back()) },
+        { text: `Yes — rename "${me.name}" to ${name}`, onPress: () => (saveMember({ ...m, id: me.id, color: me.color, name }), router.back()) }, // keeps the meal times, language and time zone just typed
         { text: `No — add ${name}`, onPress: () => (saveMember({ ...m, name }), router.back()) },
         { text: 'Cancel', style: 'cancel' },
       ]);
@@ -139,7 +139,7 @@ function EditMember() {
       )}
       <View style={[s.between, { marginTop: 12 }]}>
         <Text style={{ color: t.text, fontSize: 16 }}>Speak scan results aloud</Text>
-        <Switch value={m.voice !== false} onValueChange={(voice) => setM({ ...m, voice })} />
+        <Switch value={m.voice !== false} onValueChange={(voice) => setM({ ...m, voice })} accessibilityLabel="Speak scan results aloud" />
       </View>
       <Button
         title={speak === 'speaking' ? '🔊 Speaking…' : '🔊 Hear an example'}

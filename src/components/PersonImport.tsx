@@ -49,11 +49,16 @@ export function usePersonImport(): () => Promise<void> {
           { text: `Yes, update ${sameName.name}`, onPress: () => apply(f, sameName.id) },
         ]);
       // Not found by name: it may be this phone's "Me" (the same person, sent from another phone under their name).
+      // Only asked when it's plausible: "Me" has no medicines yet, or shares one with the file. Otherwise a caregiver
+      // opening a parent's file could merge it into their own "Me" and pause their own medicines (review 24 Oct 2026).
       const me = starterPerson(state.members);
-      if (me)
+      const key = (n: string) => n.trim().toLowerCase().split(/\s+/)[0] ?? '';
+      const mine = me ? state.meds.filter((m) => m.memberId === me.id && m.active) : [];
+      const shares = mine.some((m) => f.meds.some((x) => key(x.name) === key(m.name)));
+      if (me && (!mine.length || shares))
         return Alert.alert(`Is ${f.member.name} "${me.name}" on this phone?`, `${what}\n\nIf so, "${me.name}" is updated and renamed ${f.member.name}, instead of adding a second person.`, [
-          { text: `Yes — update "${me.name}"`, onPress: () => apply(f, me.id) },
           { text: `No — add ${f.member.name}`, onPress: () => apply(f) },
+          { text: `Yes — update "${me.name}"`, onPress: () => apply(f, me.id) },
           { text: 'Cancel', style: 'cancel' },
         ]);
       Alert.alert(`Add ${f.member.name}?`, what, [

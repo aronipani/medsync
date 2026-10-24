@@ -40,7 +40,7 @@ export function Toggle({ label, value, onChange, help }: { label: string; value:
     <View style={{ marginTop: 10 }}>
       <View style={[s.between, { minHeight: 48 }]}>
         <Text style={{ color: t.text, fontWeight: '600', fontSize: 16, flex: 1, marginRight: 10 }}>{label}</Text>
-        <Switch value={value} onValueChange={onChange} />
+        <Switch value={value} onValueChange={onChange} accessibilityLabel={label} />
       </View>
       {help ? <Text style={{ color: t.sub, fontSize: 14, lineHeight: 20 }}>{help}</Text> : null}
     </View>
@@ -264,7 +264,9 @@ export function BackupCard() {
               } catch (e) {
                 return Alert.alert('Cannot restore', `Couldn't keep a safety copy of the current data first, so nothing was changed. (${String(e)})`);
               }
-              replaceAll(r.state);
+              // What this phone agreed to, and where it was set up (US scanning default), belong to this phone.
+              const mine = state.settings;
+              replaceAll({ ...r.state, settings: { ...r.state.settings, acceptedNotice: mine.acceptedNotice, acceptedNoticeAt: mine.acceptedNoticeAt, setupInUS: mine.setupInUS } });
               setSafety(new Date().toISOString());
               Alert.alert('Restored', 'Your medicines and reminders are back.');
             },
@@ -332,6 +334,7 @@ export function DoseScanSetting() {
       <View style={[s.between, { minHeight: 48 }]}>
         <Text style={{ color: t.text, fontWeight: '600', fontSize: 16, flex: 1, marginRight: 10 }}>Check the strip with a scan when a dose is due</Text>
         <Switch
+          accessibilityLabel="Check the strip with a scan when a dose is due"
           value={on || asking}
           onValueChange={(v) => {
             if (!v) {

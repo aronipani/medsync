@@ -1,6 +1,6 @@
 # TakeSure privacy policy
 
-_Last updated: 20 October 2026_
+_Last updated: 24 October 2026_
 
 TakeSure is a free app that helps a family keep track of medicines: schedules, reminders, checking strips and
 bottles by photo, and stock. It has **no account**, **no ads** and **no tracking**. The App Store and Play Store versions send **nothing** to
@@ -9,7 +9,8 @@ any server run by the developer: your data stays on your phone.
 ## What the app stores, and where
 Everything you enter or the app records stays **on your phone**, in the app's own storage:
 family members' names, medicines and schedules, dose history (taken / missed), stock counts, prescription photos
-you scan, and pharmacies you add (name and phone number).
+you scan, photos of each medicine's strip that the app keeps to recognise it, and pharmacies you add (name and phone
+number).
 
 Uninstalling the app deletes all of it. The developer cannot see, recover or delete it, because it never leaves
 your phone.
@@ -17,7 +18,7 @@ your phone.
 ## What happens on the phone
 * **Reading text from photos** is done on the phone.
   * **iPhone:** Apple's built-in text reader (Apple Vision, part of iOS). Nothing is sent anywhere. If it can't read
-    a photo, the app uses Google ML Kit instead (below).
+    a photo, or when a scan matches nothing, the app also reads the photo with Google ML Kit, on the phone (below).
   * **Android:** Google ML Kit's on-device text recognition. According to Google, ML Kit may send anonymous usage
     and performance statistics to Google; it does not send your photos or the text read from them.
 * **Spoken announcements** use your phone's built-in text-to-speech voices.
@@ -27,6 +28,10 @@ your phone.
 * **Backup file.** "Save a backup" creates a file with your medicines, schedules and history and opens your phone's
   share sheet. Where it goes (Google Drive, email, WhatsApp…) is your choice. It contains health information — keep
   it private. Photos are not included.
+* **A person's medicines.** Settings → Family → "Send …'s medicines" makes a file with that person's medicines, dose
+  times and recent doses and opens the share sheet, so a family member can open it in TakeSure on their phone.
+* **Medicine history for the doctor.** Settings → Your data → "Share medicine history" makes a spreadsheet of doses
+  and refills and opens the share sheet.
 * **Problem report.** "Report a problem" opens an email to the developer with what you chose and typed, and (if you
   leave it on) the app version, phone model and how many medicines and people are in the app — no names or medicines.
   You see the email and press Send yourself.

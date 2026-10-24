@@ -53,11 +53,28 @@ export function parseBackup(text: string, defaults: Settings): ParseResult {
   const s = f.state as Partial<AppState> | undefined;
   if (!s || typeof s !== 'object' || !Array.isArray(s.members) || !s.members.length) return { ok: false, error: 'This backup is incomplete (no family members in it).' };
 
-  const members = arr<AppState['members'][number]>(s.members).filter((m) => m && typeof m.id === 'string' && typeof m.name === 'string');
+  // Shapes are checked, not trusted: a damaged or hand-edited file must not leave the app crashing on every launch
+  // (a medicine without doses broke the missed-dose check, review 24 Oct 2026).
+  const isTime = (v: unknown) => typeof v === 'string' && /^\d{2}:\d{2}$/.test(v);
+  const members = arr<AppState['members'][number]>(s.members)
+    .filter((m) => m && typeof m.id === 'string' && typeof m.name === 'string')
+    .map((m) => {
+      const t = (m.mealTimes ?? {}) as Partial<AppState['members'][number]['mealTimes']>;
+      return { ...m, mealTimes: { breakfast: isTime(t.breakfast) ? t.breakfast! : '08:00', lunch: isTime(t.lunch) ? t.lunch! : '13:00', dinner: isTime(t.dinner) ? t.dinner! : '20:00' } };
+    });
   if (!members.length) return { ok: false, error: 'This backup is incomplete (no family members in it).' };
   const ids = new Set(members.map((m) => m.id));
-  const allMeds = arr<AppState['meds'][number]>(s.meds).filter((m) => m && typeof m.id === 'string');
-  const meds = allMeds.filter((m) => ids.has(m.memberId));
+  const allMeds = arr<AppState['meds'][number]>(s.meds).filter((m) => m && typeof m.id === 'string' && typeof m.name === 'string' && Array.isArray(m.doses));
+  const meds = allMeds
+    .filter((m) => ids.has(m.memberId))
+    .map((m) => ({
+      ...m,
+      strength: typeof m.strength === 'string' ? m.strength : '',
+      aliases: arr<string>(m.aliases).filter((a) => typeof a === 'string'),
+      barcodes: arr<string>(m.barcodes).filter((b) => typeof b === 'string'),
+      doses: m.doses.filter((d) => d && typeof d.id === 'string' && d.timing && typeof d.timing === 'object' && typeof d.qty === 'number').map((d) => ({ ...d, days: arr<number>(d.days).filter((x) => typeof x === 'number') })),
+      stock: typeof m.stock === 'number' && Number.isFinite(m.stock) ? m.stock : 0,
+    }));
   const state: AppState = {
     ...(s as AppState),
     version: 1,

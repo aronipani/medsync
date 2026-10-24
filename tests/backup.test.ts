@@ -77,3 +77,17 @@ test('backup age text and the 30-day reminder', () => {
   assert.equal(backupOverdue({ ...STATE, settings: { ...STATE.settings, lastBackupAt: new Date(2026, 9, 1).toISOString() } }, now), false);
   assert.equal(backupOverdue({ ...STATE, settings: { ...STATE.settings, lastBackupAt: new Date(2026, 8, 1).toISOString() } }, now), true);
 });
+
+test('restore repairs or drops damaged parts instead of saving them (review 24 Oct 2026)', async () => {
+  const { parseBackup, makeBackup } = await import('../src/backup.ts');
+  const { DEFAULT_SETTINGS } = await import('../src/store.tsx').catch(() => ({ DEFAULT_SETTINGS: {} as never }));
+  const file = makeBackup(STATE) as unknown as { state: { members: Record<string, unknown>[]; meds: Record<string, unknown>[] } };
+  file.state.members[0] = { ...file.state.members[0], mealTimes: undefined };
+  file.state.meds.push({ id: 'broken', memberId: file.state.members[0].id, name: 'NoDoses' });
+  const r = parseBackup(JSON.stringify(file), DEFAULT_SETTINGS);
+  assert.ok(r.ok);
+  if (!r.ok) return;
+  assert.equal(typeof r.state.members[0].mealTimes.breakfast, 'string');
+  assert.ok(r.state.meds.every((m) => Array.isArray(m.doses)));
+  assert.ok(!r.state.meds.some((m) => m.id === 'broken'));
+});
