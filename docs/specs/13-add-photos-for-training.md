@@ -73,6 +73,8 @@ the frame, and don't share the photos further. Imported photos stay on the phone
 * **Android:** one link always gets the newest build —
   `https://github.com/aronipani/medsync/releases/latest/download/MedSync.apk` (the CI also publishes the APK under this
   fixed name). Open it on the phone, allow installing from that source.
+  **Since 24 Oct 2026 the repo is private:** release downloads need a GitHub login with access, so share iPhone builds
+  through the TestFlight public link and Android builds as a file (or a Play closed test) instead.
 * **iPhone:** needs TestFlight (Apple Developer account, $99/yr; `ios.yml` + spec 08). Until then iPhone friends send
   plain photos, added with "From library".
 * A new user with no medicines sees **"Help train the strip scanner → Collect strip photos"** on the Today and Scan tabs,

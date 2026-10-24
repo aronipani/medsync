@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test tests/*.test.ts",
     "postinstall": "patch-package",
-    "medicine-list:us": "node --experimental-strip-types scripts/build-us-medicine-list.ts"
+    "medicine-list:us": "node --experimental-strip-types scripts/build-us-medicine-list.ts",
+    "legal-docs": "node scripts/legal-docs.mjs"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.1.1",

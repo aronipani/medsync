@@ -1,13 +1,13 @@
 import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import React from 'react';
-import { Alert, Linking, Platform, ScrollView, Text, View } from 'react-native';
+import { Alert, Platform, ScrollView, Text, View } from 'react-native';
 import { clearSafetyCopy } from '../../src/backupFile.ts';
 import { MEDICINES } from '../../src/data/medicines.ts';
 import { DOSE_SCAN_DISCLOSURE, doseScanOn, setUpInUS } from '../../src/doseScan.ts';
 import { DRUGS } from '../../src/drugdb.ts';
 import { TRAINING_AVAILABLE } from '../../src/edition.ts';
-import { dataPoints, NOTICE_VERSION, PRIVACY_HEADLINE, PRIVACY_URL, SAFETY_HEADLINE, SAFETY_POINTS, TERMS_POINTS, TERMS_URL, TERMS_VERSION } from '../../src/legal.ts';
+import { dataPoints, NOTICE_VERSION, PRIVACY_HEADLINE, SAFETY_HEADLINE, SAFETY_POINTS, TERMS_POINTS, TERMS_VERSION } from '../../src/legal.ts';
 import { deleteReferences } from '../../src/profileFiles.ts';
 import { DEFAULT_SETTINGS, newMember, useStore } from '../../src/store.tsx';
 import { clearTraining } from '../../src/training.ts';
@@ -91,7 +91,7 @@ export default function PrivacyPage() {
         </Text>
         <More title="Read it">
           {TERMS_POINTS.map(bullet)}
-          <Button title="Full terms of use" kind="ghost" onPress={() => Linking.openURL(TERMS_URL)} />
+          <Button title="Full terms of use" kind="ghost" onPress={() => router.push({ pathname: '/document', params: { doc: 'terms' } })} />
         </More>
 
         <Text style={{ color: t.text, fontSize: 17, fontWeight: '700', marginTop: 16 }}>Scanning at dose time</Text>
@@ -153,8 +153,8 @@ export default function PrivacyPage() {
         <Text style={{ color: t.sub, fontSize: 15, marginTop: 8, lineHeight: 21 }}>Lists can be incomplete or out of date. Check every medicine against its label.</Text>
       </Card>
 
-      <Button title="Full terms of use" kind="secondary" onPress={() => Linking.openURL(TERMS_URL)} style={{ marginTop: 16 }} />
-      <Button title="Full privacy policy" kind="secondary" onPress={() => Linking.openURL(PRIVACY_URL)} style={{ marginTop: 10 }} />
+      <Button title="Full terms of use" kind="secondary" onPress={() => router.push({ pathname: '/document', params: { doc: 'terms' } })} style={{ marginTop: 16 }} />
+      <Button title="Full privacy policy" kind="secondary" onPress={() => router.push({ pathname: '/document', params: { doc: 'privacy' } })} style={{ marginTop: 10 }} />
       <Button title="Delete everything on this phone" kind="ghost" onPress={deleteAll} style={{ marginTop: 18 }} />
     </ScrollView>
   );

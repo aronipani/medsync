@@ -39,8 +39,8 @@ reminders, a record of doses taken or missed, stock, and checking a strip, box o
 * Use TakeSure only lawfully, and don't copy, resell, or try to break it.
 
 ## 4. Your data
-Your data stays on your phone. How the app handles it is in the privacy policy (`PRIVACY.md`), which is part of these
-terms.
+Your data stays on your phone. How the app handles it is in the privacy policy
+(https://aronipani.github.io/takesure/privacy/), which is part of these terms.
 
 ## 5. No warranty
 TakeSure is free and provided **"as is" and "as available"**, without warranties of any kind, express or implied,
@@ -59,7 +59,7 @@ that cannot be waived.**
 ## 7. Changes
 We may change TakeSure or these terms. When the terms change in a way that matters, the app shows them again and asks
 you to agree before you continue. The version and date are at the top of this page; earlier versions are in the
-project's public history on GitHub.
+public history of https://github.com/aronipani/takesure.
 
 ## 8. Ending
 You can stop using TakeSure at any time by deleting it, which deletes its data from the phone.
@@ -70,5 +70,5 @@ If you live elsewhere (for example in India), you keep the protections of the co
 can bring a claim in your local courts where that law allows.
 
 ## 10. Contact
-Use **Report a problem** in the app, email paniaron@gmail.com, or open an issue at
-https://github.com/aronipani/medsync/issues
+Use **Report a problem** in the app (Settings → Help), email paniaron@gmail.com, or see
+https://aronipani.github.io/takesure/

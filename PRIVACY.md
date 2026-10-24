@@ -64,7 +64,7 @@ TakeSure is a reminder and record-keeping aid. It is not a medical device and do
 medical advice. It does not work out doses: the amount shown is what you or your family entered from the
 prescription, and a prescription read from a photo is only a draft to check. The scanner can be wrong — always read
 the name and strength on the strip yourself. Follow your prescription and ask your doctor or pharmacist before
-changing anything. In an emergency call your doctor or emergency services (112 in India, 911 in the US). The terms of use are in [TERMS.md](TERMS.md).
+changing anything. In an emergency call your doctor or emergency services (112 in India, 911 in the US). The terms of use are at https://aronipani.github.io/takesure/terms/.
 
 ## Changes
 If a future version adds anything that sends data off the phone (for example, optional sharing of photos of
@@ -72,8 +72,8 @@ unrecognised strips to improve the app), it will be off by default, ask you each
 updated before that version is released.
 
 ## Contact
-Questions, problems or privacy requests: use **Report a problem** in the app, email paniaron@gmail.com, or open an
-issue at https://github.com/aronipani/medsync/issues
+Questions, problems or privacy requests: use **Report a problem** in the app (Settings → Help), email
+paniaron@gmail.com, or see https://aronipani.github.io/takesure/
 
 Because TakeSure keeps your data only on your phone, the developer holds no personal data about you to access,
 correct or delete; deleting the app removes everything.

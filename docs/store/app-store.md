@@ -73,14 +73,14 @@ medical advice. It does not work out doses — the amount shown is what you ente
 can be wrong: always read the name and strength on the strip yourself, and follow your doctor's and pharmacist's
 instructions.
 
-Terms of use: https://github.com/aronipani/medsync/blob/main/TERMS.md
+Terms of use: https://aronipani.github.io/takesure/terms/
 
 **Keywords (100, comma-separated, no spaces after commas):**
 `medicine reminder,tablet,pill,strip scanner,family,elderly,parents,dose log,refill,stock,India,hindi`
 No medicine brand names or other apps' names (guideline 2.3.7 / 5.2.1).
 
-**Support URL:** https://github.com/aronipani/medsync/issues
-**Privacy policy URL:** https://github.com/aronipani/medsync/blob/main/PRIVACY.md
+**Support URL:** https://aronipani.github.io/takesure/
+**Privacy policy URL:** https://aronipani.github.io/takesure/privacy/
 **Marketing URL:** leave empty.
 **Copyright:** `2026 Aroni Pani`
 
@@ -153,7 +153,7 @@ video file here is easier than a link.
 | Promotional Text | From "Listing text" |
 | Description | From "Listing text" (ends with the terms link) |
 | Keywords | From "Listing text" (exactly 100 characters) |
-| Support URL | https://github.com/aronipani/medsync/issues |
+| Support URL | https://aronipani.github.io/takesure/ |
 | Marketing URL | Empty |
 | Version | **1.0.0** — must match the build (`app.json` "version": "1.0.0"); "1.0" is a different version to Apple |
 | Copyright | 2026 Aroni Pani |
@@ -195,11 +195,22 @@ Other pages to finish before "Add for Review" (left sidebar):
 * Digital Personal Data Protection Act: obligations stay light because the developer receives no personal data.
   Revisit before the TakeSure server (spec 16) goes live.
 
+## Public pages (24 Oct 2026)
+The code repo is private, so the privacy policy, terms and support page live on GitHub Pages in the public repo
+**aronipani/takesure**: https://aronipani.github.io/takesure/ (support), `/privacy/`, `/terms/`.
+* Source of truth stays `PRIVACY.md` / `TERMS.md` here. After editing either: `npm run legal-docs` (updates the
+  copy shown in the app, `src/legalDocs.ts`, and `site/`), then copy `site/*` into the takesure repo and push.
+  A test fails if the app's copy is out of date.
+* The app shows both documents in full offline (Settings → Privacy & safety, and the first-run notice), with
+  "Open on the web" as the backup.
+* No public issue tracker: reports come by email (Settings → Help → Report a problem) so nobody posts health details
+  in public.
+
 ## Terms of use (added 20 Oct 2026)
 * Keep Apple's **Standard EULA** in App Store Connect (App Information → License Agreement); TakeSure's own terms
   (`TERMS.md`) add to it and say so.
 * Put the terms link in the description's last line and in the Support / Marketing URL page:
-  https://github.com/aronipani/medsync/blob/main/TERMS.md
+  https://aronipani.github.io/takesure/terms/
 * The first-run notice (version 3) shows the terms in brief with **I agree**; the date is kept on the phone and shown
   in Settings → Privacy & safety. Raising `NOTICE_VERSION` asks everyone again.
 

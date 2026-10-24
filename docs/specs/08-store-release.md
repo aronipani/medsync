@@ -14,7 +14,7 @@ Sideloading (APK, AltStore) works for family and testers. To give TakeSure to an
 * Put back the push-notification entitlement only if push is ever used (it isn't — reminders are local).
 
 ## Store listing requirements
-* **Privacy policy URL**: https://github.com/aronipani/medsync/blob/main/PRIVACY.md
+* **Privacy policy URL**: https://aronipani.github.io/takesure/privacy/
 * Google **Data safety** form: no data collected or shared; data encrypted in transit — not applicable (none sent);
   users can delete data by uninstalling. Declare camera and notification use.
 * Apple **App Privacy** labels: Diagnostics collected by ML Kit (not linked, not tracking); everything else not

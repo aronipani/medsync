@@ -1,7 +1,8 @@
-import React from 'react';
-import { Linking, ScrollView, Text, View } from 'react-native';
+import React, { useState } from 'react';
+import { ScrollView, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { NOTICE_VERSION, PRIVACY_URL, TERMS_URL } from '../legal.ts';
+import { NOTICE_VERSION } from '../legal.ts';
+import { LegalDoc, type LegalDocKind } from './LegalDoc.tsx';
 import { inUnitedStates } from '../doseScan.ts';
 import { useStore } from '../store.tsx';
 import { Button, useTheme } from '../ui.tsx';
@@ -12,14 +13,27 @@ export function FirstRunNotice() {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const { state, saveSettings } = useStore();
+  // The full terms or privacy policy, read here before agreeing (bundled text, works offline).
+  const [reading, setReading] = useState<LegalDocKind | null>(null);
+  if (reading)
+    return (
+      <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top, paddingBottom: insets.bottom + 12 }}>
+        <ScrollView contentContainerStyle={{ padding: 22 }}>
+          <LegalDoc doc={reading} />
+        </ScrollView>
+        <View style={{ paddingHorizontal: 22 }}>
+          <Button title="Back" big onPress={() => setReading(null)} />
+        </View>
+      </View>
+    );
   return (
     <View style={{ flex: 1, backgroundColor: t.bg, paddingTop: insets.top, paddingBottom: insets.bottom + 12 }}>
       <ScrollView contentContainerStyle={{ padding: 22 }}>
         <Text maxFontSizeMultiplier={1.4} style={{ color: t.brand, fontSize: 30, fontWeight: '800', marginBottom: 4 }}>TakeSure</Text>
         <Text style={{ color: t.sub, fontSize: 16, marginBottom: 22 }}>Before you start</Text>
         <SafetyText />
-        <Button title="Read the full terms of use" kind="ghost" onPress={() => Linking.openURL(TERMS_URL)} style={{ marginTop: 16 }} />
-        <Button title="Read the privacy policy" kind="ghost" onPress={() => Linking.openURL(PRIVACY_URL)} />
+        <Button title="Read the full terms of use" kind="ghost" onPress={() => setReading('terms')} style={{ marginTop: 16 }} />
+        <Button title="Read the privacy policy" kind="ghost" onPress={() => setReading('privacy')} />
       </ScrollView>
       <View style={{ paddingHorizontal: 22 }}>
         <Text style={{ color: t.sub, fontSize: 15, lineHeight: 21, marginBottom: 10, textAlign: 'center' }}>
