@@ -29,16 +29,26 @@ TakeSure is a reminder and record-keeping aid. It is not a medical device, has n
 ```
 Thanks for testing TakeSure! Free, no account, works offline, and everything stays on your phone.
 
+NEW IN THIS BUILD:
+- Today: arrows next to the date to see other days; the Today tab always brings you back to today.
+- Safer strip check: a different strength printed on the strip now always says "don't take" (a temperature or address number no longer counts as the strength).
+- The app asks to send reminders after your first medicine. If they're off, Today says "Reminders are off - turn on".
+- Tapping a reminder opens the scan for the person whose medicine is due.
+- An expired strip: the main button is "Scan another strip".
+- A new medicine shows "not counted yet" until you enter how many you have.
+- Full privacy policy and terms inside the app (Settings > Privacy & safety).
+
 PLEASE TRY:
 
 1. Getting started
 - Open the app and read the safety notice, then tap "I agree".
-- Add a medicine: Today > "Add a medicine". Try scanning the strip, typing it, and a photo of a prescription (check what it read before saving).
+- Add a medicine: Today > "Add a medicine". Try scanning the strip, typing it, and a photo of a prescription (check what it read before saving). Tap "Allow" when asked about reminders.
 - Add a family member: Settings > Family. Give them their usual meal times.
 
 2. Reminders
-- Do reminders arrive on time? Try "Scan now" and "Remind me later".
+- Do reminders arrive on time? Tap one: does it open the scan for the right person? Try "Remind me later".
 - Leave a dose open and check that a "Not taken yet" reminder comes.
+- Use the arrows next to the date on Today to look at tomorrow, then tap the Today tab.
 
 3. Check the strip (most important)
 - In the US: first turn it on in Settings > Scanning (read the disclosure and tick the box).
@@ -47,8 +57,8 @@ PLEASE TRY:
 - Does the spoken result play in the right language?
 
 4. Supplies and history
-- After "I took it", check Today and Medicines > Supplies. Does the count go down? Is "lasts about N days" sensible?
-- Try a refill, the low-stock warning and the buy list.
+- Medicines > Supplies: enter how many you have (Refill or Fix the count). After "I took it", does the count go down? Is "lasts about N days" sensible?
+- Try the low-stock warning and the buy list.
 
 5. Backup
 - Settings > Your data: save a backup, then try restoring it.
