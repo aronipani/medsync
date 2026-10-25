@@ -67,7 +67,7 @@ Choices: **Next: try it** (main) · **Add another medicine** (secondary, loops b
    * ✋ red **Stop** — this isn't the medicine due now.
    Each row has a 🔊 to hear it. Button: **Start using TakeSure**.
 
-**Hand-over (only `setupFor = 'other'`)** — last screen: "Ready for {name}. Give them the phone, or keep it and
+**Hand-over (only `setupFor = 'here'`)** — last screen: "Ready for {name}. Give them the phone, or keep it and
 send their list to their phone (Settings → Family → Share)." Buttons: **Hand over now** (switches Today to that
 person, and every screen stays on them) · **Add more medicines first**.
 
@@ -131,7 +131,7 @@ system permission reason). Every sentence one line on a 375 pt-wide phone at def
 ## Tests
 `tests/setup.test.ts`: wizard shown only with no medicines and not done/dismissed; restored backup with medicines
 skips it; skip at each step lands on Today with "Finish setting up"; person import jumps to step 3; replay changes
-nothing; `setupFor` only changes words. `tests/tips.test.ts`: each tip once; never two at once; tips already taught
+nothing; `setupFor` only changes defaults and words. `tests/tips.test.ts`: each tip once; never two at once; tips already taught
 by the setup are skipped; reset shows them again. Practice scan: no log, no stock event, records a test result.
 
 ## Built (23 Oct 2026)
