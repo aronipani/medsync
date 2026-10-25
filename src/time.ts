@@ -45,6 +45,7 @@ export function fmtDay(date: string, today: string): string {
   if (date === today) return 'Today';
   const d = atTime(date, '12:00');
   if (dateKey(addDays(d, 1)) === today) return 'Yesterday';
+  if (dateKey(addDays(d, -1)) === today) return 'Tomorrow';
   return d.toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
 

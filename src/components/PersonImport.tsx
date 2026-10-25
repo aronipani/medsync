@@ -23,7 +23,7 @@ export function usePersonImport(): () => Promise<void> {
       r.logsAdded && `${r.logsAdded} dose record${r.logsAdded > 1 ? 's' : ''} added`,
     ].filter(Boolean);
     const zone = otherZone(file.member.timeZone) ? `\n\nThey live in ${zoneLabel(file.member.timeZone!)} (${fmt12(clockIn(new Date(), file.member.timeZone))} there now): their reminders stay on their own phone.` : '';
-    Alert.alert('Done', `${parts.join(', ')}.${zone}\n\nWhat was here before is kept: Settings → Earlier versions of the list.`, [
+    Alert.alert('Done', `${parts.join(', ')}.${zone}\n\nWhat was here before is kept: Medicines → History of the list.`, [
       { text: 'Show them', onPress: () => router.push({ pathname: '/member/[id]', params: { id: r.memberId } }) },
       { text: 'OK' },
     ]);
@@ -85,6 +85,7 @@ export function PersonImport() {
         <Button
           key={m.id}
           title={`Send ${m.name}'s medicines`}
+          kind="secondary"
           onPress={() => sharePerson(state, m.id).catch((e) => Alert.alert('Could not share', e instanceof Error ? e.message : String(e)))}
           style={{ marginBottom: 8 }}
         />

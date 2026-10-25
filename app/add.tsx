@@ -66,6 +66,7 @@ export default function AddMedicine() {
           unit: d.unit,
           doses: d.doses.map((x) => ({ id: uid(), timing: x.timing, qty: x.qty, days: x.days, since: now.toISOString() })),
           stock: 0,
+          stockKnown: false,
           lowStockAt: 5,
           endDate: d.durationDays ? dateKey(addDays(now, d.durationDays - 1)) : undefined,
           notes: [d.asNeeded ? 'Take only when needed (SOS).' : '', d.notes ?? ''].filter(Boolean).join(' ') || undefined,

@@ -32,7 +32,7 @@ export function Supplies() {
     <View style={{ flex: 1 }}>
       <View style={{ paddingHorizontal: 16, paddingTop: 12 }}>
         <MemberPicker value={memberId} onChange={setMemberId} allowAll={state.members.length > 1} />
-        <Button title="Buy list and pharmacies" kind="secondary" onPress={() => router.navigate('/buy')} style={{ marginTop: 8 }} />
+        <Button title="Buy medicines" kind="secondary" onPress={() => router.navigate('/buy')} style={{ marginTop: 8 }} />
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, paddingBottom: 40 }}>
@@ -42,7 +42,8 @@ export function Supplies() {
             meds.map((m) => {
               const pd = perDay(m);
               const days = pd ? Math.floor(m.stock / pd) : undefined;
-              const low = m.stock <= m.lowStockAt;
+              const unknown = m.stockKnown === false;
+              const low = !unknown && m.stock <= m.lowStockAt;
               return (
                 <Card key={m.id} style={{ marginBottom: 10, borderColor: low ? t.warn : t.line }}>
                   <View style={s.between}>
@@ -51,13 +52,14 @@ export function Supplies() {
                       <MemberDot memberId={m.memberId} />
                     </View>
                     <View style={{ alignItems: 'flex-end' }}>
-                      <Text style={{ color: low ? t.warn : t.text, fontSize: 22, fontWeight: '800' }}>{m.stock}</Text>
-                      <Text style={{ color: t.sub, fontSize: 14 }}>{m.unit}s left</Text>
+                      <Text style={{ color: low ? t.warn : t.text, fontSize: 22, fontWeight: '800' }}>{unknown ? '?' : m.stock}</Text>
+                      <Text style={{ color: t.sub, fontSize: 16 }}>{m.unit === 'ml' ? 'ml' : `${m.unit}s`} left</Text>
                     </View>
                   </View>
                   <Text style={{ color: low ? t.warn : t.sub, fontSize: 16, marginTop: 6 }}>
+                    {unknown ? 'Not counted yet — tap Refill to enter how many you have.' : ''}
                     {low ? 'Low stock — refill soon. ' : ''}
-                    {days !== undefined && m.active ? `Lasts about ${days} day${days === 1 ? '' : 's'}.` : ''}
+                    {!unknown && days !== undefined && m.active ? `Lasts about ${days} day${days === 1 ? '' : 's'}.` : ''}
                   </Text>
                   {m.expiry ? (
                     <View style={[s.row, { marginTop: 4 }]}>

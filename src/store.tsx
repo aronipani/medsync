@@ -277,7 +277,7 @@ export function StoreProvider({ children }: { children: React.ReactNode }) {
           if (!med) return s;
           return {
             ...s,
-            meds: s.meds.map((m) => (m.id === medId ? { ...m, stock: Math.max(0, +(m.stock + delta).toFixed(2)) } : m)),
+            meds: s.meds.map((m) => (m.id === medId ? { ...m, stock: Math.max(0, +(m.stock + delta).toFixed(2)), stockKnown: undefined } : m)),
             stock: [...s.stock, { id: uid(), medId, memberId: med.memberId, medName: medLabel(med), delta, reason, at: new Date().toISOString() }],
           };
         }),

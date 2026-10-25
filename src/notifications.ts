@@ -26,6 +26,20 @@ Notifications.setNotificationHandler({
   }),
 });
 
+/** The reminder's buttons: "Scan now" when dose-time scanning is on, "Open" when it's off (US default, spec 19). */
+export async function setReminderButtons(scanOn: boolean): Promise<void> {
+  await Notifications.setNotificationCategoryAsync(CATEGORY, [
+    { identifier: ACTION_SCAN, buttonTitle: scanOn ? 'Scan now' : 'Open', options: { opensAppToForeground: true } },
+    { identifier: ACTION_SNOOZE, buttonTitle: 'Remind me later', options: { opensAppToForeground: false } },
+  ]).catch(() => {});
+}
+
+/** Whether reminders may show: 'granted', 'denied' (refused — only the phone's Settings can change it) or 'undetermined'. */
+export async function reminderPermission(): Promise<'granted' | 'denied' | 'undetermined'> {
+  const p = await Notifications.getPermissionsAsync();
+  return p.granted ? 'granted' : p.canAskAgain ? 'undetermined' : 'denied';
+}
+
 export async function setupNotifications(): Promise<boolean> {
   if (Platform.OS === 'android') {
     await Notifications.setNotificationChannelAsync(CHANNEL, {
@@ -37,10 +51,7 @@ export async function setupNotifications(): Promise<boolean> {
       bypassDnd: true,
     });
   }
-  await Notifications.setNotificationCategoryAsync(CATEGORY, [
-    { identifier: ACTION_SCAN, buttonTitle: 'Scan now', options: { opensAppToForeground: true } },
-    { identifier: ACTION_SNOOZE, buttonTitle: 'Remind me later', options: { opensAppToForeground: false } },
-  ]);
+  await setReminderButtons(true);
   const current = await Notifications.getPermissionsAsync();
   if (current.granted) return true;
   const asked = await Notifications.requestPermissionsAsync({
@@ -74,6 +85,7 @@ export function rescheduleAll(state: AppState): Promise<void> {
 
 async function doReschedule(state: AppState) {
   await Notifications.cancelAllScheduledNotificationsAsync();
+  await setReminderButtons(doseScanOn(state.settings));
   const channelId = Platform.OS === 'android' ? CHANNEL : undefined;
   let count = 0;
   const now0 = new Date();

@@ -71,7 +71,7 @@ export function buyItem(m: Medication, now: Date, days = 30): BuyItem {
 
 /** Does this medicine need buying now? */
 export function needsBuying(m: Medication, now: Date): boolean {
-  if (!m.active) return false;
+  if (!m.active || m.stockKnown === false) return false; // a count nobody entered can't run low
   const left = daysLeft(m);
   if (left === undefined) return m.stock <= m.lowStockAt && m.stock >= 0 && m.lowStockAt > 0;
   // A course that ends before the stock runs out needs nothing more.

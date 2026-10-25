@@ -53,7 +53,7 @@ function History() {
 
   return (
     <View style={{ flex: 1 }}>
-      <Tabs.Screen options={{ title: 'Earlier versions of the list' }} />
+      <Tabs.Screen options={{ title: 'History of the list' }} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingBottom: 40 }}>
         <Text style={{ color: t.sub, lineHeight: 20, marginBottom: 8 }}>
           Every change to a schedule — a new prescription, an edit, a merge — saves the schedule as it was just before. Tap one to see that version or go back to it.

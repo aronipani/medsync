@@ -593,12 +593,16 @@ export default function Scan() {
 
           {/* One suggestion at most: check strips that haven't been tried yet, so the real scan goes smoothly. */}
           {ready.total > 0 && ready.ready < ready.total ? (
-            <Button
-              big
-              title={nextGroup.length && !nextIsTomorrow ? `Check the strips for ${fmt12(nextGroup[0].time)}` : 'Check the next strips'}
-              onPress={() => router.push('/test-scan')}
-              style={{ marginTop: 20 }}
-            />
+            <>
+              {/* A practice, not a dose: a quieter button, and it says so (review 24 Oct 2026). */}
+              <Button
+                kind="secondary"
+                title={nextGroup.length && !nextIsTomorrow ? `Try the strips for ${fmt12(nextGroup[0].time)}` : 'Try the next strips'}
+                onPress={() => router.push('/test-scan')}
+                style={{ marginTop: 20 }}
+              />
+              <Text style={{ color: t.sub, fontSize: 16, marginTop: 6, textAlign: 'center' }}>A practice before it’s time. Nothing is recorded.</Text>
+            </>
           ) : ready.total > 0 ? (
             <Text style={{ color: t.ok, marginTop: 16, fontSize: 17, fontWeight: '600' }}>✓ The next strips are checked</Text>
           ) : null}
@@ -630,7 +634,7 @@ export default function Scan() {
           <View style={{ height: result ? 0 : 300, borderRadius: 20, overflow: 'hidden', marginTop: result ? 0 : 12, backgroundColor: '#000' }}>
             {!perm ? null : !perm.granted ? (
               <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 20 }}>
-                <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 12 }}>Camera access is needed to scan medicine strips.</Text>
+                <Text style={{ color: '#fff', textAlign: 'center', marginBottom: 12, fontSize: 17 }}>Camera access is needed to scan medicine strips.</Text>
                 <Button title="Allow camera" onPress={requestPerm} />
               </View>
             ) : focused ? (
@@ -674,6 +678,13 @@ export default function Scan() {
           )}
 
           {/* Result */}
+          {result && voiceOn && (
+            <Pressable accessibilityRole="button" onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'))} style={{ alignSelf: 'center', marginBottom: 4, minHeight: 44, flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="volume-high-outline" size={24} color={t.text} />
+              {/* Above the result card (which fills the screen), so it stays in view. Why a voice is missing is explained on the family member's screen. */}
+              <Text style={{ color: t.text, fontWeight: '700', fontSize: 17, marginLeft: 6 }}>Say it again</Text>
+            </Pressable>
+          )}
           {result?.kind === 'match' && (
             <View style={{ backgroundColor: t.okFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
               <CloseButton />
@@ -734,8 +745,18 @@ export default function Scan() {
                   Still to take now: <Text style={{ fontWeight: '800' }}>{stillToTake.map((o) => medLabel(o.med)).join(', ')}</Text>
                 </Text>
               )}
-              <Button big title={stillToTake.length ? 'I took it — next strip' : 'I took it'} kind="light" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 16 }} />
-              <Button title="Not now" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 10 }} />
+              {/* An expired strip: the big button is "scan another strip", never "I took it" (review 24 Oct 2026). */}
+              {result.expiry && expiryStatus(result.expiry) === 'expired' ? (
+                <>
+                  <Button big title="Scan another strip" kind="light" onPress={dismiss} style={{ marginTop: 16 }} />
+                  <Button title="I took it anyway" kind="ghost" onColor onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 10 }} />
+                </>
+              ) : (
+                <>
+                  <Button big title={stillToTake.length ? 'I took it — next strip' : 'I took it'} kind="light" onPress={() => confirm(result.occs, result.method, result.expiry)} style={{ marginTop: 16 }} />
+                  <Button title="Not now" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 10 }} />
+                </>
+              )}
               <ReadBy />
             </View>
           )}
@@ -763,14 +784,23 @@ export default function Scan() {
                 Strip must say {result.partial ? `${result.occ.med.name} ` : ''}{spokenStrength(result.occ.med.strength)}
               </Text>
               <Text style={{ color: '#fff', fontSize: 17, marginTop: 4 }}>Then take {qtyLabel(result.occ.dose.qty, result.occ.med.unit)}.</Text>
-              <Button
-                big
-                title={`It says ${spokenStrength(result.occ.med.strength)} — I took it`}
-                kind="light"
-                onPress={() => confirm([result.occ], 'manual', result.expiry)}
-                style={{ marginTop: 14 }}
-              />
-              <Button title="Scan again" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 8 }} />
+              {result.expiry && expiryStatus(result.expiry) === 'expired' ? (
+                <>
+                  <Button big title="Scan another strip" kind="light" onPress={dismiss} style={{ marginTop: 14 }} />
+                  <Button title="I took it anyway" kind="ghost" onColor onPress={() => confirm([result.occ], 'manual', result.expiry)} style={{ marginTop: 8 }} />
+                </>
+              ) : (
+                <>
+                  <Button
+                    big
+                    title={`It says ${spokenStrength(result.occ.med.strength)} — I took it`}
+                    kind="light"
+                    onPress={() => confirm([result.occ], 'manual', result.expiry)}
+                    style={{ marginTop: 14 }}
+                  />
+                  <Button title="Scan again" kind="ghost" onColor onPress={dismiss} style={{ marginTop: 8 }} />
+                </>
+              )}
               <ReadBy />
             </View>
           )}
@@ -828,7 +858,7 @@ export default function Scan() {
           {result?.kind === 'unread' && (
             <View style={{ backgroundColor: t.warnFill, borderRadius: 24, padding: 24, marginTop: 8, minHeight: 560 }}>
               <CloseButton />
-              <Text style={{ color: '#fff', fontSize: 15, fontWeight: '700', opacity: 0.9, paddingRight: 96 }}>SCAN PROBLEM — NOT A RESULT</Text>
+              <Text style={{ color: '#fff', fontSize: 17, fontWeight: '700', opacity: 0.95, paddingRight: 96 }}>Couldn’t read the strip — not a result</Text>
               <Text style={{ color: '#fff', fontSize: 22, fontWeight: '800', marginTop: 4 }}>⚠ {result.diag.title}</Text>
               <Text style={{ color: '#fff', fontSize: 16, marginTop: 6 }}>{result.diag.why} This says nothing about whether it is the right medicine. Scan again:</Text>
               {result.diag.tips.map((tip) => (
@@ -885,13 +915,6 @@ export default function Scan() {
             </View>
           )}
 
-          {result && voiceOn && (
-            <Pressable accessibilityRole="button" onPress={() => voiceOn && say(lang, announcement(result), setSpeakStatus, announcement(result, 'en'))} style={{ alignSelf: 'center', marginTop: 8, minHeight: 44, flexDirection: 'row', alignItems: 'center' }}>
-              <Ionicons name="volume-high-outline" size={24} color={t.text} />
-              {/* Why a voice is missing is explained on the family member's screen, not here. */}
-              <Text style={{ color: t.text, fontWeight: '700', fontSize: 17, marginLeft: 6 }}>Say it again</Text>
-            </Pressable>
-          )}
 
           {/* Fallback */}
           {!result && (

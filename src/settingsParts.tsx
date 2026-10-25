@@ -58,7 +58,7 @@ export function LockNote({ text = 'Contains health information. It goes only whe
   return (
     <Pressable accessibilityRole="link" onPress={() => router.push('/privacy')} style={{ flexDirection: 'row', alignItems: 'flex-start', marginTop: 8, gap: 6 }}>
       <Ionicons name="lock-closed-outline" size={16} color={t.sub} style={{ marginTop: 2 }} />
-      <Text style={{ color: t.sub, fontSize: 14, lineHeight: 20, flex: 1 }}>
+      <Text style={{ color: t.sub, fontSize: 16, lineHeight: 22, flex: 1 }}>
         {text} <Text style={{ textDecorationLine: 'underline' }}>Privacy</Text>
       </Text>
     </Pressable>

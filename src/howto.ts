@@ -96,7 +96,9 @@ export const GUIDE: GuideCard[] = [
     title: 'Running low and buying',
     lines: [
       'The count goes down with each dose taken.',
-      'When a medicine runs low, Today shows one line. Tap it to refill or fix the count.',
+      'When a medicine runs low, Today shows one line. Tap it to see what to buy.',
+      'After buying, Medicines → Supplies → Refill adds the new strips.',
+      'A new medicine has no count until you enter one.',
       'Supplies keeps a list to buy and your pharmacies.',
     ],
     link: { title: 'Open Supplies', to: '/meds?view=supplies' },

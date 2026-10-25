@@ -23,6 +23,8 @@ export interface Medication {
   unit: string; // tablet, capsule, ml, puff...
   doses: Dose[];
   stock: number;
+  /** false: nobody has entered how many there are yet — no low-stock or buying warnings until they do. */
+  stockKnown?: boolean;
   lowStockAt: number;
   endDate?: string; // YYYY-MM-DD, last day of a course
   notes?: string;

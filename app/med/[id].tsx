@@ -65,7 +65,8 @@ export default function EditMed() {
         learned: draft.learned ?? [],
         unit: draft.unit ?? 'tablet',
         doses: draft.asNeeded ? [] : draft.doses?.length ? draft.doses : [newDose()],
-        stock: 10,
+        stock: 0,
+        stockKnown: false,
         lowStockAt: 5,
         active: true,
         createdAt: new Date().toISOString(),
@@ -382,14 +383,18 @@ export default function EditMed() {
         <Label>Notes (shown when scanning)</Label>
         <Field value={med.notes ?? ''} onChangeText={(notes) => set({ notes })} placeholder="e.g. empty stomach, prescribed by Dr. Rao" multiline />
 
+        {/* Says what it really does: off stops the medicine (no reminders, not on Today, no doses recorded). */}
         <View style={[s.between, { marginTop: 18 }]}>
-          <Text style={{ color: t.text, fontSize: 17, flex: 1 }}>Remind me about this medicine</Text>
-          <Switch value={med.active} onValueChange={(active) => set({ active })} accessibilityLabel="Remind me about this medicine" />
+          <View style={{ flex: 1, paddingRight: 10 }}>
+            <Text style={{ color: t.text, fontSize: 17 }}>Taking this medicine</Text>
+            <Text style={{ color: t.sub, fontSize: 15, marginTop: 2 }}>{med.active ? 'On: reminders and doses on Today' : 'Stopped: no reminders, not on Today'}</Text>
+          </View>
+          <Switch value={med.active} onValueChange={(active) => set({ active })} accessibilityLabel="Taking this medicine" />
         </View>
 
         <Text style={{ color: t.text, fontSize: 20, fontWeight: '800', marginTop: 28 }}>Supplies</Text>
         <Label>How many are left</Label>
-        <NumberField value={med.stock} step={1} onChange={(stock) => set({ stock })} />
+        <NumberField value={med.stock} step={1} onChange={(stock) => set({ stock, stockKnown: undefined })} />
         {perDay > 0 && (
           <Text style={{ color: t.sub, fontSize: 16, marginTop: 6 }}>Lasts about {Math.floor(med.stock / perDay)} days</Text>
         )}

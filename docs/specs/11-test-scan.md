@@ -6,7 +6,7 @@ camera isn't allowed, reminders are off, or a strip isn't recognised (glare, new
 that's the worst moment to find out.
 
 ## What it does
-**Test scan** screen (Scan tab when nothing is due → "Check the next strips" or "Check the strips for 8:00 AM"; Settings → Scanning → Before a first dose → **Check the strips**):
+**Test scan** screen (Scan tab when nothing is due → "Try the next strips" or "Try the strips for 8:00 AM" (a quiet button: "A practice before it's time. Nothing is recorded."); Settings → Scanning → Before a first dose → **Check the strips**):
 
 1. **Ready for the next dose?** — camera allowed, reminders (notifications) allowed and the next dose time, which
    text reader this build uses, and whether the region detector is loaded.

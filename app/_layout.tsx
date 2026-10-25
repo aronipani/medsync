@@ -2,12 +2,13 @@ import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import React, { useEffect, useMemo, useRef } from 'react';
-import { View } from 'react-native';
+import { Alert, View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { FirstRunNotice } from '../src/components/FirstRunNotice.tsx';
 import { PlainHeader } from '../src/components/BackButton.tsx';
 import { needsNotice } from '../src/legal.ts';
-import { ACTION_SNOOZE, rescheduleAll, setupNotifications, snooze } from '../src/notifications.ts';
+import { ACTION_SNOOZE, reminderPermission, rescheduleAll, setupNotifications, snooze } from '../src/notifications.ts';
+import { doseScanOn } from '../src/doseScan.ts';
 import { CurrentMemberProvider } from '../src/currentMember.tsx';
 import { StoreProvider, useStore } from '../src/store.tsx';
 import { phrase } from '../src/phrases.ts';
@@ -45,16 +46,36 @@ function ReminderSync() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [signature, ready]);
 
+  // Ask to send reminders once there is something to remind about, with a word of why first (review 24 Oct 2026):
+  // asked at "I agree", a puzzled "Don't Allow" left reminders off for good with nothing saying so.
+  const hasMeds = state.meds.length > 0;
   useEffect(() => {
-    setupNotifications().catch(() => {});
+    if (!hasMeds) return;
+    reminderPermission()
+      .then((p) => {
+        if (p !== 'undetermined') return setupNotifications();
+        Alert.alert('Reminders', 'TakeSure will now ask to send reminders. Tap "Allow" so the phone rings when a medicine is due.', [
+          { text: 'OK', onPress: () => setupNotifications().catch(() => {}) },
+        ]);
+      })
+      .catch(() => {});
+  }, [hasMeds]);
+
+  useEffect(() => {
     const sub = Notifications.addNotificationResponseReceivedListener((res) => {
       if (res.actionIdentifier === ACTION_SNOOZE) {
         snooze(res.notification.request, snoozeMin.current).catch(() => {});
         return;
       }
-      // "Test-scan first" reminders open the Test scan screen; dose reminders open Scan.
       const screen = res.notification.request.content.data?.screen;
-      router.navigate(screen === 'test-scan' ? '/test-scan' : screen === 'buy' ? '/buy' : '/scan');
+      if (screen === 'test-scan' || screen === 'buy') return router.navigate(screen === 'test-scan' ? '/test-scan' : '/buy');
+      // A dose reminder: Scan for the person whose dose is due (not whoever was picked last), or Today when
+      // dose-time scanning is off.
+      const st = latest.current;
+      if (!doseScanOn(st.settings)) return router.navigate('/');
+      const due = st.members.filter((m) => dueNow(st, new Date(), m.id).length);
+      if (due.length === 1) return router.navigate({ pathname: '/scan', params: { memberId: due[0].id, at: String(Date.now()) } });
+      router.navigate('/scan');
     });
     // Reminder arrives while the app is open: say it in the language of whoever has a dose due.
     const received = Notifications.addNotificationReceivedListener(() => {

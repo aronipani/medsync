@@ -8,7 +8,6 @@ import { duplicateGroups } from '../../src/consolidate.ts';
 import { findOverlaps, overlapMessage } from '../../src/overlap.ts';
 import { describeTiming, doseTime, medLabel, qtyLabel } from '../../src/schedule.ts';
 import { useStore } from '../../src/store.tsx';
-import { sharePerson } from '../../src/personShare.ts';
 import { DAY_LABELS, fmt12 } from '../../src/time.ts';
 import { Button, Card, s, SegmentTabs, useTheme } from '../../src/ui.tsx';
 
@@ -92,8 +91,8 @@ function MedicineList() {
             </View>
             {overlaps.map((o) => (
               <Card key={`${o.a.id}|${o.b.id}`} style={{ backgroundColor: t.badSoft, borderColor: t.bad, marginBottom: 10 }}>
-                <Text style={{ color: t.bad, fontWeight: '800' }}>⚠ Same medicine twice?</Text>
-                <Text style={{ color: t.text, marginTop: 4, lineHeight: 20 }}>{overlapMessage(o)}</Text>
+                <Text style={{ color: t.bad, fontWeight: '800', fontSize: 18 }}>⚠ Same medicine twice?</Text>
+                <Text style={{ color: t.text, marginTop: 4, fontSize: 16, lineHeight: 23 }}>{overlapMessage(o)}</Text>
                 <View style={[s.row, { gap: 8, marginTop: 8 }]}>
                   {mergeable(o.a.id, o.b.id) ? <Button title="Merge into one" kind="secondary" style={{ flex: 1 }} onPress={merge} /> : null}
                   <Button
@@ -124,7 +123,7 @@ function MedicineList() {
                 <Card style={{ marginBottom: 8, backgroundColor: med.active ? t.card : t.muted }}>
                   <View style={s.between}>
                     <Text style={{ color: t.text, fontSize: 18, fontWeight: '700', flex: 1 }}>{medLabel(med)}</Text>
-                    {!med.active && <Text style={{ color: t.sub, fontSize: 16, fontWeight: '700' }}>No reminders</Text>}
+                    {!med.active && <Text style={{ color: t.sub, fontSize: 16, fontWeight: '700' }}>Stopped</Text>}
                   </View>
                   {med.endDate && (
                     <Text style={{ color: t.sub, fontSize: 16, marginTop: 2 }}>
@@ -147,11 +146,11 @@ function MedicineList() {
                   {(() => {
                     const pd = med.doses.reduce((a, d) => a + d.qty * (d.days.length ? d.days.length / 7 : 1), 0);
                     const days = pd ? Math.floor(med.stock / pd) : undefined;
-                    const low = med.stock <= med.lowStockAt;
+                    const low = med.stockKnown !== false && med.stock <= med.lowStockAt;
                     return (
                       <Text style={{ color: low ? t.warn : t.sub, fontSize: 16, fontWeight: low ? '700' : '400', marginTop: 6 }}>
                         {low ? '! ' : ''}
-                        {med.stock} left{days !== undefined && med.active ? ` · lasts about ${days} day${days === 1 ? '' : 's'}` : ''}
+                        {med.stockKnown === false ? 'How many left? Not set yet' : `${med.stock} left${days !== undefined && med.active ? ` · lasts about ${days} day${days === 1 ? '' : 's'}` : ''}`}
                       </Text>
                     );
                   })()}
@@ -159,14 +158,7 @@ function MedicineList() {
               </Pressable>
             ))}
             <Button title={state.members.length > 1 ? `+ Add a medicine for ${member.name}` : '+ Add a medicine'} kind="secondary" onPress={() => router.push({ pathname: '/add', params: { memberId: member.id } })} />
-            {meds.length > 0 && (
-              <Button
-                title={`Send ${member.name}'s medicines to another phone`}
-                kind="ghost"
-                onPress={() => sharePerson(state, member.id).catch((e) => Alert.alert('Could not share', e instanceof Error ? e.message : String(e)))}
-                style={{ marginTop: 4 }}
-              />
-            )}
+            {/* Sending a person's medicines lives in Settings → Family and on the person's page (one home, spec 21). */}
           </View>
         );
       })}

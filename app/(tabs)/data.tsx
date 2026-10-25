@@ -14,7 +14,7 @@ export default function DataPage() {
       <DoctorHistoryCard />
       <Label>Changes to the list</Label>
       <Card>
-        <Button title="Earlier versions of the list" kind="secondary" onPress={() => router.push('/history')} />
+        <Button title="History of the list" kind="secondary" onPress={() => router.push('/history')} />
         <Help>Every change to the medicines is kept; an earlier list can be brought back or exported.</Help>
       </Card>
       {TRAINING_AVAILABLE && (

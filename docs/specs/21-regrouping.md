@@ -84,3 +84,20 @@ All five steps below. Notes: "Say it again" stays under the result card; helper 
 
 Nothing is removed; every feature keeps working. Old deep links (`/inventory`, `/buy`, `/history`, `/about`,
 `settings?tab=…`) keep opening the new homes.
+
+## Ease-of-use pass (24 Oct 2026)
+Checked in a phone-sized preview with a two-person family.
+* Today: ‹ › day arrows beside the title (were at the bottom); changing day starts at the top; the Today tab always
+  returns to today; "Tomorrow" / "Yesterday"; the date isn't repeated; the Now card shows "Now · n of m done" with the
+  times on their own line; each medicine under "Later today" is its own tap.
+* Reminders: permission asked after the first medicine, with a word of why; "Reminders are off — turn on" is the first
+  needs-attention line; tapping a reminder opens Scan for the person with a dose due, or Today when dose-time scanning
+  is off (the button then says "Open").
+* Scan: an expired strip's main button is "Scan another strip" ("I took it anyway" is small); "Couldn't read the strip"
+  instead of an all-caps heading; "Say it again" above the card; the idle screen's practice button is quiet and says
+  "Nothing is recorded".
+* Medicines: the switch is "Taking this medicine" (off = Stopped); a new medicine's count is "not set" until entered,
+  with no buying warnings before that; "History of the list" everywhere; sending a person's medicines only in
+  Settings → Family and on the person's page.
+* Still to do: Cancel / discard on the medicine editor; a lighter prescription check (rx-review); first setup by
+  doing (spec 22).

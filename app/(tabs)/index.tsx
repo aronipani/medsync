@@ -2,10 +2,11 @@ import { useCurrentMember } from '../../src/currentMember.tsx';
 import { Ionicons } from '@expo/vector-icons';
 import { CollectCard } from '../../src/components/CollectCard.tsx';
 import { AsNeededCard } from '../../src/components/AsNeeded.tsx';
-import { router } from 'expo-router';
+import { router, useFocusEffect, useNavigation } from 'expo-router';
 import { doseScanOn } from '../../src/doseScan.ts';
-import React, { useMemo, useState } from 'react';
-import { Alert, Pressable, ScrollView, Text, View } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Alert, Linking, Pressable, ScrollView, Text, View } from 'react-native';
+import { reminderPermission, setupNotifications } from '../../src/notifications.ts';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { MemberDot, MemberPicker } from '../../src/components.tsx';
 import { buyList } from '../../src/buylist.ts';
@@ -25,6 +26,21 @@ export default function Today() {
   const [offset, setOffset] = useState(0);
   const today = dateKey(now);
   const date = dateKey(addDays(now, offset));
+  // Changing day starts at the top of the new day (it used to stay scrolled down, so it looked as if nothing changed).
+  const scroller = useRef<ScrollView>(null);
+  useEffect(() => scroller.current?.scrollTo({ y: 0, animated: false }), [offset]);
+  // Tapping the Today tab always brings back today.
+  const navigation = useNavigation();
+  useEffect(
+    () =>
+      (navigation as unknown as { addListener: (e: 'tabPress', cb: () => void) => () => void }).addListener('tabPress', () => {
+        setOffset(0);
+        scroller.current?.scrollTo({ y: 0, animated: true });
+      }),
+    [navigation],
+  );
+  const dayTitle = fmtDay(date, today);
+  const relative = ['Today', 'Yesterday', 'Tomorrow'].includes(dayTitle);
 
   const scanOn = doseScanOn(state.settings);
   const whose = (o: Occurrence) => (!memberId && state.members.length > 1 ? state.members.find((m) => m.id === o.memberId)?.name : undefined);
@@ -41,11 +57,31 @@ export default function Today() {
   const taken = occs.filter((o) => o.status === 'taken').length;
   // Running low, or due to buy within the week (two for hard-to-find medicines): spec 17.
   const low = useMemo(() => buyList(state, now, memberId).map((i) => i.med), [state, now, memberId]);
-  const attention = low.length
-    ? { text: low.length === 1 ? `Time to buy ${medLabel(low[0])}` : `Time to buy ${low.length} medicines`, go: '/buy' }
-    : state.meds.length && backupOverdue(state)
-      ? { text: 'No backup for 30+ days — save one', go: '/data' }
-      : undefined;
+  // Reminders switched off (refused at the prompt, or later in the phone's Settings) come first: nothing else here
+  // matters if the phone never rings (review 24 Oct 2026).
+  const [remindersOff, setRemindersOff] = useState<false | 'undetermined' | 'denied'>(false);
+  useFocusEffect(
+    useCallback(() => {
+      if (!state.meds.length) return;
+      reminderPermission()
+        .then((p) => setRemindersOff(p === 'granted' ? false : p))
+        .catch(() => {});
+    }, [state.meds.length]),
+  );
+  const turnOnReminders = () =>
+    remindersOff === 'denied'
+      ? Alert.alert('Reminders are off', 'Turn on notifications for TakeSure in the phone’s Settings, so it can ring when a medicine is due.', [
+          { text: 'Not now', style: 'cancel' },
+          { text: 'Open Settings', onPress: () => Linking.openSettings() },
+        ])
+      : setupNotifications().then((ok) => setRemindersOff(ok ? false : 'denied'));
+  const attention: { text: string; go?: string; onPress?: () => void } | undefined = remindersOff
+    ? { text: 'Reminders are off — turn on', onPress: turnOnReminders }
+    : low.length
+      ? { text: low.length === 1 ? `Time to buy ${medLabel(low[0])}` : `Time to buy ${low.length} medicines`, go: '/buy' }
+      : state.meds.length && backupOverdue(state)
+        ? { text: 'No backup for 30+ days — save one', go: '/data' }
+        : undefined;
 
   const act = (o: Occurrence) => {
     const label = `${medLabel(o.med)} · ${fmt12(o.time)}`;
@@ -165,13 +201,30 @@ export default function Today() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-    <ScrollView contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 40 }}>
-      <View style={{ marginTop: 8, marginBottom: 12 }}>
-        <Text maxFontSizeMultiplier={1.4} style={{ color: t.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.3 }}>{fmtDay(date, today)}</Text>
-        <Text style={{ color: t.sub, fontSize: 18, marginTop: 2 }}>
-          {atTime(date, '12:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' })}
-          {occs.length ? ` · ${taken} of ${occs.length} taken` : ''}
-        </Text>
+    <ScrollView ref={scroller} contentContainerStyle={{ padding: 20, paddingTop: insets.top + 16, paddingBottom: 40 }}>
+      {/* The day, with the day before and after either side: always in view at the top. */}
+      <View style={{ marginTop: 8, marginBottom: 12, flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+        {state.meds.length > 0 && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Day before" hitSlop={8} onPress={() => setOffset((o) => o - 1)} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginLeft: -12 }}>
+            <Ionicons name="chevron-back" size={30} color={t.text} />
+          </Pressable>
+        )}
+        <View style={{ flex: 1 }}>
+          <Text maxFontSizeMultiplier={1.4} accessibilityRole="header" style={{ color: t.text, fontSize: 34, fontWeight: '700', letterSpacing: -0.3 }}>
+            {dayTitle}
+          </Text>
+          <Text style={{ color: t.sub, fontSize: 18, marginTop: 2 }}>
+            {/* The full date only when the title doesn't already say it ("Sun, Oct 25" was followed by "Sunday, October 25"). */}
+            {[relative ? atTime(date, '12:00').toLocaleDateString([], { weekday: 'long', day: 'numeric', month: 'long' }) : '', occs.length && !(offset === 0 && nowList.length) ? `${taken} of ${occs.length} taken` : '']
+              .filter(Boolean)
+              .join(' · ')}
+          </Text>
+        </View>
+        {state.meds.length > 0 && (
+          <Pressable accessibilityRole="button" accessibilityLabel="Day after" hitSlop={8} onPress={() => setOffset((o) => o + 1)} style={{ width: 48, height: 48, alignItems: 'center', justifyContent: 'center', marginRight: -12 }}>
+            <Ionicons name="chevron-forward" size={30} color={t.text} />
+          </Pressable>
+        )}
       </View>
 
       {offset !== 0 && <Button title="‹ Back to today" kind="secondary" onPress={() => setOffset(0)} style={{ marginBottom: 8 }} />}
@@ -182,7 +235,7 @@ export default function Today() {
         // One "needs attention" line, one thing at a time (spec 21): running low first, then an old backup.
         <Pressable
           accessibilityRole="button"
-          onPress={() => router.navigate(attention.go as never)}
+          onPress={() => (attention.onPress ? attention.onPress() : router.navigate(attention.go as never))}
           style={{ flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 52, paddingHorizontal: 16, borderRadius: 16, backgroundColor: t.warnSoft, marginTop: 8 }}
         >
           <Text style={{ color: t.warn, fontSize: 18, fontWeight: '900' }}>!</Text>
@@ -216,7 +269,7 @@ export default function Today() {
           )}
           {/* Family first if it's for more than one person. */}
           <Button
-            title={state.members.length > 1 ? '+ Add another person' : '+ Add a family member'}
+            title={state.members.length > 1 ? '+ Add another person' : '+ Add a person'}
             kind="secondary"
             onPress={() => router.push('/member/new')}
             style={{ marginTop: 10 }}
@@ -233,10 +286,11 @@ export default function Today() {
           {/* Now: all medicines due at this time together, ticked off one by one, with one button. */}
           {nowList.length > 0 && (
             <Card style={{ marginTop: 12, paddingTop: 16 }}>
-              <View style={[s.between, { marginBottom: 4 }]}>
+              {/* "Now" and the count on one line; the times underneath (several times can be due at once). */}
+              <View style={[s.between, { marginBottom: 2 }]}>
                 <View style={s.row}>
                   <View style={{ width: 10, height: 10, borderRadius: 5, backgroundColor: t.now, marginRight: 8 }} />
-                  <Text style={{ color: t.now, fontSize: 17, fontWeight: '700' }}>Now · {nowTimes.map(fmt12).join(', ')}</Text>
+                  <Text style={{ color: t.now, fontSize: 18, fontWeight: '700' }}>Now</Text>
                 </View>
                 {nowList.length > 1 && (
                   <Text style={{ color: t.text, fontSize: 17, fontWeight: '600' }}>
@@ -244,6 +298,7 @@ export default function Today() {
                   </Text>
                 )}
               </View>
+              <Text style={{ color: t.sub, fontSize: 16, marginBottom: 4 }}>{nowTimes.map(fmt12).join(' · ')}</Text>
               {nowList.map((o, i) => (
                 <Row key={o.key} o={o} last={i === nowList.length - 1} />
               ))}
@@ -261,7 +316,7 @@ export default function Today() {
                   title={dueCount === 1 ? 'I took it' : `I took all ${dueCount}`}
                   onPress={() => {
                     const open = nowList.filter((o) => o.status === 'due');
-                    Alert.alert('Mark as taken?', open.map((o) => `${medLabel(o.med)} · ${qtyLabel(o.dose.qty, o.med.unit)}`).join('\n'), [
+                    Alert.alert('Mark as taken?', open.map((o) => `${whose(o) ? `${whose(o)}: ` : ''}${medLabel(o.med)} · ${qtyLabel(o.dose.qty, o.med.unit)}`).join('\n'), [
                       { text: 'Cancel', style: 'cancel' },
                       { text: 'Yes, taken', onPress: () => record(open, 'taken', 'manual') },
                     ]);
@@ -288,23 +343,24 @@ export default function Today() {
                   <Section title="Later today" />
                   <Card style={{ paddingVertical: 4 }}>
                     {later.map(([time, list], gi) => (
-                      <Pressable
+                      <View
                         key={time}
-                        accessibilityRole="button"
-                        onPress={() => act(list[0])}
-                        style={{ flexDirection: 'row', gap: 16, paddingVertical: 14, borderBottomWidth: gi === later.length - 1 ? 0 : 1, borderBottomColor: t.line }}
+                        style={{ flexDirection: 'row', gap: 16, paddingVertical: 8, borderBottomWidth: gi === later.length - 1 ? 0 : 1, borderBottomColor: t.line }}
                       >
-                        <Text style={{ color: t.text, fontSize: 18, fontWeight: '600', width: 84 }}>{fmt12(time)}</Text>
-                        <View style={{ flex: 1, gap: 6 }}>
+                        <Text style={{ color: t.text, fontSize: 18, fontWeight: '600', width: 84, paddingTop: 10 }}>{fmt12(time)}</Text>
+                        <View style={{ flex: 1 }}>
+                          {/* Each medicine is its own tap (it used to act on the first one at that time only). */}
                           {list.map((o) => (
-                            <Text key={o.key} style={{ color: t.text, fontSize: 19, fontWeight: '600' }}>
-                              {medLabel(o.med)}
-                              {/* Everyone: say whose it is, so two people's same medicine doesn't look like a repeat. */}
-                              {whose(o) ? <Text style={{ color: t.sub, fontSize: 16, fontWeight: '400' }}>{`  ${whose(o)}`}</Text> : null}
-                            </Text>
+                            <Pressable key={o.key} accessibilityRole="button" accessibilityLabel={`${medLabel(o.med)}${whose(o) ? `, ${whose(o)}` : ''}, ${fmt12(time)}`} onPress={() => act(o)} style={{ minHeight: 44, justifyContent: 'center', paddingVertical: 4 }}>
+                              <Text style={{ color: t.text, fontSize: 19, fontWeight: '600' }}>
+                                {medLabel(o.med)}
+                                {/* Everyone: say whose it is, so two people's same medicine doesn't look like a repeat. */}
+                                {whose(o) ? <Text style={{ color: t.sub, fontSize: 16, fontWeight: '400' }}>{`  ${whose(o)}`}</Text> : null}
+                              </Text>
+                            </Pressable>
                           ))}
                         </View>
-                      </Pressable>
+                      </View>
                     ))}
                   </Card>
                 </>
@@ -348,13 +404,6 @@ export default function Today() {
         </>
       )}
 
-      {/* Other days: quiet, at the bottom. */}
-      {state.meds.length > 0 && (
-        <View style={[s.between, { marginTop: 24, gap: 10 }]}>
-          <Button title="‹ Day before" kind="ghost" onPress={() => setOffset((o) => o - 1)} style={{ flex: 1 }} />
-          <Button title="Day after ›" kind="ghost" onPress={() => setOffset((o) => o + 1)} style={{ flex: 1 }} />
-        </View>
-      )}
 
     </ScrollView>
     {/* Content scrolls under a solid band, so it never runs into the clock and battery. */}

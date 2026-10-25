@@ -63,5 +63,5 @@ test('example reminder uses the real reminder wording', () => {
   const n = read('../src/notifications.ts');
   assert.match(n, /Medicine time · /);
   assert.match(EXAMPLE_REMINDER.title, /^💊 Medicine time · /);
-  for (const a of EXAMPLE_REMINDER.actions) assert.match(n, new RegExp(`buttonTitle: '${a}'`));
+  for (const a of EXAMPLE_REMINDER.actions) assert.ok(n.includes(`'${a}'`), a); // "Scan now" may be "Open" when scanning is off
 });
