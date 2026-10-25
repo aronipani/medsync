@@ -21,18 +21,24 @@ screen, one job per step, `Steps` progress line ("Step 1 of 3"), **Skip for now*
 Skipping lands on Today as now; Today offers **"Finish setting up"** (one line, Today's "needs attention" slot, spec 21)
 until step 3 is done or dismissed.
 
-**Step 0 — Who is it for?** (not counted in the steps)
-"Who will take the medicines?" — two big choices:
-* **Me** → the person is named (one field: "Your name"), wording below says *you*.
-* **Someone in my family** → "Their name"; wording says *they* / the name. Also offers **"+ Another person"** once.
+**Step 0 — Who is it for?** (not counted in the steps; decided 25 Oct 2026, see docs/decisions.md)
+"Who will take the medicines?" — three big choices. **Not a caregiver/user mode**: the answer sets defaults and
+wording only; nothing is locked, and everything stays changeable in Settings → Family.
+* **Me** → "Your name"; wording says *you*; reminders ring on this phone.
+* **Someone in my family, on this phone** (you're setting it up for them) → "Their name"; wording says the name;
+  reminders ring here; setup ends with a **"Hand the phone over"** screen showing them what a reminder and a green
+  scan look like. Offers **"+ Another person"** once.
+* **Someone in my family, on their phone** (you're elsewhere) → "Their name" and **where they live** (time zone,
+  spec 19); this phone doesn't ring for them; setup ends with **"Send their medicines to their phone"** (spec 20).
+  Later: the family circle shows whether they took them (spec 16).
 * Quiet link: **"I have a file from another phone"** → opens person import (spec 20) and skips to step 3.
 
 Replaces the "Me" starter placeholder for new installs (`starterPerson` stays for old installs).
-Saved as `settings.setupFor = 'self' | 'other'`; it only changes words, never features.
+Saved as `settings.setupFor = 'self' | 'here' | 'remote'`; it changes defaults and words, never which features exist.
+Ships in **v1.1** with the rest of the guided setup, not in the first App Store submission.
 
 **Step 1 of 3 — Their day.** "When does {name} usually eat?" Breakfast, lunch, dinner, prefilled with the
-defaults, one tap each to change. Where they live only if *Someone in my family* ("Does {name} live in another
-time zone?" → folded, spec 19). One button: **Next**.
+defaults, one tap each to change. Where they live is already set for *on their phone*; for the other answers it stays folded (spec 19). One button: **Next**.
 
 **Step 2 of 3 — Add one medicine.** The existing add flow (spec 14: *Scan the medicine* big; prescription and typing
 under "Other ways to add"), started from the wizard and returning to it on save. Header line:
