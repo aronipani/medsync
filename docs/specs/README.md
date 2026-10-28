@@ -24,3 +24,4 @@
 | [20](20-share-a-person.md) | Send one person's medicines to another phone (caregiver anywhere) | Built |
 | [21](21-regrouping.md) | One obvious place for everything: Settings as six pages, Privacy & safety page, Medicines · Supplies | Built (Oct 2026) |
 | [22](22-first-setup-and-help.md) | First setup by doing (who it's for, meal times, one medicine, practice scan, colours), first-time tips, How to use TakeSure | Spec; built: How to use TakeSure (Help) with the colour key |
+| [23](23-inhalers-and-breathing.md) | Inhalers and breathing: preventer / reliever, reliever puffs on Today, daily breathing check-in, 4-week summary for the doctor (from Sar's My o2 asthma app) | Draft spec + mockups, for Aroni to decide |
